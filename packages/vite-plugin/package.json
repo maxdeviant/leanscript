@@ -1,0 +1,27 @@
+{
+  "name": "@leanscript/vite-plugin",
+  "version": "0.1.0",
+  "description": "A Vite plugin that compiles Lean with LeanScript",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maxdeviant/leanscript.git",
+    "directory": "packages/vite-plugin"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src"
+  ],
+  "dependencies": {
+    "@leanscript/runtime": "workspace:*"
+  },
+  "peerDependencies": {
+    "vite": ">=6"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

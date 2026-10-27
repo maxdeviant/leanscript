@@ -1,6 +1,6 @@
 // The JS implementations of the externs in `JsValues.lean`.
 
-import { mkString } from "leanscript/runtime";
+import { mkString } from "@leanscript/runtime";
 
 export const makePoint = (x, y) => ({ x, y, rc: 1 });
 

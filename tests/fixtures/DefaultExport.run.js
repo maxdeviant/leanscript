@@ -2,7 +2,7 @@
 
 import { pathToFileURL } from "node:url";
 import { writeBytes } from "#platform/host.js";
-import { checkLeaks, dec, mkString } from "leanscript/runtime";
+import { checkLeaks, dec, mkString } from "@leanscript/runtime";
 
 const { default: greet, twice } = await import(pathToFileURL(process.argv[2]).href);
 

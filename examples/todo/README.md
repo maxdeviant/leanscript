@@ -8,11 +8,9 @@ The app is a Lake package, which requires LeanScript for its `Js` library:
 - `Todo/View.lean` renders the state with the DOM bindings in `Js.Dom`.
 - `App.lean` is the entry point, which handles the page's events. It handles the clicks on every item with one listener on the list.
 
-`index.html` loads `App.lean` directly, as `<script type="module" src="./App.lean">`. The LeanScript Vite plugin, which `vite.config.js` adds, compiles it for the browser, and the compiler builds the modules it imports with Lake.
+`index.html` loads `App.lean` directly, as `<script type="module" src="./App.lean">`. `@leanscript/vite-plugin`, which `vite.config.js` adds, compiles it for the browser, with the LeanScript compiler that Lake builds from this repository. The compiler builds the modules that `App.lean` imports with Lake.
 
 ## Running
-
-Build LeanScript first, by running `lake build` in the repository root. Then:
 
 ```sh
 pnpm install

@@ -2,7 +2,7 @@
 
 import { execFileSync } from "node:child_process";
 
-const runtimeUrl = new URL("../src/runtime/index.js", import.meta.url).href;
+const runtimeUrl = new URL("../packages/runtime/src/index.js", import.meta.url).href;
 
 /**
  * Returns the sorted names of the externs that the runtime implements when it is loaded under the

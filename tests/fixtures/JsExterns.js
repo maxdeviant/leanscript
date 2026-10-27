@@ -1,6 +1,6 @@
 // The JS implementations of the externs in `JsExterns.lean`.
 
-import { dec, ioOk, mkString } from "leanscript/runtime";
+import { dec, ioOk, mkString } from "@leanscript/runtime";
 
 export const double = (n) => n * 2;
 

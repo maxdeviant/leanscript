@@ -1,25 +1,24 @@
 {
-  "name": "leanscript",
+  "name": "leanscript-workspace",
   "private": true,
   "type": "module",
-  "exports": {
-    "./runtime": "./src/runtime/index.js",
-    "./vite": "./src/vite/plugin.js"
-  },
   "imports": {
     "#platform/*": {
-      "browser": "./src/runtime/platform/browser/*",
-      "node": "./src/runtime/platform/node/*",
-      "default": "./src/runtime/platform/browser/*"
+      "browser": "./packages/runtime/src/platform/browser/*",
+      "node": "./packages/runtime/src/platform/node/*",
+      "default": "./packages/runtime/src/platform/browser/*"
     }
   },
   "scripts": {
-    "format": "prettier --write src/runtime src/vite scripts tests",
-    "format:check": "prettier --check src/runtime src/vite scripts tests",
-    "lint": "oxlint src/runtime src/vite scripts tests",
-    "lint:fix": "oxlint --fix src/runtime src/vite scripts tests && prettier --write src/runtime src/vite scripts tests",
+    "format": "prettier --write packages scripts tests examples/*/vite.config.js",
+    "format:check": "prettier --check packages scripts tests examples/*/vite.config.js",
+    "lint": "oxlint packages scripts tests examples/*/vite.config.js",
+    "lint:fix": "oxlint --fix packages scripts tests examples/*/vite.config.js && prettier --write packages scripts tests examples/*/vite.config.js",
     "test": "node scripts/gen-target-externs.js --check && node tests/run.js",
     "gen-externs": "node scripts/gen-target-externs.js"
+  },
+  "dependencies": {
+    "@leanscript/runtime": "workspace:*"
   },
   "devDependencies": {
     "jsdom": "^30.1.3",

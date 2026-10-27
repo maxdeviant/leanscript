@@ -1,0 +1,28 @@
+{
+  "name": "@leanscript/runtime",
+  "version": "0.1.0",
+  "description": "The JavaScript runtime for programs compiled with LeanScript",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maxdeviant/leanscript.git",
+    "directory": "packages/runtime"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "imports": {
+    "#platform/*": {
+      "browser": "./src/platform/browser/*",
+      "node": "./src/platform/node/*",
+      "default": "./src/platform/browser/*"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

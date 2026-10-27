@@ -40,7 +40,7 @@ import { pathToFileURL } from "node:url";
 
 const root = join(import.meta.dirname, "..");
 const fixtures = join(root, "tests", "fixtures");
-// Compiled output must live inside this package so that `leanscript/runtime` resolves.
+// Compiled output must live inside this package so that `@leanscript/runtime` resolves.
 const outDir = join(root, ".lake", "build", "tests");
 const nativeDir = join(outDir, "native");
 const workDir = join(outDir, "work");

@@ -6,7 +6,7 @@ import LeanScript.Target
 /-!
 Emits a JavaScript module from Lean IR.
 
-Value representation (see `src/runtime/index.js` for the runtime side):
+Value representation (see `packages/runtime/src/index.js` for the runtime side):
 
 - Scalars (`u8`, `u16`, `u32`, `usize`, `float`, `float32`) are JS numbers; `u64` is a `BigInt`.
 - Boxing and unboxing are the identity.
@@ -316,7 +316,7 @@ def emitDecl (decl : Decl) : EmitM Unit := do
 /-- Options controlling JS output. -/
 structure EmitOptions where
   /-- The module specifier used to import the LeanScript runtime. -/
-  runtime : String := "leanscript/runtime"
+  runtime : String := "@leanscript/runtime"
   /-- The platform that the program runs on. -/
   target : Target := .node
   /--
