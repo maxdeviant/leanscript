@@ -20,7 +20,7 @@ def dumpIr (path : System.FilePath) : IO UInt32 := do
 
 def listExterns (path : System.FilePath) : IO UInt32 := do
   let env ← elabFile path (moduleNameFor path)
-  match collectReachable env #[`main, `IO.Error.toString] with
+  match programRoots env >>= (collectReachable env ·.names) with
   | .error err =>
     IO.eprintln s!"error: {err}"
     return 1

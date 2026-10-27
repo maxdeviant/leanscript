@@ -17,8 +17,12 @@
 // module's initializers), and the `.browser-error` files by compiling each program for the browser
 // target.
 //
-// A program with an adjacent `.js` file implements externs in JS, so it cannot run natively. Its
-// `.expected` and `.exitcode` files are written by hand, and `--bless` leaves them alone.
+// A library, which has no `main` function, is run by the adjacent `.run.js` driver instead, which is
+// given the path of the compiled library.
+//
+// A program with an adjacent `.js` file, which implements externs in JS, or a library cannot run
+// natively. Its `.expected` and `.exitcode` files are written by hand, and `--bless` leaves them
+// alone.
 //
 // Usage: node tests/run.js [--bless] [name...]
 
@@ -57,6 +61,8 @@ for (const name of names) {
   const stdinFile = join(fixtures, `${name}.stdin`);
   const browserErrorFile = join(fixtures, `${name}.browser-error`);
   const browserOutput = join(outDir, `${name}.browser.mjs`);
+  const driverFile = join(fixtures, `${name}.run.js`);
+  const driver = existsSync(driverFile) ? [driverFile] : [];
   const compileBrowser = () =>
     spawnSync(compiler, ["compile", input, "-o", browserOutput, "--target", "browser"], {
       encoding: "utf8",
@@ -74,8 +80,8 @@ for (const name of names) {
   };
 
   if (bless) {
-    if (existsSync(join(fixtures, `${name}.js`))) {
-      console.log(`skipping native run of ${name}, which has JS externs`);
+    if (existsSync(join(fixtures, `${name}.js`)) || driver.length > 0) {
+      console.log(`skipping native run of ${name}, which cannot run natively`);
     } else {
       const nativeExe = join(nativeDir, name);
       execFileSync("lean", ["-c", `${nativeExe}.c`, input], { stdio: "inherit" });
@@ -108,7 +114,7 @@ for (const name of names) {
 
   const expected = existsSync(expectedFile) ? readFileSync(expectedFile, "utf8") : "";
   const expectedStatus = existsSync(exitCodeFile) ? Number(readFileSync(exitCodeFile, "utf8")) : 0;
-  const run = spawnSync(process.execPath, [output, ...programArgs], {
+  const run = spawnSync(process.execPath, [...driver, output, ...programArgs], {
     ...runOptions,
     env: { ...process.env, LEANSCRIPT_DEBUG_RC: "1" },
   });
@@ -143,6 +149,7 @@ for (const name of names) {
       "--stack-size=4000",
       "--conditions=browser",
       "--import=data:text/javascript,globalThis.LEANSCRIPT_DEBUG_RC=true",
+      ...driver,
       browserOutput,
       ...programArgs,
     ],

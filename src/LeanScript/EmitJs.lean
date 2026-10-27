@@ -342,6 +342,98 @@ def resolveJsExtern (env : Environment) (opts : EmitOptions) (n : Name) (ext : J
       pure (.import (resolveSpecifier opts.sourceDir specifier) name)
   | .inline _ => pure ext
 
+/--
+Returns whether the function `n` returns an `EST.Out`, as `IO` and `EIO` actions do, rather than
+its value directly, as pure functions and `BaseIO` and `ST` actions do.
+-/
+def returnsEstOut (env : Environment) (n : Name) : Bool := Id.run do
+  let some info := env.find? n | return false
+  let mut ty := info.type.getForallBody
+  -- Unfold definitions such as `IO` until we reach `EST` or `ST`, bounding the number of steps in
+  -- case of a definition that unfolds forever.
+  for _ in [0:64] do
+    let .const c us := ty.getAppFn | return false
+    if c == ``EST then
+      return true
+    if c == ``ST then
+      return false
+    let some (.defnInfo d) := env.find? c | return false
+    ty := (d.value.instantiateLevelParams d.levelParams us).beta ty.getAppArgs
+  return false
+
+/--
+The declarations of the main module that are exported to JS with `@[export]`, with their export
+names, in declaration order.
+-/
+def jsExports (env : Environment) : Except String (Array (Name × String)) := do
+  let mut result := #[]
+  let mut seen : Std.HashMap String Name := {}
+  for decl in (getDecls env).reverse do
+    let some exportName := getExportNameFor? env decl.name | continue
+    let exportName := exportName.toString
+    if let some other := seen[exportName]? then
+      throw s!"'{other}' and '{decl.name}' are both exported as '{exportName}'"
+    seen := seen.insert exportName decl.name
+    result := result.push (decl.name, exportName)
+  return result
+
+/--
+Emits the export `exportName` of the main module's declaration `decl`.
+
+An exported function takes the arguments of a JS extern with the same signature. Lean does not
+allow exported functions to borrow their parameters, so it takes ownership of them. An `IO` or `EIO` action returns its value or throws its error. A constant is
+exported as its value.
+-/
+def emitJsExport (decl : Decl) (exportName : String) : EmitM Unit := do
+  let env := (← read).env
+  let name := s!"$export_{toJsName decl.name}"
+  if decl.params.isEmpty then
+    emitLn s!"const {name} = {toJsName decl.name}();"
+  else
+    let jsParams := decl.params.filter isJsArg
+    let args := decl.params.map fun p => if isJsArg p then varName p.x else "0"
+    emitLn s!"function {name}({", ".intercalate (jsParams.map (varName ·.x)).toList}) \{"
+    withIndent do
+      let call := s!"{toJsName decl.name}({", ".intercalate args.toList})"
+      if returnsEstOut env decl.name then
+        emitLn s!"return $rt.takeIoResult({call}, {toJsName `IO.Error.toString});"
+      else
+        emitLn s!"return {call};"
+    emitLn "}"
+  emitLn s!"export \{ {name} as {quoteJs exportName} };"
+
+/-- The roots of a program: its entry points, and the declarations that the runtime uses. -/
+structure Roots where
+  /-- The `main` function, if the program is not a library. -/
+  main? : Option Decl
+  /-- The declarations exported to JS, with their export names, if the program is a library. -/
+  exports : Array (Name × String)
+  /-- The declarations that are initialized at startup, in order. -/
+  inits : Array Name
+
+/--
+Returns the roots of the program in `env`. A program either has a `main` function, which runs when
+it is loaded, or is a library that exports declarations of its main module to JS with `@[export]`.
+-/
+def programRoots (env : Environment) : Except String Roots := do
+  let main? := findEnvDecl env `main
+  let exports ← jsExports env
+  if main?.isSome && !exports.isEmpty then
+    throw "a program with a `main` function cannot export declarations to JS"
+  if main?.isNone && exports.isEmpty then
+    throw "no `main` function or `@[export]` declarations found"
+  return { main?, exports, inits := initDecls env }
+
+/--
+The names of the declarations that `roots` makes reachable directly. The runtime uses
+`IO.Error.toString` to report uncaught errors.
+-/
+def Roots.names (roots : Roots) : Array Name :=
+  -- As in native Lean, every initializer runs, even for an `[init]` declaration that is never read,
+  -- as it may have side effects or fail.
+  (if roots.main?.isSome then #[`main] else roots.exports.map (·.1)) ++ #[`IO.Error.toString] ++
+    roots.inits
+
 /-- A JS program. -/
 structure EmitOutput where
   js : String
@@ -353,17 +445,16 @@ structure EmitOutput where
   unavailable : Array (Array Name)
 
 /--
-Emits a JS program that runs `main`, containing every declaration reachable from it.
+Emits a JS module for the program in `env`, containing every declaration reachable from its roots
+(see `programRoots`). The module runs `main` when it is loaded, or, for a library, runs the
+initializers and exports the library's declarations.
 
-`env` must contain IR for `main` and everything it depends on.
+`env` must contain IR for the roots and everything they depend on.
 -/
 def emitProgram (env : Environment) (opts : EmitOptions := {}) : Except String EmitOutput := do
-  let some mainDecl := findEnvDecl env `main | throw "no `main` function found"
-  let inits := initDecls env
-  -- As in native Lean, every initializer runs, even for an `[init]` declaration that is never read,
-  -- as it may have side effects or fail. The runtime uses `IO.Error.toString` to report uncaught
-  -- errors.
-  let roots := #[`main, `IO.Error.toString] ++ inits
+  let programRoots ← programRoots env
+  let inits := programRoots.inits
+  let roots := programRoots.names
   let program ← collectReachable env roots
   let { decls, aliases } := program
   let mut jsExterns : Std.HashMap Name JsExtern := {}
@@ -414,7 +505,15 @@ def emitProgram (env : Environment) (opts : EmitOptions := {}) : Except String E
         | some initFn => emitLn s!"[{toJsName initFn}, {toJsName n}],"
         | none => emitLn s!"[{toJsName n}],"
     emitLn "];"
-    emitLn s!"$rt.runMain(import.meta.url, $inits, {toJsName `main}, {mainDecl.params.size}, {toJsName `IO.Error.toString});"
+    let errorToString := toJsName `IO.Error.toString
+    match programRoots.main? with
+    | some mainDecl =>
+      emitLn s!"$rt.runMain(import.meta.url, $inits, {toJsName `main}, {mainDecl.params.size}, {errorToString});"
+    | none =>
+      emitLn s!"$rt.initModule($inits, {errorToString});"
+      for (n, exportName) in programRoots.exports do
+        emitLn ""
+        emitJsExport (← getDecl n) exportName
   let ((), st) ← go.run ctx |>.run {}
   return {
     js := st.out

@@ -43,6 +43,7 @@ import {
 
 export {
   apply,
+  checkLeaks,
   Ctor,
   dec,
   del,
@@ -130,7 +131,10 @@ export function runMain(moduleUrl, inits, main, arity, errorToString) {
  */
 function runProgram(inits, main, arity, errorToString) {
   try {
-    if (runInits(inits, errorToString)) {
+    const failure = runInits(inits);
+    if (failure !== undefined) {
+      reportError(failure, errorToString);
+    } else {
       const r = arity === 2 ? main(arrayToList(commandLineArgs().map(mkString)), 0) : main(0);
       if (r.tag === 0) {
         const value = r.f[0];
@@ -153,15 +157,42 @@ function runProgram(inits, main, arity, errorToString) {
   flushOutput(2);
 }
 
-/** Runs `inits`, returning whether they all succeeded. */
-function runInits(inits, errorToString) {
+/**
+ * Runs the initializers of a library module, as `runProgram` does, throwing an uncaught error from
+ * one of them as a JS `Error`, with the message from `errorToString`.
+ */
+export function initModule(inits, errorToString) {
+  const failure = runInits(inits);
+  if (failure !== undefined) {
+    takeIoResult(failure, errorToString);
+  }
+}
+
+/**
+ * Takes ownership of the `IO` result `r`, and returns its value, or throws its error as a JS
+ * `Error`, with the message from `errorToString`.
+ */
+export function takeIoResult(r, errorToString) {
+  const { tag } = r;
+  const value = r.f[0];
+  del(r);
+  if (tag === 0) {
+    return value;
+  }
+  const msg = errorToString(value);
+  const text = msg.toString();
+  dec(msg);
+  throw new Error(text);
+}
+
+/** Runs `inits`, stopping at and returning the first failed `IO` result, if any. */
+function runInits(inits) {
   setInitializing(true);
   try {
     for (const [init, cell] of inits) {
       const r = init(0);
       if (r.tag !== 0) {
-        reportError(r, errorToString);
-        return false;
+        return r;
       }
       if (cell === undefined) {
         dec(r);
@@ -170,7 +201,7 @@ function runInits(inits, errorToString) {
         del(r);
       }
     }
-    return true;
+    return undefined;
   } finally {
     setInitializing(false);
   }
