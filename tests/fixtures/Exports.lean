@@ -56,3 +56,12 @@ def failLater (msg : JsValue) : BaseIO JsValue :=
   JsValue.ofAsync (α := Unit) do
     let msg ← JsValue.await msg
     throw (IO.userError (msg.toString?.getD "?"))
+
+/-- Properties of the default export, which is an object, as for a Cloudflare Worker's handlers. -/
+@[export default.double]
+def double (n : Nat) : Nat :=
+  2 * n
+
+@[export default.shout]
+def shout (s : String) : String :=
+  s.toUpper

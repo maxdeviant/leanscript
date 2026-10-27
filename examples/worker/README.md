@@ -2,7 +2,7 @@
 
 A minimal [Cloudflare Worker](https://developers.cloudflare.com/workers/) written in Lean. It greets `GET` requests, and echoes the body of `POST` requests.
 
-The Lean module, `Worker.lean`, compiles to a library that exports the Worker's `fetch` handler, and `index.js` wraps it in the default export that Workers expect.
+The Lean module, `Worker.lean`, compiles to a library whose default export is an object with the Worker's `fetch` handler, as Workers expect: `@[export default.fetch]` makes `fetch` a property of the default export.
 
 ## Running
 

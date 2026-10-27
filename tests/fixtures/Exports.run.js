@@ -38,4 +38,7 @@ try {
 } catch (e) {
   print(`caught: ${e.message}`);
 }
+print(Object.keys(lib.default).join(", "));
+print(lib.default.double(21));
+printString(lib.default.shout(mkString("quiet")));
 checkLeaks();

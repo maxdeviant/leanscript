@@ -12,6 +12,6 @@ def handle (req : Request) : Async Response := do
   Response.new body { headers := #[("Content-Type", "text/plain; charset=utf-8")] }
 
 /-- The Worker's `fetch` handler. -/
-@[export fetch]
+@[export default.fetch]
 def fetch (req : Request) (_env _ctx : JsValue) : BaseIO JsValue :=
   JsValue.ofAsync (handle req)

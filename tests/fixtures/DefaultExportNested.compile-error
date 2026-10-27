@@ -1,0 +1,1 @@
+error: 'double' is exported as 'default.math.double', but only 'default' and 'default.<name>' may start with 'default'

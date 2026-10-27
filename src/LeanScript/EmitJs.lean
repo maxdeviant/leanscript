@@ -361,32 +361,58 @@ def returnsEstOut (env : Environment) (n : Name) : Bool := Id.run do
     ty := (d.value.instantiateLevelParams d.levelParams us).beta ty.getAppArgs
   return false
 
+/-- Where a declaration is exported to in JS. -/
+inductive JsExport where
+  /-- The named export `name`, from `@[export name]`. -/
+  | named (name : String)
+  /-- The default export, from `@[export default]`. -/
+  | default
+  /-- The property `name` of the default export, an object, from `@[export default.name]`. -/
+  | defaultProperty (name : String)
+
+/-- Returns where the export name `n` exports a declaration to, or `none` if `n` is invalid. -/
+def JsExport.ofName? (n : Name) : Option JsExport :=
+  match n with
+  | .str .anonymous "default" => some .default
+  | .str (.str .anonymous "default") name => some (.defaultProperty name)
+  | n => if n.getRoot == `default then none else some (.named n.toString)
+
 /--
-The declarations of the main module that are exported to JS with `@[export]`, with their export
-names, in declaration order.
+The declarations of the main module that are exported to JS with `@[export]`, with where they are
+exported to, in declaration order.
 -/
-def jsExports (env : Environment) : Except String (Array (Name × String)) := do
+def jsExports (env : Environment) : Except String (Array (Name × JsExport)) := do
   let mut result := #[]
-  let mut seen : Std.HashMap String Name := {}
+  let mut seen : Std.HashMap Name Name := {}
+  let mut default? : Option Name := none
+  let mut defaultProperty? : Option (Name × Name) := none
   for decl in (getDecls env).reverse do
     let some exportName := getExportNameFor? env decl.name | continue
-    let exportName := exportName.toString
+    let some target := JsExport.ofName? exportName
+      | throw s!"'{decl.name}' is exported as '{exportName}', but only 'default' and \
+          'default.<name>' may start with 'default'"
     if let some other := seen[exportName]? then
       throw s!"'{other}' and '{decl.name}' are both exported as '{exportName}'"
     seen := seen.insert exportName decl.name
-    result := result.push (decl.name, exportName)
+    match target with
+    | .default => default? := some decl.name
+    | .defaultProperty _ => defaultProperty? := defaultProperty? <|> some (decl.name, exportName)
+    | .named _ => pure ()
+    result := result.push (decl.name, target)
+  if let (some d, some (p, pName)) := (default?, defaultProperty?) then
+    throw s!"'{d}' is exported as 'default', so '{p}' cannot be exported as '{pName}'"
   return result
 
 /--
-Emits the export `exportName` of the main module's declaration `decl`, as a function that first
-initializes the module, if it has not been initialized yet.
+Emits a function that exports the main module's declaration `decl` to JS, and returns its name. The
+function first initializes the module, if it has not been initialized yet.
 
 The function takes the arguments of a JS extern with the same signature. Lean does not allow
 exported functions to borrow their parameters, so it takes ownership of them. An `IO` or `EIO`
 action returns its value or throws its error. A constant is exported as a function with no
 parameters that returns its value.
 -/
-def emitJsExport (decl : Decl) (exportName : String) : EmitM Unit := do
+def emitJsExport (decl : Decl) : EmitM String := do
   let env := (← read).env
   let name := s!"$export_{toJsName decl.name}"
   let jsParams := decl.params.filter isJsArg
@@ -400,14 +426,14 @@ def emitJsExport (decl : Decl) (exportName : String) : EmitM Unit := do
     else
       emitLn s!"return {call};"
   emitLn "}"
-  emitLn s!"export \{ {name} as {quoteJs exportName} };"
+  return name
 
 /-- The roots of a program: its entry points, and the declarations that the runtime uses. -/
 structure Roots where
   /-- The `main` function, if the program is not a library. -/
   main? : Option Decl
-  /-- The declarations exported to JS, with their export names, if the program is a library. -/
-  exports : Array (Name × String)
+  /-- The declarations exported to JS and where they are exported to, if the program is a library. -/
+  exports : Array (Name × JsExport)
   /-- The declarations that are initialized at startup, in order. -/
   inits : Array Name
 
@@ -513,9 +539,21 @@ def emitProgram (env : Environment) (opts : EmitOptions := {}) : Except String E
       -- Initializing when the module is loaded would run the initializers in the global scope,
       -- where some hosts, such as Cloudflare Workers, disallow I/O.
       emitLn s!"const $init = $rt.initModuleOnce($inits, {errorToString});"
-      for (n, exportName) in programRoots.exports do
+      let mut defaultProperties := #[]
+      for (n, target) in programRoots.exports do
         emitLn ""
-        emitJsExport (← getDecl n) exportName
+        let name ← emitJsExport (← getDecl n)
+        match target with
+        | .named exportName => emitLn s!"export \{ {name} as {quoteJs exportName} };"
+        | .default => emitLn s!"export default {name};"
+        | .defaultProperty prop => defaultProperties := defaultProperties.push (prop, name)
+      unless defaultProperties.isEmpty do
+        emitLn ""
+        emitLn "export default {"
+        withIndent do
+          for (prop, name) in defaultProperties do
+            emitLn s!"{quoteJs prop}: {name},"
+        emitLn "};"
   let ((), st) ← go.run ctx |>.run {}
   return {
     js := st.out

@@ -1,0 +1,1 @@
+error: 'greet' is exported as 'default', so 'twice' cannot be exported as 'default.twice'
