@@ -44,4 +44,17 @@ def collectReachable (env : Environment) (roots : Array Name) : Except String (A
       stack := collectBodyFns body stack
   return result
 
+/--
+Returns the declarations that native Lean initializes at startup, in the order it initializes them:
+the `IO Unit` initializers and the `[init]` declarations of every imported module in import order,
+followed by those of the current module, each in declaration order.
+-/
+def initDecls (env : Environment) : Array Name := Id.run do
+  let isInit (n : Name) :=
+    isIOUnitInitFn env n || isIOUnitBuiltinInitFn env n || (getInitFnNameFor? env n).isSome
+  let mut result := #[]
+  for md in env.header.moduleData do
+    result := result ++ md.constNames.filter isInit
+  return result ++ ((getDecls env).reverse.map (·.name)).filter isInit
+
 end LeanScript

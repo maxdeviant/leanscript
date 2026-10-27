@@ -2,18 +2,20 @@
 // and exit code against the adjacent `.expected` and `.exitcode` files. A missing `.exitcode` file
 // means the exit code must be 0.
 //
-// With `--bless`, instead regenerates those files by running each program with native Lean.
+// With `--bless`, instead regenerates those files by compiling each program with native Lean and
+// running it. (`lean --run` is not used because it skips the main module's initializers.)
 //
 // Usage: node tests/run.js [--bless] [name...]
 
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = join(import.meta.dirname, "..");
 const fixtures = join(root, "tests", "fixtures");
 // Compiled output must live inside this package so that `leanscript/runtime` resolves.
 const outDir = join(root, ".lake", "build", "tests");
+const nativeDir = join(outDir, "native");
 const compiler = join(root, ".lake", "build", "bin", "leanscript");
 
 const args = process.argv.slice(2);
@@ -25,6 +27,10 @@ const names = readdirSync(fixtures)
   .filter((name) => only.length === 0 || only.includes(name))
   .sort();
 
+if (bless) {
+  mkdirSync(nativeDir, { recursive: true });
+}
+
 let failures = 0;
 for (const name of names) {
   const input = join(fixtures, `${name}.lean`);
@@ -33,7 +39,10 @@ for (const name of names) {
   const exitCodeFile = join(fixtures, `${name}.exitcode`);
 
   if (bless) {
-    const native = spawnSync("lean", ["--run", input], { encoding: "utf8" });
+    const nativeExe = join(nativeDir, name);
+    execFileSync("lean", ["-c", `${nativeExe}.c`, input], { stdio: "inherit" });
+    execFileSync("leanc", ["-o", nativeExe, `${nativeExe}.c`], { stdio: "inherit" });
+    const native = spawnSync(nativeExe, { encoding: "utf8" });
     writeFileSync(expectedFile, native.stdout);
     if (native.status === 0) {
       rmSync(exitCodeFile, { force: true });

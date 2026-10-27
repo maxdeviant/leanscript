@@ -21,6 +21,7 @@ export {
   del,
   inc,
   incN,
+  initCell,
   isShared,
   lazy,
   pap,
@@ -60,29 +61,36 @@ export function resolveExterns(names) {
   return externs;
 }
 
-/** Runs the `IO` action `init` and returns its result, throwing if it fails. */
-export function runInit(init) {
-  const r = init(0);
-  if (r.tag !== 0) {
-    throw new Error("LeanScript: initialization failed");
-  }
-  return r.f[0];
-}
-
 /**
- * Runs the Lean `main` function, which takes `arity` arguments: either just the world token, or the
- * command line arguments followed by the world token.
+ * Runs the initializers in `inits`, then the Lean `main` function, which takes `arity` arguments:
+ * either just the world token, or the command line arguments followed by the world token.
  *
- * Sets the exit code from the result, reporting an uncaught error with `errorToString`.
+ * Each initializer is an `IO` action, paired with the getter of the `[init]` declaration it
+ * initializes, if any. Sets the exit code from the result, reporting an uncaught error from an
+ * initializer or `main` with `errorToString`.
  */
-export function runMain(main, arity, errorToString) {
+export function runMain(inits, main, arity, errorToString) {
+  for (const [init, cell] of inits) {
+    const r = init(0);
+    if (r.tag !== 0) {
+      reportError(r.f[0], errorToString);
+      return;
+    }
+    if (cell !== undefined) {
+      cell.set(r.f[0]);
+    }
+  }
   const r = arity === 2 ? main(arrayToList(commandLineArgs().map(mkString)), 0) : main(0);
   if (r.tag === 0) {
     const value = r.f[0];
     // `IO Unit` returns `()`, which is boxed as 0, and `IO UInt32` returns the exit code.
     setExitCode(typeof value === "number" ? value : 0);
   } else {
-    writeStderr(`uncaught exception: ${errorToString(r.f[0])}\n`);
-    setExitCode(1);
+    reportError(r.f[0], errorToString);
   }
+}
+
+function reportError(error, errorToString) {
+  writeStderr(`uncaught exception: ${errorToString(error)}\n`);
+  setExitCode(1);
 }

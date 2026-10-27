@@ -275,3 +275,23 @@ export function listToArray(list) {
   }
   return xs;
 }
+
+/**
+ * Returns a function that reads the value of an `[init]` declaration, which must first be set with
+ * its `set` method. The value is marked persistent.
+ */
+export function initCell() {
+  let initialized = false;
+  let value;
+  const get = () => {
+    if (!initialized) {
+      throw new Error("LeanScript: `[init]` declaration read before initialization");
+    }
+    return value;
+  };
+  get.set = (v) => {
+    value = markPersistent(v);
+    initialized = true;
+  };
+  return get;
+}
