@@ -1,0 +1,303 @@
+// File handles, standard streams, and file system operations.
+
+import { Ctor, dec, inc, markPersistent, pap, track } from "./core.js";
+import { mkArray } from "./array.js";
+import { LeanByteArray } from "./bytearray.js";
+import { attempt, ioOk } from "./io.js";
+import { normalize } from "./nat.js";
+import {
+  closeFile,
+  currentDir,
+  fileMetadata,
+  hardLink,
+  isRegularFile,
+  isTty,
+  makeDir,
+  openFile,
+  readDirNames,
+  readInto,
+  realPath,
+  removeDir,
+  removeFile,
+  renamePath,
+  truncateFile,
+  writeBytes,
+} from "./platform.js";
+import { mkString } from "./string.js";
+
+const EMPTY = new Uint8Array(0);
+
+/** The number of bytes `getLine` reads at a time. */
+const LINE_CHUNK_SIZE = 4096;
+
+/**
+ * An open file, `IO.FS.Handle`. Writes are unbuffered, so flushing does nothing, but `getLine` may
+ * read past the end of the line, so reads first consume the bytes it left over.
+ *
+ * The file is closed when the handle is freed.
+ */
+class Handle {
+  /**
+   * @param {number} fd
+   * @param {boolean} seekable Whether the file supports positioned reads and writes, in which case
+   *   the handle tracks its own position so that it can be rewound.
+   */
+  constructor(fd, seekable) {
+    this.rc = 1;
+    this.fd = fd;
+    /** The file offset of the next read or write, or `null` to use the current file offset. */
+    this.pos = seekable ? 0 : null;
+    /** Bytes read past the logical position of the handle, which the next read returns first. */
+    this.pending = EMPTY;
+    track(this);
+  }
+
+  describe() {
+    return `handle for file descriptor ${this.fd}`;
+  }
+
+  finalize() {
+    closeFile(this.fd);
+  }
+
+  /** Reads from the file into `buffer` at `offset`, returning the number of bytes read. */
+  readFile(buffer, offset, length) {
+    const n = readInto(this.fd, buffer, offset, length, this.pos);
+    if (this.pos !== null) {
+      this.pos += n;
+    }
+    return n;
+  }
+
+  /** Reads `n` bytes, or fewer at the end of the file. */
+  read(n) {
+    let bytes = new Uint8Array(Math.min(n, Math.max(this.pending.length, LINE_CHUNK_SIZE)));
+    let size = Math.min(n, this.pending.length);
+    bytes.set(this.pending.subarray(0, size));
+    this.pending = this.pending.subarray(size);
+    while (size < n) {
+      if (size === bytes.length) {
+        const grown = new Uint8Array(Math.min(n, 2 * bytes.length));
+        grown.set(bytes);
+        bytes = grown;
+      }
+      const read = this.readFile(bytes, size, bytes.length - size);
+      if (read === 0) {
+        break;
+      }
+      size += read;
+    }
+    return new LeanByteArray(bytes, size);
+  }
+
+  /** Reads up to and including the next newline, or to the end of the file. */
+  getLine() {
+    let searchFrom = 0;
+    for (;;) {
+      const end = this.pending.indexOf(10, searchFrom);
+      if (end !== -1) {
+        const line = this.pending.subarray(0, end + 1);
+        this.pending = this.pending.subarray(end + 1);
+        return line;
+      }
+      searchFrom = this.pending.length;
+      const buffer = new Uint8Array(this.pending.length + LINE_CHUNK_SIZE);
+      buffer.set(this.pending);
+      const read = this.readFile(buffer, this.pending.length, LINE_CHUNK_SIZE);
+      if (read === 0) {
+        const line = this.pending;
+        this.pending = EMPTY;
+        return line;
+      }
+      this.pending = buffer.subarray(0, this.pending.length + read);
+    }
+  }
+
+  /** Discards any bytes read ahead, so that the file position is the logical one. */
+  discardPending() {
+    if (this.pos !== null) {
+      this.pos -= this.pending.length;
+    }
+    this.pending = EMPTY;
+  }
+
+  write(bytes) {
+    this.discardPending();
+    writeBytes(this.fd, bytes, this.pos);
+    if (this.pos !== null) {
+      this.pos += bytes.length;
+    }
+  }
+
+  rewind() {
+    if (this.pos !== null) {
+      this.pos = 0;
+      this.pending = EMPTY;
+    }
+  }
+
+  /** Truncates the file at the current position. */
+  truncate() {
+    this.discardPending();
+    truncateFile(this.fd, this.pos ?? 0);
+  }
+}
+
+const decoder = new TextDecoder();
+
+/** Decodes the UTF-8 in `bytes`, replacing invalid sequences with U+FFFD. */
+const decodeLossy = (bytes) => mkString(decoder.decode(bytes));
+
+/** The `fopen` mode of each `IO.FS.Mode`. */
+const openFlags = ["r", "w", "wx", "r+", "a"];
+
+/** The `IO.FS.FileType` of each file type reported by the platform. */
+const fileTypes = { dir: 0, file: 1, symlink: 2, other: 3 };
+
+const NANOS_PER_SECOND = 1000000000n;
+
+/** Returns an `IO.FS.SystemTime` for a time given in nanoseconds since the epoch. */
+function systemTime(ns) {
+  let sec = ns / NANOS_PER_SECOND;
+  let nsec = ns % NANOS_PER_SECOND;
+  if (nsec < 0n) {
+    sec -= 1n;
+    nsec += NANOS_PER_SECOND;
+  }
+  return new Ctor(0, [normalize(sec)], { 8: Number(nsec) });
+}
+
+/** Returns an `IO.FS.Metadata` for the file at the borrowed path `p`, as an `EST.Out`. */
+function metadata(p, follow) {
+  return attempt(p, () => {
+    const m = fileMetadata(p.toString(), follow);
+    return new Ctor(0, [systemTime(m.accessedNs), systemTime(m.modifiedNs)], {
+      16: m.size,
+      24: m.numLinks,
+      32: fileTypes[m.type],
+    });
+  });
+}
+
+/**
+ * Returns an `IO.FS.Stream` backed by the persistent handle `h`, like `IO.FS.Stream.ofHandle`.
+ *
+ * Each field is a closure, which takes ownership of its arguments.
+ */
+function mkStream(h) {
+  const stream = new Ctor(
+    0,
+    [
+      // flush : IO Unit
+      pap((_w) => ioOk(0), 1, []),
+      // read : USize → IO ByteArray
+      pap((n, _w) => attempt(undefined, () => h.read(n)), 2, []),
+      // write : ByteArray → IO Unit
+      pap(
+        (b, _w) => {
+          const r = attempt(undefined, () => h.write(b.bytes.subarray(0, b.size)));
+          dec(b);
+          return r;
+        },
+        2,
+        [],
+      ),
+      // getLine : IO String
+      pap((_w) => attempt(undefined, () => decodeLossy(h.getLine())), 1, []),
+      // putStr : String → IO Unit
+      pap(
+        (s, _w) => {
+          const r = attempt(undefined, () => h.write(s.bytes.subarray(0, s.size)));
+          dec(s);
+          return r;
+        },
+        2,
+        [],
+      ),
+      // isTty : BaseIO Bool. `BaseIO` results are not wrapped in `EST.Out`.
+      pap((_w) => (isTty(h.fd) ? 1 : 0), 1, []),
+    ],
+    null,
+  );
+  return markPersistent(stream);
+}
+
+const stdHandle = (fd) => markPersistent(new Handle(fd, false));
+
+let stdin = mkStream(stdHandle(0));
+let stdout = mkStream(stdHandle(1));
+let stderr = mkStream(stdHandle(2));
+
+export const externs = {
+  // These are `BaseIO` actions, so their results are not wrapped in `EST.Out`.
+  "IO.getStdin": (_w) => {
+    inc(stdin);
+    return stdin;
+  },
+  "IO.getStdout": (_w) => {
+    inc(stdout);
+    return stdout;
+  },
+  "IO.getStderr": (_w) => {
+    inc(stderr);
+    return stderr;
+  },
+  // The old stream's reference moves from the global to the caller.
+  "IO.setStdin": (s, _w) => {
+    const old = stdin;
+    stdin = s;
+    return old;
+  },
+  "IO.setStdout": (s, _w) => {
+    const old = stdout;
+    stdout = s;
+    return old;
+  },
+  "IO.setStderr": (s, _w) => {
+    const old = stderr;
+    stderr = s;
+    return old;
+  },
+
+  "IO.FS.Handle.mk": (path, mode, _w) =>
+    attempt(path, () => {
+      const fd = openFile(path.toString(), openFlags[mode]);
+      // Appends ignore the position, so there is no need to track it.
+      return new Handle(fd, mode !== 4 && isRegularFile(fd));
+    }),
+  "IO.FS.Handle.isTty": (h, _w) => (isTty(h.fd) ? 1 : 0),
+  "IO.FS.Handle.flush": (_h, _w) => ioOk(0),
+  "IO.FS.Handle.rewind": (h, _w) => attempt(undefined, () => h.rewind()),
+  "IO.FS.Handle.truncate": (h, _w) => attempt(undefined, () => h.truncate()),
+  "IO.FS.Handle.read": (h, n, _w) => attempt(undefined, () => h.read(n)),
+  "IO.FS.Handle.write": (h, b, _w) =>
+    attempt(undefined, () => h.write(b.bytes.subarray(0, b.size))),
+  "IO.FS.Handle.getLine": (h, _w) => attempt(undefined, () => decodeLossy(h.getLine())),
+  "IO.FS.Handle.putStr": (h, s, _w) =>
+    attempt(undefined, () => h.write(s.bytes.subarray(0, s.size))),
+
+  "IO.FS.createDir": (p, _w) => attempt(p, () => makeDir(p.toString())),
+  "IO.FS.removeFile": (p, _w) => attempt(p, () => removeFile(p.toString())),
+  "IO.FS.removeDir": (p, _w) => attempt(p, () => removeDir(p.toString())),
+  "IO.FS.rename": (from, to, _w) => attempt(from, () => renamePath(from.toString(), to.toString())),
+  "IO.FS.hardLink": (target, link, _w) =>
+    attempt(target, () => hardLink(target.toString(), link.toString())),
+  "IO.FS.realPath": (p, _w) => {
+    const r = attempt(p, () => mkString(realPath(p.toString())));
+    dec(p);
+    return r;
+  },
+  "IO.currentDir": (_w) => attempt(undefined, () => mkString(currentDir())),
+  "IO.Process.getCurrentDir": (_w) => attempt(undefined, () => mkString(currentDir())),
+  "System.FilePath.readDir": (p, _w) =>
+    attempt(p, () =>
+      mkArray(
+        readDirNames(p.toString()).map((name) => {
+          inc(p);
+          return new Ctor(0, [p, decodeLossy(name)], null);
+        }),
+      ),
+    ),
+  "System.FilePath.metadata": (p, _w) => metadata(p, true),
+  "System.FilePath.symlinkMetadata": (p, _w) => metadata(p, false),
+};

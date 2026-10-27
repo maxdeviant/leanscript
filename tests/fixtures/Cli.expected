@@ -1,0 +1,27 @@
+args: [--min, 60, --out, results, --verbose]
+HOME is set: true, UNSET_VAR: none
+options: { minScore := 60, outDir := FilePath.mk "results", verbose := true }
+line 4: expected a name and a score, got ""
+line 5: invalid score "x"
+line 8: expected a name and a score, got "only-a-name"
+# 6 of 7 at or above 60
+heidi	101
+alice	92
+grace	88
+carol	75
+erin	75
+frank	60
+report has 8 lines, last: "# end"
+report has 84 bytes, starting with 35
+exists: true, is dir: false, dir is dir: true
+read 84 bytes in 12 chunks
+nested entries: #[data.bin]
+exists after removal: false
+dir exists after removal: false
+error: no such file or directory (error code: 2)
+  file: missing.txt
+error: already exists (error code: 17, file already exists)
+  file: .
+error: no such file or directory (error code: 2)
+  file: missing.txt
+slept at least 20ms: true

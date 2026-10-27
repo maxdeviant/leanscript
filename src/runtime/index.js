@@ -11,6 +11,7 @@ import { externs as arrayExterns } from "./array.js";
 import { externs as byteArrayExterns } from "./bytearray.js";
 import { externs as fixedExterns } from "./fixed.js";
 import { externs as floatExterns } from "./float.js";
+import { externs as fsExterns } from "./fs.js";
 import { externs as hashExterns } from "./hash.js";
 import { externs as ioExterns } from "./io.js";
 import { externs as miscExterns } from "./misc.js";
@@ -47,6 +48,7 @@ export const externs = {
   ...miscExterns,
   ...hashExterns,
   ...ioExterns,
+  ...fsExterns,
   ...refExterns,
   panicCore: (_α, defaultValue, msg) => {
     const text = msg.toString();

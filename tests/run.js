@@ -3,6 +3,10 @@
 // means the exit code must be 0. Programs run with reference counting debug checks enabled, and a
 // leak or other runtime error reported on stderr fails the test.
 //
+// Each program runs in its own empty working directory, with the arguments in the adjacent `.args`
+// file (one per line) and the contents of the adjacent `.stdin` file as standard input, if those
+// files exist.
+//
 // With `--bless`, instead regenerates those files by compiling each program with native Lean and
 // running it. (`lean --run` is not used because it skips the main module's initializers.)
 //
@@ -17,6 +21,7 @@ const fixtures = join(root, "tests", "fixtures");
 // Compiled output must live inside this package so that `leanscript/runtime` resolves.
 const outDir = join(root, ".lake", "build", "tests");
 const nativeDir = join(outDir, "native");
+const workDir = join(outDir, "work");
 const compiler = join(root, ".lake", "build", "bin", "leanscript");
 
 const args = process.argv.slice(2);
@@ -38,12 +43,25 @@ for (const name of names) {
   const output = join(outDir, `${name}.mjs`);
   const expectedFile = join(fixtures, `${name}.expected`);
   const exitCodeFile = join(fixtures, `${name}.exitcode`);
+  const argsFile = join(fixtures, `${name}.args`);
+  const stdinFile = join(fixtures, `${name}.stdin`);
+  const programArgs = existsSync(argsFile)
+    ? readFileSync(argsFile, "utf8").split("\n").slice(0, -1)
+    : [];
+  const cwd = join(workDir, name);
+  rmSync(cwd, { recursive: true, force: true });
+  mkdirSync(cwd, { recursive: true });
+  const runOptions = {
+    cwd,
+    encoding: "utf8",
+    input: existsSync(stdinFile) ? readFileSync(stdinFile) : "",
+  };
 
   if (bless) {
     const nativeExe = join(nativeDir, name);
     execFileSync("lean", ["-c", `${nativeExe}.c`, input], { stdio: "inherit" });
     execFileSync("leanc", ["-o", nativeExe, `${nativeExe}.c`], { stdio: "inherit" });
-    const native = spawnSync(nativeExe, { encoding: "utf8" });
+    const native = spawnSync(nativeExe, programArgs, runOptions);
     writeFileSync(expectedFile, native.stdout);
     if (native.status === 0) {
       rmSync(exitCodeFile, { force: true });
@@ -62,8 +80,8 @@ for (const name of names) {
     continue;
   }
 
-  const run = spawnSync(process.execPath, [output], {
-    encoding: "utf8",
+  const run = spawnSync(process.execPath, [output, ...programArgs], {
+    ...runOptions,
     env: { ...process.env, LEANSCRIPT_DEBUG_RC: "1" },
   });
   const expected = existsSync(expectedFile) ? readFileSync(expectedFile, "utf8") : "";

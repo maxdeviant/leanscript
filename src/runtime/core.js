@@ -222,13 +222,18 @@ export function dec(x) {
   }
 }
 
-/** Frees `x` and decrements its children, using a worklist so that long lists cannot overflow. */
+/**
+ * Frees `x` and decrements its children, using a worklist so that long lists cannot overflow. Freed
+ * objects without children that have a `finalize` method, such as file handles, are finalized.
+ */
 function free(x) {
   const todo = [x];
   while (todo.length > 0) {
     const o = todo.pop();
     const cs = children(o);
-    if (cs !== undefined) {
+    if (cs === undefined) {
+      o.finalize?.();
+    } else {
       for (let i = 0; i < cs.length; i++) {
         const c = cs[i];
         if (typeof c !== "object") {

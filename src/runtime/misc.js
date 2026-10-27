@@ -1,7 +1,7 @@
 // `Bool` conversions, `Thunk`, and debugging and unsafe primitives.
 
 import { apply, dec, inc, isExclusive, Thunk } from "./core.js";
-import { writeStderr } from "./platform.js";
+import { sleep, writeStderr } from "./platform.js";
 
 /** Returns stable, distinct numbers standing in for object addresses. */
 const addresses = new WeakMap();
@@ -61,7 +61,10 @@ export const externs = {
     return a;
   },
   dbgStackTrace: (_α, fn) => apply(fn, [0]),
-  dbgSleep: (_α, _ms, fn) => apply(fn, [0]),
+  dbgSleep: (_α, ms, fn) => {
+    sleep(ms);
+    return apply(fn, [0]);
+  },
   timeit: (_α, msg, fn, _w) => {
     const start = performance.now();
     const r = apply(fn, [0]);
