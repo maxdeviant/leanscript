@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./runtime": "./src/runtime/index.js"
+    "./runtime": "./src/runtime/index.js",
+    "./vite": "./src/vite/plugin.js"
   },
   "imports": {
     "#platform/*": {
@@ -13,10 +14,10 @@
     }
   },
   "scripts": {
-    "format": "prettier --write src/runtime scripts tests",
-    "format:check": "prettier --check src/runtime scripts tests",
-    "lint": "oxlint src/runtime scripts tests",
-    "lint:fix": "oxlint --fix src/runtime scripts tests && prettier --write src/runtime scripts tests",
+    "format": "prettier --write src/runtime src/vite scripts tests",
+    "format:check": "prettier --check src/runtime src/vite scripts tests",
+    "lint": "oxlint src/runtime src/vite scripts tests",
+    "lint:fix": "oxlint --fix src/runtime src/vite scripts tests && prettier --write src/runtime src/vite scripts tests",
     "test": "node scripts/gen-target-externs.js --check && node tests/run.js",
     "gen-externs": "node scripts/gen-target-externs.js"
   },
