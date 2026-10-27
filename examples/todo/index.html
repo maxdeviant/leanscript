@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Todo</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Todo</h1>
+      <form id="new-todo">
+        <input id="new-todo-text" placeholder="What needs doing?" autocomplete="off" />
+        <button>Add</button>
+      </form>
+      <ul id="todos"></ul>
+      <footer>
+        <span id="count"></span>
+        <button id="clear-completed">Clear completed</button>
+      </footer>
+    </main>
+    <script type="module" src="./App.lean"></script>
+  </body>
+</html>
