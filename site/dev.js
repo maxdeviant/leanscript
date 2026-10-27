@@ -4,7 +4,7 @@
 // Usage: node dev.js (set PORT to change the port, which is 3000 by default)
 
 import { spawn } from "node:child_process";
-import { watch } from "node:fs";
+import { existsSync, watch } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, sep } from "node:path";
@@ -121,7 +121,10 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 
 const regenerate = debounce(50, generate);
 for (const dir of ["Site", "Ssg", "static"]) {
-  watch(join(root, dir), { recursive: true }, regenerate);
+  // `static/` is optional.
+  if (existsSync(join(root, dir))) {
+    watch(join(root, dir), { recursive: true }, regenerate);
+  }
 }
 watch(join(root, "Main.lean"), regenerate);
 

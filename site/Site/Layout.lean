@@ -1,4 +1,4 @@
-import Ssg
+import Site.Logo
 
 namespace Site
 
@@ -9,10 +9,10 @@ def repoUrl : String := "https://github.com/maxdeviant/leanscript"
 def fontsUrl : String :=
   "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
 
-/-- The site's name, with a λ mark like the favicon's. -/
+/-- The site's name, with its mark. -/
 def logo : Html :=
   a [href "/", cls "flex items-center gap-2 font-mono text-lg font-bold tracking-tight"] [
-    span [cls "grid size-7 place-items-center rounded-sm bg-highlight text-on-highlight"] ["λ"],
+    mark [cls "size-7", ("aria-hidden", "true")],
     "LeanScript"
   ]
 

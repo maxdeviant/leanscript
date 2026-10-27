@@ -10,6 +10,12 @@ structure Page where
   path : FilePath
   html : Html
 
+/-- A file of a site other than a page, such as a stylesheet or an image. -/
+structure File where
+  /-- The path of the file, relative to the output directory. -/
+  path : FilePath
+  content : String
+
 /-- Copies the files in `src`, recursively, into `dest`. -/
 def copyDir (src dest : FilePath) : IO Unit := do
   for file in ← src.walkDir do
@@ -22,23 +28,28 @@ def copyDir (src dest : FilePath) : IO Unit := do
       IO.FS.createDirAll parent
     IO.FS.writeBinFile target (← IO.FS.readBinFile file)
 
+/-- Writes `content` to the file at `path`, creating its parent directories as needed. -/
+def writeFileAll (path : FilePath) (content : String) : IO Unit := do
+  if let some parent := path.parent then
+    IO.FS.createDirAll parent
+  IO.FS.writeFile path content
+
 /--
-Builds a site into `outDir`. Writes each of `pages`, and copies the files in `staticDir`, if it
-exists. If `clean` is true, removes the contents of `outDir` first; otherwise, leaves the files that
-the site doesn't overwrite.
+Builds a site into `outDir`. Writes each of `pages` and `files`, and copies the files in `staticDir`,
+if it exists. If `clean` is true, removes the contents of `outDir` first; otherwise, leaves the files
+that the site doesn't overwrite.
 -/
-def build (outDir : FilePath) (pages : List Page) (staticDir : FilePath := "static")
-    (clean := true) : IO Unit := do
+def build (outDir : FilePath) (pages : List Page) (files : List File := [])
+    (staticDir : FilePath := "static") (clean := true) : IO Unit := do
   if clean && (← outDir.pathExists) then
     IO.FS.removeDirAll outDir
   IO.FS.createDirAll outDir
   if ← staticDir.isDir then
     copyDir staticDir outDir
   for page in pages do
-    let target := outDir / page.path
-    if let some parent := target.parent then
-      IO.FS.createDirAll parent
-    IO.FS.writeFile target page.html.renderDocument
+    writeFileAll (outDir / page.path) page.html.renderDocument
+  for file in files do
+    writeFileAll (outDir / file.path) file.content
   IO.println s!"Wrote {pages.length} {if pages.length == 1 then "page" else "pages"} to {outDir}"
 
 end Ssg
