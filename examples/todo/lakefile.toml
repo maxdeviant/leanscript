@@ -1,0 +1,9 @@
+name = "todo"
+
+[[require]]
+name = "leanscript"
+path = "../.."
+
+[[lean_lib]]
+name = "Todo"
+globs = ["Todo.+"]
