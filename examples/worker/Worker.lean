@@ -1,6 +1,7 @@
 import Js
 
 open Std.Async
+open Js.Fetch
 
 /-- Responds to `req` with a greeting, echoing the body of a `POST` request. -/
 def handle (req : Request) : Async Response := do

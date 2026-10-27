@@ -7,9 +7,13 @@ Cloudflare Workers provide as globals.
 
 Each type wraps the JS object. A structure with a single `JsValue` field is represented by that
 field, so these types also cross JS externs and exports as the JS object itself.
+
+The bindings are in the `Js.Fetch` namespace, as names such as `Request` and `Response` are common.
 -/
 
 open Std.Async
+
+namespace Js.Fetch
 
 /-- A Fetch API `Headers` object. -/
 structure Headers where
@@ -133,3 +137,5 @@ def json (r : Response) : Async JsValue := do
   JsValue.await (← r.val.callMethod "json" #[])
 
 end Response
+
+end Js.Fetch

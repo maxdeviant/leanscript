@@ -1,6 +1,7 @@
 import Js
 
 open Std.Async
+open Js.Fetch
 
 def handle (req : Request) : Async Response := do
   let body ← if req.method == "POST" then req.text else pure ""
