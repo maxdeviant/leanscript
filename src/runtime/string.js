@@ -6,9 +6,10 @@
 // Each extern follows the ownership conventions of its C counterpart: an exclusive string is
 // updated in place, and a shared one is copied first.
 
-import { apply, arrayToList, dec, inc, track } from "./core.js";
+import { arrayToList, Ctor, dec, track } from "./core.js";
+import { mkByteArray } from "./bytearray.js";
 import { hashBytes } from "./hash.js";
-import { natAdd } from "./nat.js";
+import { natAdd, natSub } from "./nat.js";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -32,6 +33,10 @@ export class LeanString {
 
   toString() {
     return (this.js ??= decoder.decode(this.bytes.subarray(0, this.size)));
+  }
+
+  describe() {
+    return `string ${JSON.stringify(this.toString())}`;
   }
 }
 
@@ -239,16 +244,44 @@ function stringLt(s, t) {
   return s.size < t.size;
 }
 
-function isPrefixOf(p, s) {
-  if (p.size > s.size) {
-    return false;
+/** `String.Pos.Raw.prev`: the start of the char before position `i`, or 0 if there is none. */
+function stringPrev(s, i) {
+  if (i === 0) {
+    return 0;
   }
-  for (let i = 0; i < p.size; i++) {
-    if (p.bytes[i] !== s.bytes[i]) {
-      return false;
+  if (typeof i === "bigint" || i > s.size) {
+    return natSub(i, 1);
+  }
+  let j = i - 1;
+  while (j > 0 && (s.bytes[j] & 0xc0) === 0x80) {
+    j--;
+  }
+  return j;
+}
+
+function stringIsValidPos(s, i) {
+  return i < s.size ? isCharBoundary(s, i) : i === s.size;
+}
+
+/** Returns `Option Char`: the char at `i` if it is a valid position before the end. */
+function stringGetOpt(s, i) {
+  return isCharBoundary(s, i) ? new Ctor(1, [decodeCharAt(s.bytes, i)], null) : 0;
+}
+
+/** Compares the byte ranges `a[aStart, aEnd)` and `b[bStart, bEnd)` lexicographically. */
+function compareBytes(a, aStart, aEnd, b, bStart, bEnd) {
+  const n = Math.min(aEnd - aStart, bEnd - bStart);
+  for (let i = 0; i < n; i++) {
+    if (a[aStart + i] !== b[bStart + i]) {
+      return a[aStart + i] < b[bStart + i] ? -1 : 1;
     }
   }
-  return true;
+  return Math.sign(aEnd - aStart - (bEnd - bStart));
+}
+
+/** Decodes the valid UTF-8 in `bytes[0, size)`. */
+function stringOfUtf8(bytes, size) {
+  return new LeanString(bytes.slice(0, size), size, countChars(bytes, 0, size));
 }
 
 function toChars(s) {
@@ -261,22 +294,66 @@ function toChars(s) {
 
 const bool = (b) => (b ? 1 : 0);
 
+function ofList(list) {
+  let s = mkString("");
+  for (let l = list; l !== 0; l = l.f[1]) {
+    s = stringPush(s, l.f[0]);
+  }
+  dec(list);
+  return s;
+}
+
+function toList(s) {
+  const list = arrayToList(toChars(s));
+  dec(s);
+  return list;
+}
+
 export const externs = {
   // The proof argument guarantees that `n` is a valid scalar value.
   "Char.ofNatAux": (n, _h) => n,
 
-  "String.ofList": (list) => {
-    let s = mkString("");
-    for (let l = list; l !== 0; l = l.f[1]) {
-      s = stringPush(s, l.f[0]);
-    }
-    dec(list);
-    return s;
+  "String.mk": ofList,
+  "String.ofList": ofList,
+  "String.data": toList,
+  "String.toList": toList,
+  "String.ofByteArray": (a, _h) => {
+    const r = stringOfUtf8(a.bytes, a.size);
+    dec(a);
+    return r;
   },
-  "String.toList": (s) => {
-    const list = arrayToList(toChars(s));
+  "String.toByteArray": (s) => {
+    const r = mkByteArray(s.bytes, s.size);
     dec(s);
-    return list;
+    return r;
+  },
+  "String.toUTF8": (s) => mkByteArray(s.bytes, s.size),
+  "String.markLinear": (s) => s,
+  "String.propagateMark": (_s, t) => t,
+  // `Ordering` is `lt`, `eq`, or `gt`, with tags 0, 1, and 2.
+  "String.compare": (s, t) => compareBytes(s.bytes, 0, s.size, t.bytes, 0, t.size) + 1,
+  "String.getUtf8Byte": (s, i, _h) => {
+    const b = s.bytes[i];
+    dec(s);
+    return b;
+  },
+  "String.get": stringGet,
+  "String.get!": stringGet,
+  "String.get'": (s, i, _h) => decodeCharAt(s.bytes, i),
+  "String.get?": stringGetOpt,
+  "String.set": stringSet,
+  "String.next": stringNext,
+  "String.next'": (s, i, _h) => i + sequenceSize(s.bytes[i]),
+  "String.prev": stringPrev,
+  "String.atEnd": (s, i) => bool(i >= s.size),
+  "String.Slice.hash": (slice) => {
+    const [s, start, end] = slice.f;
+    return hashBytes(s.bytes.subarray(start, end), end - start, 11n);
+  },
+  "String.Slice.instDecidableLt": (x, y) => {
+    const [s, sStart, sEnd] = x.f;
+    const [t, tStart, tEnd] = y.f;
+    return bool(compareBytes(s.bytes, sStart, sEnd, t.bytes, tStart, tEnd) < 0);
   },
   "String.hash": (s) => hashBytes(s.bytes, s.size, 11n),
   "String.length": (s) => s.length,
@@ -292,58 +369,28 @@ export const externs = {
   "String.Pos.next": (s, i, _h) => i + sequenceSize(s.bytes[i]),
   "String.Pos.set": (s, i, c, _h) => stringSet(s, i, c),
   "String.Pos.Raw.get": stringGet,
+  "String.Pos.Raw.get!": stringGet,
+  "String.Pos.Raw.get'": (s, i, _h) => decodeCharAt(s.bytes, i),
+  "String.Pos.Raw.get?": stringGetOpt,
+  "String.Pos.Raw.isValid": (s, i) => bool(stringIsValidPos(s, i)),
+  "String.Pos.Raw.next'": (s, i, _h) => i + sequenceSize(s.bytes[i]),
+  "String.Pos.Raw.prev": stringPrev,
   "String.Pos.Raw.set": stringSet,
   "String.Pos.Raw.next": stringNext,
   "String.Pos.Raw.atEnd": (s, i) => bool(i >= s.size),
   "String.Pos.Raw.extract": stringExtract,
 
+  // Whether `len` bytes of `l` and `r`, starting at `ls` and `rs`, are equal. The proofs guarantee
+  // that both ranges are in bounds.
+  "String.Slice.Pattern.Internal.memcmpStr": (l, r, ls, rs, len, _h1, _h2) =>
+    bool(compareBytes(l.bytes, ls, ls + len, r.bytes, rs, rs + len) === 0),
+
   "String.Internal.append": stringAppend,
   "String.Internal.length": (s) => s.length,
   "String.Internal.next": stringNext,
   "String.Internal.extract": stringExtract,
-  "String.Internal.isPrefixOf": (p, s) => {
-    const r = bool(isPrefixOf(p, s));
-    dec(p);
-    dec(s);
-    return r;
-  },
-  "String.Internal.any": (s, p) => {
-    let r = 0;
-    for (let i = 0; i < s.size; i += sequenceSize(s.bytes[i])) {
-      // `apply` consumes the closure, but we need it for the next char.
-      inc(p);
-      if (apply(p, [decodeCharAt(s.bytes, i)]) === 1) {
-        r = 1;
-        break;
-      }
-    }
-    dec(p);
-    dec(s);
-    return r;
-  },
-  "String.Internal.posOf": (s, c) => {
-    let pos = s.size;
-    for (let i = 0; i < s.size; i += sequenceSize(s.bytes[i])) {
-      if (decodeCharAt(s.bytes, i) === c) {
-        pos = i;
-        break;
-      }
-    }
-    dec(s);
-    return pos;
-  },
-  "String.Internal.offsetOfPos": (s, pos) => {
-    let offset = 0;
-    for (let i = 0; i < pos && i < s.size; i += sequenceSize(s.bytes[i])) {
-      offset++;
-    }
-    dec(s);
-    return offset;
-  },
-  "String.Internal.pushn": (s, c, n) => {
-    for (let i = 0; i < n; i++) {
-      s = stringPush(s, c);
-    }
-    return s;
-  },
+  "String.Internal.atEnd": (s, i) => bool(i >= s.size),
+  "String.Internal.get": stringGet,
+  "String.Internal.getUTF8Byte": (s, i, _h) => s.bytes[i],
+  "String.Internal.ugetUTF8Byte": (s, i, _h) => s.bytes[i],
 };

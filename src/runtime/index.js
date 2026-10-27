@@ -8,13 +8,15 @@
 
 import { arrayToList, checkLeaks, dec, del, inc, panic } from "./core.js";
 import { externs as arrayExterns } from "./array.js";
+import { externs as byteArrayExterns } from "./bytearray.js";
 import { externs as fixedExterns } from "./fixed.js";
 import { externs as floatExterns } from "./float.js";
 import { externs as hashExterns } from "./hash.js";
 import { externs as ioExterns } from "./io.js";
+import { externs as miscExterns } from "./misc.js";
 import { externs as natExterns } from "./nat.js";
 import { externs as refExterns } from "./ref.js";
-import { commandLineArgs, setExitCode, writeStderr } from "./platform.js";
+import { commandLineArgs, runWithLargeStack, setExitCode, writeStderr } from "./platform.js";
 import { externs as stringExterns, mkString } from "./string.js";
 
 export {
@@ -41,6 +43,8 @@ export const externs = {
   ...floatExterns,
   ...stringExterns,
   ...arrayExterns,
+  ...byteArrayExterns,
+  ...miscExterns,
   ...hashExterns,
   ...ioExterns,
   ...refExterns,
@@ -68,6 +72,15 @@ export function resolveExterns(names) {
 }
 
 /**
+ * Runs the program, on a thread with a large stack. `moduleUrl` must be the URL of the calling
+ * module, which may be imported again to run the program on that thread; see `runProgram` for the
+ * other arguments.
+ */
+export function runMain(moduleUrl, inits, main, arity, errorToString) {
+  runWithLargeStack(moduleUrl, () => runProgram(inits, main, arity, errorToString));
+}
+
+/**
  * Runs the initializers in `inits`, then the Lean `main` function, which takes `arity` arguments:
  * either just the world token, or the command line arguments followed by the world token.
  *
@@ -76,7 +89,7 @@ export function resolveExterns(names) {
  * initializer or `main` with `errorToString`. Finally reports any leaked objects, if reference
  * counting debug checks are enabled.
  */
-export function runMain(inits, main, arity, errorToString) {
+function runProgram(inits, main, arity, errorToString) {
   if (runInits(inits, errorToString)) {
     const r = arity === 2 ? main(arrayToList(commandLineArgs().map(mkString)), 0) : main(0);
     if (r.tag === 0) {

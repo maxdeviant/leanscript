@@ -19,16 +19,36 @@ partial def collectBodyFns (b : FnBody) (acc : Array Name) : Array Name :=
   | .ret _ | .jmp .. | .unreachable => acc
   | b => collectBodyFns b.body acc
 
+/-- Maps each C symbol named by an `@[export]` attribute to the declaration it exports. -/
+def exportedDecls (env : Environment) : Std.HashMap String Name :=
+  env.constants.fold (init := {}) fun acc n _ =>
+    match getExportNameFor? env n with
+    | some e => acc.insert e.toString n
+    | none => acc
+
+/-- The declarations that make up a whole program. -/
+structure Program where
+  decls : Array Decl
+  /--
+  Pairs of an extern and the Lean declaration that implements it, by exporting the extern's C
+  symbol. The implementation is in `decls`, but the extern is not.
+  -/
+  aliases : Array (Name × Name) := #[]
+
 /--
 Returns the IR declarations transitively reachable from `roots`, including the initializer
 functions of any reachable `[init]` declarations.
 
+An extern whose C symbol is exported by a Lean declaration is replaced by that declaration, as the
+native linker would do.
+
 Fails if a reachable declaration has no IR, e.g. because it is `noncomputable`.
 -/
-def collectReachable (env : Environment) (roots : Array Name) : Except String (Array Decl) := do
+def collectReachable (env : Environment) (roots : Array Name) : Except String Program := do
+  let exports := exportedDecls env
   let mut seen : NameSet := {}
   let mut stack := roots
-  let mut result := #[]
+  let mut result : Program := { decls := #[] }
   while h : stack.size > 0 do
     let name := stack[stack.size - 1]
     stack := stack.pop
@@ -37,7 +57,16 @@ def collectReachable (env : Environment) (roots : Array Name) : Except String (A
     seen := seen.insert name
     let some decl := findEnvDecl env name
       | throw s!"no IR found for '{name}'"
-    result := result.push decl
+    if let .extern .. := decl then
+      if let some impl := (getExternNameFor env `c name).bind exports.get? then
+        let some implDecl := findEnvDecl env impl
+          | throw s!"no IR found for '{impl}', which implements '{name}'"
+        if decl.params.map (·.borrow) != implDecl.params.map (·.borrow) then
+          throw s!"'{impl}' cannot implement '{name}' because their parameter ownership differs"
+        result := { result with aliases := result.aliases.push (name, impl) }
+        stack := stack.push impl
+        continue
+    result := { result with decls := result.decls.push decl }
     if let some initFn := getInitFnNameFor? env name then
       stack := stack.push initFn
     if let .fdecl (body := body) .. := decl then

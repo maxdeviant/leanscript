@@ -1,0 +1,16 @@
+(1 + (2 * 3)) = 7
+((1 + 2) * 3) = 9
+((x * y) - ((0 - 7) % 3)) = -26
+(max(x, y, 10, abs((y * 5))) / 2) = 10
+(pow(big, 3) + min(1)) = 1881676372353626729966819028056573540963626
+(pow(2, 100) / pow(2, 98)) = 4
+(1 / (x - 6)) = error: division by zero
+(z + 1) = error: unbound variable z
+parse error: expected ',' or ')'
+parse error: unexpected end of input
+parse error: trailing input at 2
+12 = 12
+Except.ok (Expr.binop '-' (Expr.call "f" [Expr.var "a", Expr.num 1]) (Expr.num 2))
+true
+1000
+1999000

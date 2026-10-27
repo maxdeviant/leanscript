@@ -77,8 +77,17 @@ export const externs = {
     }
     return mkArray(Array.from({ length: n }, () => v));
   },
-  // Arrays are never marked linear, so there is no mark to propagate.
+  // Arrays are never marked linear, so there is no mark to set or propagate.
+  "Array.markLinear": (_α, a) => a,
   "Array.propagateMark": (_α, _β, _xs, ys) => ys,
+  "Array.swapIfInBounds": (_α, a, i, j) => {
+    if (!(i < a.length && j < a.length)) {
+      return a;
+    }
+    const r = ensureExclusive(a);
+    [r[i], r[j]] = [r[j], r[i]];
+    return r;
+  },
   "Array.size": (_α, a) => a.length,
   "Array.usize": (_α, a) => a.length,
   "Array.getInternal": (_α, a, i, _h) => getOwned(a, i),

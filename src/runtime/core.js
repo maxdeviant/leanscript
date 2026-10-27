@@ -65,6 +65,16 @@ export class Ref {
   }
 }
 
+/** A lazily computed value, `Thunk`. Until it is forced, `fn` holds the closure that computes it. */
+export class Thunk {
+  constructor(fn, value) {
+    this.rc = 1;
+    this.fn = fn;
+    this.value = value;
+    live?.add(this);
+  }
+}
+
 /**
  * The persistent refs, if debug checks are enabled. Values stored in them after they were made
  * persistent are reference counted but never freed, so they are not leaks.
@@ -111,10 +121,10 @@ function describe(x) {
   if (x instanceof Ref) {
     return "ref";
   }
-  if (x.bytes !== undefined) {
-    return `string ${JSON.stringify(String(x))}`;
+  if (x instanceof Thunk) {
+    return x.fn === null ? "evaluated thunk" : "unevaluated thunk";
   }
-  return String(x?.constructor?.name);
+  return typeof x.describe === "function" ? x.describe() : String(x?.constructor?.name);
 }
 
 /**
@@ -161,6 +171,9 @@ function children(x) {
   }
   if (x instanceof Ref) {
     return [x.value];
+  }
+  if (x instanceof Thunk) {
+    return [x.fn ?? x.value];
   }
   return undefined;
 }

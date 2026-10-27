@@ -22,8 +22,8 @@ def listExterns (path : System.FilePath) : IO UInt32 := do
   | .error err =>
     IO.eprintln s!"error: {err}"
     return 1
-  | .ok decls =>
-    for decl in decls do
+  | .ok program =>
+    for decl in program.decls do
       if decl.isExtern then
         IO.println (format decl).pretty
     return 0

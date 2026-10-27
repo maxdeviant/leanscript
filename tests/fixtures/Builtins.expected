@@ -1,0 +1,29 @@
+[Héllo, wörld! ∀x 🎉] [  HéLLO, WöRLD! ∀X 🎉  ] [  héllo, wörld! ∀x 🎉  ] 22 29
+Hello world foo bar hello world foo bar world foo bar hello world foo hello bar
+h r true false true true false
+[hello, world, foo, bar] [hell,  w, rld f, ,  bar] [a, b, , c] 5
+x | y | z 4 true false
+hell0 w0rld f00 bar abc!!! abcdef q [a, b, c] xy
+Ordering.lt Ordering.gt Ordering.eq true true false
+pos 0: (some a) 0 1 true a
+pos 1: (some é) 0 3 true é
+pos 2: none 1 3 false A
+pos 3: (some ∀) 1 6 true ∀
+pos 4: none 3 5 false A
+pos 100: none 99 101 false A
+world 5 5 w llo wo true true false
+(some 42) (some -17) none 123456789012345678901234567890 true HELLO
+[a, b, c, d]
+13471000911841882655 13471000911841882655 "tab\there" "q\"uote"
+[0, 13, 26, 39, 52, 65, 78, 91, 104, 117, 130, 143, 156, 169, 182, 195, 208, 221, 234, 247] [0, 13, 26, 255, 52, 65, 78, 91, 104, 117, 130, 143, 156, 169, 182, 195, 208, 221, 234, 247] 20 65 0
+[26, 39, 52, 65] [234, 247] [0, 13, 26, 39, 52, 65, 78, 91, 104, 117, 130, 143, 156, 169, 182, 195, 208, 221, 234, 247, 0, 13, 26] true false
+[9, 13, 26] [1, 65, 78, 91] 16922222529738063908 9877294847684254529
+[104, 195, 169, 108, 108, 111, 32, 226, 136, 128, 32, 240, 159, 142, 137] (some (héllo ∀ 🎉)) none none
+15 #[1, 2, 3] 0 true
+45 45 5 90
+1 1 1 1 true true
+0 0 0 0 false false
+#[4, 2, 3, 1] #[1, 2, 3, 4]
+1.100000 3.300000 1.100000 1.048809 inf 1 1.230000 1066192077
+4591870180066957722 3.140000 (0.800000, -3) (0.597289, 994) 0.000000 0.800000 0.000000
+0 -2147483648 9223372036854775807 0 -0.000000 -3.000000
