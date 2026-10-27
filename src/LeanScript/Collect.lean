@@ -1,4 +1,5 @@
 import Lean
+import LeanScript.JsExtern
 
 namespace LeanScript
 
@@ -40,7 +41,7 @@ Returns the IR declarations transitively reachable from `roots`, including the i
 functions of any reachable `[init]` declarations.
 
 An extern whose C symbol is exported by a Lean declaration is replaced by that declaration, as the
-native linker would do.
+native linker would do, unless it has a JS implementation.
 
 Fails if a reachable declaration has no IR, e.g. because it is `noncomputable`.
 -/
@@ -58,6 +59,9 @@ def collectReachable (env : Environment) (roots : Array Name) : Except String Pr
     let some decl := findEnvDecl env name
       | throw s!"no IR found for '{name}'"
     if let .extern .. := decl then
+      if hasJsExtern env name then
+        result := { result with decls := result.decls.push decl }
+        continue
       if let some impl := (getExternNameFor env `c name).bind exports.get? then
         let some implDecl := findEnvDecl env impl
           | throw s!"no IR found for '{impl}', which implements '{name}'"

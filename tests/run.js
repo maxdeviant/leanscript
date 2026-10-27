@@ -17,6 +17,9 @@
 // module's initializers), and the `.browser-error` files by compiling each program for the browser
 // target.
 //
+// A program with an adjacent `.js` file implements externs in JS, so it cannot run natively. Its
+// `.expected` and `.exitcode` files are written by hand, and `--bless` leaves them alone.
+//
 // Usage: node tests/run.js [--bless] [name...]
 
 import { execFileSync, spawnSync } from "node:child_process";
@@ -71,15 +74,20 @@ for (const name of names) {
   };
 
   if (bless) {
-    const nativeExe = join(nativeDir, name);
-    execFileSync("lean", ["-c", `${nativeExe}.c`, input], { stdio: "inherit" });
-    execFileSync("leanc", ["-o", nativeExe, `${nativeExe}.c`], { stdio: "inherit" });
-    const native = spawnSync(nativeExe, programArgs, runOptions);
-    writeFileSync(expectedFile, native.stdout);
-    if (native.status === 0) {
-      rmSync(exitCodeFile, { force: true });
+    if (existsSync(join(fixtures, `${name}.js`))) {
+      console.log(`skipping native run of ${name}, which has JS externs`);
     } else {
-      writeFileSync(exitCodeFile, `${native.status}\n`);
+      const nativeExe = join(nativeDir, name);
+      execFileSync("lean", ["-c", `${nativeExe}.c`, input], { stdio: "inherit" });
+      execFileSync("leanc", ["-o", nativeExe, `${nativeExe}.c`], { stdio: "inherit" });
+      const native = spawnSync(nativeExe, programArgs, runOptions);
+      writeFileSync(expectedFile, native.stdout);
+      if (native.status === 0) {
+        rmSync(exitCodeFile, { force: true });
+      } else {
+        writeFileSync(exitCodeFile, `${native.status}\n`);
+      }
+      console.log(`blessed ${name} (exit ${native.status})`);
     }
     const browser = compileBrowser();
     if (browser.status === 0) {
@@ -87,7 +95,6 @@ for (const name of names) {
     } else {
       writeFileSync(browserErrorFile, browser.stderr);
     }
-    console.log(`blessed ${name} (exit ${native.status})`);
     continue;
   }
 

@@ -56,6 +56,7 @@ export {
   tag,
   unreachable,
 } from "./core.js";
+export { ioError, ioOk } from "./io.js";
 export { mkString } from "./string.js";
 
 /** Implementations of `@[extern]` declarations, keyed by the Lean declaration name. */

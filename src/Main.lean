@@ -72,9 +72,26 @@ def describeUnavailable (target : Target) (paths : Array (Array Name)) : String 
   s!"the program uses externs that are not available on target '{target.name}':\n" ++
     "\n".intercalate lines.toList
 
+/-- Returns the absolute path `path` as a list of components, without `.` or `..` components. -/
+def absoluteComponents (path : System.FilePath) : IO (List String) := do
+  let cwd ← IO.currentDir
+  let path := if path.isAbsolute then path else cwd / path
+  return normalizeComponents path.components
+
+/-- Returns the path to the directory `to` relative to the directory `dir`, written with `/`. -/
+def relativeDir (dir to : System.FilePath) : IO String := do
+  let rec go : List String → List String → List String
+    | d :: ds, t :: ts => if d == t then go ds ts else (d :: ds).map (fun _ => "..") ++ t :: ts
+    | ds, ts => ds.map (fun _ => "..") ++ ts
+  let path := go (← absoluteComponents dir) (← absoluteComponents to)
+  return if path.isEmpty then "." else "/".intercalate path
+
 def compile (args : CompileArgs) : IO UInt32 := do
   let env ← elabFile args.input (moduleNameFor args.input)
-  match emitProgram env args.emitOpts with
+  let output := args.output?.getD (args.input.withExtension "mjs")
+  let parentDir (path : System.FilePath) := path.parent.getD "."
+  let sourceDir ← relativeDir (parentDir output) (parentDir args.input)
+  match emitProgram env { args.emitOpts with sourceDir } with
   | .error err =>
     IO.eprintln s!"error: {err}"
     return 1
@@ -86,7 +103,6 @@ def compile (args : CompileArgs) : IO UInt32 := do
       else
         IO.eprintln s!"error: {msg}\nCompile with `--allow-unavailable` to make them throw when called instead."
         return 1
-    let output := args.output?.getD (args.input.withExtension "mjs")
     if let some dir := output.parent then
       IO.FS.createDirAll dir
     IO.FS.writeFile output js
