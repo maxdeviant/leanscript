@@ -347,6 +347,26 @@ export function unreachable() {
   throw new Error("LeanScript: unreachable code reached");
 }
 
+/** Thrown by `internalPanic` to stop the program. */
+export class InternalPanic extends Error {}
+
+/**
+ * Stops the program with the message `msg`, like `lean_internal_panic`. Like the C runtime, which
+ * exits immediately, nothing is freed on the way out.
+ */
+export function internalPanic(msg) {
+  throw new InternalPanic(msg);
+}
+
+let initializing = false;
+
+/** Returns whether the program is running its initializers, before `main`. */
+export const isInitializing = () => initializing;
+
+export function setInitializing(value) {
+  initializing = value;
+}
+
 /** Reports the panic message `msg` and returns `defaultValue`, as `lean_panic_fn` does. */
 export function panic(defaultValue, msg) {
   writeStderr(`${msg}\n`);

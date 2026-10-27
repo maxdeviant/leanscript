@@ -12,7 +12,19 @@
 //
 // Each extern follows the ownership conventions of its C counterpart.
 
-import { apply, CHILDREN, Ctor, dec, del, inc, panic, Task, track } from "./core.js";
+import {
+  apply,
+  CHILDREN,
+  Ctor,
+  dec,
+  del,
+  inc,
+  internalPanic,
+  isInitializing,
+  panic,
+  Task,
+  track,
+} from "./core.js";
 
 /** The `IO.TaskState.waiting` constructor. */
 const WAITING = 0;
@@ -178,7 +190,15 @@ export const externs = {
     return promiseTasks.has(t) ? RUNNING : WAITING;
   },
 
-  "IO.Promise.new": (_α, _inst, _w) => new IOPromise(),
+  // The C runtime's task manager only starts after the initializers have run.
+  "IO.Promise.new": (_α, _inst, _w) => {
+    if (isInitializing()) {
+      internalPanic(
+        "`IO.Promise.new` called before the task manager is running; this typically happens when called (directly or transitively, e.g. via `IO.CancelToken.new`) from an `initialize` block. Construct lazily on first use instead.",
+      );
+    }
+    return new IOPromise();
+  },
   // Only the first call has an effect.
   "IO.Promise.resolve": (_α, value, promise, _w) => {
     if (promise.task.waiters === null) {

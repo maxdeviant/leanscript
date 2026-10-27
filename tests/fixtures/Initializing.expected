@@ -1,0 +1,3 @@
+in an initializer: true
+stored during initialization: true
+in main: false

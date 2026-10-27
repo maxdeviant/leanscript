@@ -206,6 +206,7 @@ IO.getStderr
 IO.getStdin
 IO.getStdout
 IO.getTaskState
+IO.initializing
 IO.monoMsNow
 IO.monoNanosNow
 IO.setStderr
@@ -852,6 +853,7 @@ IO.getRandomBytes
 IO.getStderr
 IO.getStdout
 IO.getTaskState
+IO.initializing
 IO.monoMsNow
 IO.monoNanosNow
 IO.setStderr

@@ -11,7 +11,16 @@
 // Every extern implementation receives every IR parameter of the declaration it implements, in
 // order, including erased type arguments and the `void` world token.
 
-import { arrayToList, checkLeaks, dec, del, inc, panic } from "./core.js";
+import {
+  arrayToList,
+  checkLeaks,
+  dec,
+  del,
+  inc,
+  InternalPanic,
+  panic,
+  setInitializing,
+} from "./core.js";
 import { externs as arrayExterns } from "./array.js";
 import { externs as byteArrayExterns } from "./bytearray.js";
 import { externs as fixedExterns } from "./fixed.js";
@@ -114,40 +123,55 @@ export function runMain(moduleUrl, inits, main, arity, errorToString) {
  * initializes, if any. Sets the exit code from the result, reporting an uncaught error from an
  * initializer or `main` with `errorToString`. Finally reports any leaked objects, if reference
  * counting debug checks are enabled, and flushes standard output and error.
+ *
+ * An internal panic stops the program with exit code 1, without checking for leaks.
  */
 function runProgram(inits, main, arity, errorToString) {
-  if (runInits(inits, errorToString)) {
-    const r = arity === 2 ? main(arrayToList(commandLineArgs().map(mkString)), 0) : main(0);
-    if (r.tag === 0) {
-      const value = r.f[0];
-      // `IO Unit` returns `()`, which is boxed as 0, and `IO UInt32` returns the exit code.
-      setExitCode(typeof value === "number" ? value : 0);
-      dec(r);
-    } else {
-      reportError(r, errorToString);
+  try {
+    if (runInits(inits, errorToString)) {
+      const r = arity === 2 ? main(arrayToList(commandLineArgs().map(mkString)), 0) : main(0);
+      if (r.tag === 0) {
+        const value = r.f[0];
+        // `IO Unit` returns `()`, which is boxed as 0, and `IO UInt32` returns the exit code.
+        setExitCode(typeof value === "number" ? value : 0);
+        dec(r);
+      } else {
+        reportError(r, errorToString);
+      }
     }
+    checkLeaks();
+  } catch (e) {
+    if (!(e instanceof InternalPanic)) {
+      throw e;
+    }
+    writeStderr(`INTERNAL PANIC: ${e.message}\n`);
+    setExitCode(1);
   }
-  checkLeaks();
   flushOutput(1);
   flushOutput(2);
 }
 
 /** Runs `inits`, returning whether they all succeeded. */
 function runInits(inits, errorToString) {
-  for (const [init, cell] of inits) {
-    const r = init(0);
-    if (r.tag !== 0) {
-      reportError(r, errorToString);
-      return false;
+  setInitializing(true);
+  try {
+    for (const [init, cell] of inits) {
+      const r = init(0);
+      if (r.tag !== 0) {
+        reportError(r, errorToString);
+        return false;
+      }
+      if (cell === undefined) {
+        dec(r);
+      } else {
+        cell.set(r.f[0]);
+        del(r);
+      }
     }
-    if (cell === undefined) {
-      dec(r);
-    } else {
-      cell.set(r.f[0]);
-      del(r);
-    }
+    return true;
+  } finally {
+    setInitializing(false);
   }
-  return true;
 }
 
 /** Reports the error in the failed `IO` result `r`, consuming it. */

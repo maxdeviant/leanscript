@@ -1,6 +1,6 @@
 // `IO` results and errors, and `IO` actions that don't involve files.
 
-import { Ctor, inc } from "./core.js";
+import { Ctor, inc, isInitializing } from "./core.js";
 import { LeanByteArray } from "./bytearray.js";
 import { normalize } from "./nat.js";
 import { getEnv, monotonicNanos, systemError } from "#platform/host.js";
@@ -184,6 +184,7 @@ const MAX_RANDOM_BYTES = 65536;
 
 // `BaseIO` results are not wrapped in `EST.Out`.
 export const externs = {
+  "IO.initializing": (_w) => (isInitializing() ? 1 : 0),
   "IO.getEnv": (name, _w) => {
     const value = getEnv(name.toString());
     return value === undefined ? 0 : new Ctor(1, [mkString(value)], null);
