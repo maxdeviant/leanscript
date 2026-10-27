@@ -88,6 +88,23 @@ def errors : IO Unit := do
   catch e =>
     IO.println s!"error: {e}"
 
+def directories : IO Unit := do
+  let start ← IO.Process.getCurrentDir
+  IO.FS.createDirAll "work/inner"
+  IO.Process.setCurrentDir "work/inner"
+  let cwd ← IO.currentDir
+  IO.println s!"in {cwd.fileName}, under {start.fileName}: {cwd == start / "work" / "inner"}"
+  IO.FS.writeFile "note.txt" "relative"
+  IO.Process.setCurrentDir "../.."
+  IO.println s!"back: {(← IO.Process.getCurrentDir) == start}"
+  IO.println s!"note: {← IO.FS.readFile ("work" / "inner" / "note.txt")}"
+  IO.FS.removeDirAll "work"
+  try
+    IO.Process.setCurrentDir "missing"
+  catch e =>
+    IO.println s!"error: {e}"
+  IO.println s!"unchanged: {(← IO.Process.getCurrentDir) == start}"
+
 def timing : IO Unit := do
   let ms ← IO.monoMsNow
   let ns ← IO.monoNanosNow
@@ -118,6 +135,7 @@ def main (args : List String) : IO UInt32 := do
   IO.print contents
   fileOps opts contents
   errors
+  directories
   timing
   let stdout ← IO.getStdout
   stdout.flush

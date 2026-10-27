@@ -6,6 +6,7 @@ import { LeanByteArray } from "./bytearray.js";
 import { attempt, ioOk } from "./io.js";
 import { normalize } from "./nat.js";
 import {
+  changeDir,
   closeFile,
   currentDir,
   fileMetadata,
@@ -289,6 +290,7 @@ export const externs = {
   },
   "IO.currentDir": (_w) => attempt(undefined, () => mkString(currentDir())),
   "IO.Process.getCurrentDir": (_w) => attempt(undefined, () => mkString(currentDir())),
+  "IO.Process.setCurrentDir": (p, _w) => attempt(p, () => changeDir(p.toString())),
   "System.FilePath.readDir": (p, _w) =>
     attempt(p, () =>
       mkArray(

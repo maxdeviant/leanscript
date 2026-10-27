@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import { constants as osConstants } from "node:os";
 import { isatty } from "node:tty";
 import { getSystemErrorMessage } from "node:util";
-import { isMainThread, Worker } from "node:worker_threads";
+import { isMainThread, parentPort, Worker, workerData } from "node:worker_threads";
 
 /**
  * The stack size of the thread that runs Lean code. JS frames are much larger than native ones, so
@@ -21,9 +21,25 @@ const STACK_SIZE_MB = 1024;
  */
 export function runWithLargeStack(moduleUrl, run) {
   if (isMainThread) {
+    const reply = new Int32Array(new SharedArrayBuffer(8));
     const worker = new Worker(new URL(moduleUrl), {
       argv: process.argv.slice(2),
       resourceLimits: { stackSizeMb: STACK_SIZE_MB },
+      workerData: { reply },
+    });
+    worker.on("message", (msg) => {
+      if (msg.type === "chdir") {
+        let errno = 0;
+        try {
+          process.chdir(msg.path);
+        } catch (err) {
+          // The path is a string, so the only other error is a path containing a null byte.
+          errno = osConstants.errno[err.code] ?? osConstants.errno.EINVAL;
+        }
+        Atomics.store(reply, 1, errno);
+        Atomics.store(reply, 0, 1);
+        Atomics.notify(reply, 0);
+      }
     });
     worker.on("error", (err) => {
       throw err;
@@ -146,6 +162,34 @@ export const hardLink = (target, path) => fs.linkSync(target, path);
 export const realPath = (path) => fs.realpathSync.native(path);
 
 export const currentDir = () => process.cwd();
+
+/**
+ * The shared reply cell for requests from the worker to the main thread: a flag set when the reply
+ * is ready, and an errno, which is 0 on success.
+ */
+const reply = isMainThread ? undefined : workerData?.reply;
+
+const errnoNames = Object.fromEntries(
+  Object.entries(osConstants.errno).map(([name, errno]) => [errno, name]),
+);
+
+/** Changes the current directory of the process. */
+export function changeDir(path) {
+  if (reply === undefined) {
+    process.chdir(path);
+    return;
+  }
+  // Workers can't change the current directory, so ask the main thread to, and block until it has.
+  // The directory belongs to the whole process, so the change is visible here too.
+  Atomics.store(reply, 0, 0);
+  parentPort.postMessage({ type: "chdir", path });
+  Atomics.wait(reply, 0, 0);
+  const errno = reply[1];
+  if (errno !== 0) {
+    const name = errnoNames[errno];
+    throw Object.assign(new Error(`${name}: chdir '${path}'`), { code: name });
+  }
+}
 
 /** Returns the names of the entries of the directory at `path` as UTF-8, in directory order. */
 export function readDirNames(path) {

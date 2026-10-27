@@ -24,4 +24,10 @@ error: already exists (error code: 17, file already exists)
   file: .
 error: no such file or directory (error code: 2)
   file: missing.txt
+in (some inner), under (some Cli): true
+back: true
+note: relative
+error: no such file or directory (error code: 2)
+  file: missing
+unchanged: true
 slept at least 20ms: true
