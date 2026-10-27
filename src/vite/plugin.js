@@ -1,8 +1,8 @@
 // A Vite plugin that compiles imported `.lean` files with LeanScript, for the browser.
 //
-// Each `.lean` module is compiled on its own, so it may only import modules that have already been
-// built, such as the `Js` library. A compile error fails the import, which the dev server shows in
-// its error overlay.
+// A `.lean` file in a Lake workspace may import the workspace's other modules, which the compiler
+// builds with Lake. A compile error fails the import, which the dev server shows in its error
+// overlay.
 
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -41,6 +41,22 @@ export default function leanscript({ compiler = defaultCompiler } = {}) {
       } finally {
         await rm(dir, { recursive: true, force: true });
       }
+    },
+
+    // The Lean modules that a `.lean` file imports are not in Vite's module graph, so a change to
+    // any of them may affect any compiled file, which then cannot be updated in place.
+    hotUpdate({ file }) {
+      if (!file.endsWith(".lean")) {
+        return;
+      }
+      const graph = this.environment.moduleGraph;
+      for (const mod of graph.idToModuleMap.values()) {
+        if (mod.id.endsWith(".lean")) {
+          graph.invalidateModule(mod);
+        }
+      }
+      this.environment.hot.send({ type: "full-reload" });
+      return [];
     },
   };
 }
