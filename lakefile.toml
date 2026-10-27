@@ -1,0 +1,12 @@
+name = "leanscript"
+defaultTargets = ["leanscript"]
+
+[[lean_lib]]
+name = "LeanScript"
+
+[[lean_exe]]
+name = "leanscript"
+root = "Main"
+# The compiler elaborates user code, which may run `#eval`, macros, and other
+# compile-time code through the interpreter.
+supportInterpreter = true
