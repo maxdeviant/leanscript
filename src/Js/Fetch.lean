@@ -1,4 +1,5 @@
 import Js.Promise
+import Js.Deriving
 
 /-!
 Bindings for the Fetch API's `Headers`, `Request`, and `Response`, which browsers, Node, and
@@ -86,14 +87,7 @@ structure RequestInit where
   method : String := "GET"
   headers : Array (String × String) := #[]
   body : Option String := none
-
-instance : ToJs RequestInit where
-  toJs init := do
-    JsValue.ofEntries #[
-      ("method", ← toJs init.method),
-      ("headers", ← toJs init.headers),
-      ("body", ← toJs init.body)
-    ]
+  deriving ToJs
 
 namespace Request
 
@@ -128,14 +122,7 @@ structure ResponseInit where
   status : Nat := 200
   statusText : String := ""
   headers : Array (String × String) := #[]
-
-instance : ToJs ResponseInit where
-  toJs init := do
-    JsValue.ofEntries #[
-      ("status", ← toJs init.status),
-      ("statusText", ← toJs init.statusText),
-      ("headers", ← toJs init.headers)
-    ]
+  deriving ToJs
 
 namespace Response
 

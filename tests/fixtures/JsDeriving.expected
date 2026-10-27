@@ -1,0 +1,24 @@
+{"x":1,"y":2}
+{ x := 1.000000, y := 2.000000 }
+{"label":"n","value":3,"note":"hi"}
+{ label := "n", value := 3, note? := some "hi" }
+{"x":1,"y":2,"z":3}
+{ toPoint := { x := 1.000000, y := 2.000000 }, z := 3.000000 }
+["red","green","blue"]
+#[Color.red, Color.green, Color.blue]
+[{"kind":"circle","center":{"x":0,"y":0},"radius":1},{"kind":"rect","corner":{"x":1,"y":1},"width":2,"height":3},{"kind":"empty"}]
+#[Shape.circle { x := 0.000000, y := 0.000000 } 1.000000, Shape.rect { x := 1.000000, y := 1.000000 } 2.000000 3.000000,
+  Shape.empty]
+{"kind":"node","left":{"kind":"leaf"},"value":"a","right":{"kind":"node","left":{"kind":"leaf"},"value":"b","right":{"kind":"leaf"}}}
+Tree.node (Tree.leaf) "a" (Tree.node (Tree.leaf) "b" (Tree.leaf))
+{ x := 1.000000, y := 2.000000 }
+error: y: expected a number, got undefined
+error: x: expected a number, got undefined
+error: expected an object, got null
+{ label := "n", value := 1, note? := none }
+error: value: y: expected a number, got string
+error: expected one of "red", "green", "blue", got "purple"
+error: expected a string, got number
+error: expected one of "circle", "rect", "empty", got "triangle"
+error: height: expected a number, got undefined
+error: expected an object, got string

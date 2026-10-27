@@ -34,6 +34,26 @@ private def orMismatch (expected : String) (v : JsValue) (a? : Option α) : IO �
   | some a => pure a
   | none => v.throwMismatch expected
 
+/-- Returns the property `key` of `obj` converted to an `α`, prefixing any error with `key`. -/
+def getField [FromJs α] (obj : JsValue) (key : String) : IO α := do
+  try
+    fromJs (← obj.get key)
+  catch e =>
+    throw <| .userError s!"{key}: {e}"
+
+/-- Throws an error saying that `v` is not an object, unless it is one. -/
+def expectObject (v : JsValue) : IO Unit := do
+  unless v.typeOf == "object" && !v.isNull do
+    v.throwMismatch "an object"
+
+/--
+Throws an error saying that `kind` is not one of `kinds`, the strings that identify the
+constructors of an inductive type.
+-/
+def throwUnknownKind (kinds : Array String) (kind : String) : IO α :=
+  let kinds := ", ".intercalate (kinds.map (s!"\"{·}\"")).toList
+  throw <| .userError s!"expected one of {kinds}, got \"{kind}\""
+
 end JsValue
 
 instance : ToJs JsValue := ⟨pure⟩
