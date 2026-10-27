@@ -112,16 +112,41 @@ def Program.callPath (env : Environment) (program : Program) (roots : Array Name
   return none
 
 /--
+Returns the modules that the current module imports for run time, which are those it imports
+transitively except through `meta` imports.
+-/
+partial def runtimeModules (env : Environment) : NameSet :=
+  go (env.imports.filter (!·.isMeta) |>.map (·.module) |>.toList) {}
+where
+  go : List Name → NameSet → NameSet
+    | [], acc => acc
+    | m :: rest, acc =>
+      if acc.contains m then
+        go rest acc
+      else
+        let imports := match env.getModuleIdx? m with
+          | some idx => env.header.moduleData[idx.toNat]!.imports.filter (!Import.isMeta ·)
+          | none => #[]
+        go ((imports.map Import.module).toList ++ rest) (acc.insert m)
+
+/--
 Returns the declarations that native Lean initializes at startup, in the order it initializes them:
 the `IO Unit` initializers and the `[init]` declarations of every imported module in import order,
 followed by those of the current module, each in declaration order.
+
+Only the run-time initializers are included, as for a native executable whose main module is in the
+module system: those of modules imported through `meta` imports and `meta` declarations only run
+at compile time.
 -/
 def initDecls (env : Environment) : Array Name := Id.run do
-  let isInit (n : Name) :=
-    isIOUnitInitFn env n || isIOUnitBuiltinInitFn env n || (getInitFnNameFor? env n).isSome
+  let isInit (isModule : Bool) (n : Name) :=
+    (isIOUnitInitFn env n || isIOUnitBuiltinInitFn env n || (getInitFnNameFor? env n).isSome) &&
+      !(isModule && isMarkedMeta env n)
+  let runtime := runtimeModules env
   let mut result := #[]
-  for md in env.header.moduleData do
-    result := result ++ md.constNames.filter isInit
-  return result ++ ((getDecls env).reverse.map (·.name)).filter isInit
+  for name in env.header.moduleNames, md in env.header.moduleData do
+    if runtime.contains name then
+      result := result ++ md.constNames.filter (isInit md.isModule)
+  return result ++ ((getDecls env).reverse.map (·.name)).filter (isInit env.header.isModule)
 
 end LeanScript
