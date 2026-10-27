@@ -75,6 +75,15 @@ export class Thunk {
   }
 }
 
+/** A `Task`, which owns its value. Tasks run when they are created, so every task has finished. */
+export class Task {
+  constructor(value) {
+    this.rc = 1;
+    this.value = value;
+    live?.add(this);
+  }
+}
+
 /**
  * The persistent refs, if debug checks are enabled. Values stored in them after they were made
  * persistent are reference counted but never freed, so they are not leaks.
@@ -123,6 +132,9 @@ function describe(x) {
   }
   if (x instanceof Thunk) {
     return x.fn === null ? "evaluated thunk" : "unevaluated thunk";
+  }
+  if (x instanceof Task) {
+    return "task";
   }
   return typeof x.describe === "function" ? x.describe() : String(x?.constructor?.name);
 }
@@ -174,6 +186,9 @@ function children(x) {
   }
   if (x instanceof Thunk) {
     return [x.fn ?? x.value];
+  }
+  if (x instanceof Task) {
+    return [x.value];
   }
   return undefined;
 }

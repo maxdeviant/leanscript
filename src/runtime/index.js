@@ -22,6 +22,7 @@ import { externs as miscExterns } from "./misc.js";
 import { externs as natExterns } from "./nat.js";
 import { externs as refExterns } from "./ref.js";
 import { externs as stringExterns, mkString } from "./string.js";
+import { externs as taskExterns } from "./task.js";
 import { externs as platformExterns } from "#platform/externs.js";
 import {
   commandLineArgs,
@@ -61,6 +62,7 @@ export const externs = {
   ...ioExterns,
   ...platformExterns,
   ...refExterns,
+  ...taskExterns,
   panicCore: (_α, defaultValue, msg) => {
     const text = msg.toString();
     dec(msg);
