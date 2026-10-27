@@ -3,6 +3,7 @@ import Js.Convert
 import Js.Promise
 import Js.Fetch
 import Js.Function
+import Js.Dom
 import Js.Deriving
 
 /-!

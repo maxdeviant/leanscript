@@ -24,15 +24,19 @@
 // A library, which has no `main` function, is run by the adjacent `.run.js` driver instead, which is
 // given the path of the compiled library.
 //
-// A program with an adjacent `.js` file, which implements externs in JS, or a library cannot run
-// natively. Its `.expected` and `.exitcode` files are written by hand, and `--bless` leaves them
-// alone.
+// An adjacent `.setup.js` module is imported before the program, in each thread it runs on, to set
+// up its environment, such as the globals of a web page.
+//
+// A program with an adjacent `.js` file, which implements externs in JS, or `.setup.js` file, or a
+// library cannot run natively. Its `.expected` and `.exitcode` files are written by hand, and
+// `--bless` leaves them alone.
 //
 // Usage: node tests/run.js [--bless] [name...]
 
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const root = join(import.meta.dirname, "..");
 const fixtures = join(root, "tests", "fixtures");
@@ -68,6 +72,8 @@ for (const name of names) {
   const driverFile = join(fixtures, `${name}.run.js`);
   const compileErrorFile = join(fixtures, `${name}.compile-error`);
   const driver = existsSync(driverFile) ? [driverFile] : [];
+  const setupFile = join(fixtures, `${name}.setup.js`);
+  const setup = existsSync(setupFile) ? [`--import=${pathToFileURL(setupFile)}`] : [];
   const compileBrowser = () =>
     spawnSync(compiler, ["compile", input, "-o", browserOutput, "--target", "browser"], {
       encoding: "utf8",
@@ -92,7 +98,7 @@ for (const name of names) {
   }
 
   if (bless) {
-    if (existsSync(join(fixtures, `${name}.js`)) || driver.length > 0) {
+    if (existsSync(join(fixtures, `${name}.js`)) || driver.length > 0 || setup.length > 0) {
       console.log(`skipping native run of ${name}, which cannot run natively`);
     } else {
       const nativeExe = join(nativeDir, name);
@@ -126,7 +132,7 @@ for (const name of names) {
 
   const expected = existsSync(expectedFile) ? readFileSync(expectedFile, "utf8") : "";
   const expectedStatus = existsSync(exitCodeFile) ? Number(readFileSync(exitCodeFile, "utf8")) : 0;
-  const run = spawnSync(process.execPath, [...driver, output, ...programArgs], {
+  const run = spawnSync(process.execPath, [...setup, ...driver, output, ...programArgs], {
     ...runOptions,
     env: { ...process.env, LEANSCRIPT_DEBUG_RC: "1" },
   });
@@ -161,6 +167,7 @@ for (const name of names) {
       "--stack-size=4000",
       "--conditions=browser",
       "--import=data:text/javascript,globalThis.LEANSCRIPT_DEBUG_RC=true",
+      ...setup,
       ...driver,
       browserOutput,
       ...programArgs,

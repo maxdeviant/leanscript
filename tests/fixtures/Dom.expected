@@ -1,0 +1,28 @@
+DIV app: Hello, world!onetwo
+one
+two
+(some world)
+(false, false)
+<div id="app"><ul id="items" class="todo"><li>milk</li><li>eggs</li></ul>!</div>
+<ul id="items" class="todo"><li>bread</li><li>milk</li></ul>
+(some UL)
+((some 2), false)
+none
+(true, true)
+(true, true)
+(<ul id="items" class="done" hidden=""><li>bread</li><li>milk</li></ul>, true)
+<div id="app">!</div>
+click on BUTTON
+bubbled to app
+click on BUTTON
+bubbled to app
+2 clicks
+submitted milk
+true
+true
+false
+(false, true)
+true
+reported: expected an instance of KeyboardEvent, got object
+true
+error: expected an instance of HTMLInputElement, got object
