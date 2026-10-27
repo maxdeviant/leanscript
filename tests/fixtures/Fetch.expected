@@ -5,5 +5,5 @@
 ((some (1, 2)), (true, none))
 #[(a, 1, 2)]
 https://example.com/
-error: expected a Request, got object
+error: expected an instance of Request, got object
 error: RangeError: init["status"] must be in the range of 200 to 599, inclusive.

@@ -26,20 +26,6 @@ structure Response where
   val : JsValue
   deriving Inhabited
 
-namespace JsValue
-
-/--
-Converts `v` with `wrap` if it is an instance of the global constructor `ctor`, and throws an error
-otherwise.
--/
-private def wrapInstance (ctor : String) (wrap : JsValue → α) (v : JsValue) : IO α := do
-  if ← v.instanceOf (← getGlobal ctor) then
-    return wrap v
-  else
-    v.throwMismatch s!"a {ctor}"
-
-end JsValue
-
 instance : ToJs Headers := ⟨(pure ·.val)⟩
 instance : FromJs Headers := ⟨JsValue.wrapInstance "Headers" .mk⟩
 instance : ToJs Request := ⟨(pure ·.val)⟩

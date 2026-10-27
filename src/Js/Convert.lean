@@ -47,6 +47,16 @@ def expectObject (v : JsValue) : IO Unit := do
     v.throwMismatch "an object"
 
 /--
+Converts `v` with `wrap` if it is an instance of the global constructor `ctor`, and throws an error
+otherwise.
+-/
+def wrapInstance (ctor : String) (wrap : JsValue → α) (v : JsValue) : IO α := do
+  if ← v.instanceOf (← getGlobal ctor) then
+    return wrap v
+  else
+    v.throwMismatch s!"an instance of {ctor}"
+
+/--
 Throws an error saying that `kind` is not one of `kinds`, the strings that identify the
 constructors of an inductive type.
 -/
