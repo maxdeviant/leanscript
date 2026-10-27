@@ -1,0 +1,72 @@
+[{ rank := 10, suit := Suit.spades },
+ { rank := 2, suit := Suit.hearts },
+ { rank := 10, suit := Suit.hearts },
+ { rank := 14, suit := Suit.clubs },
+ { rank := 2, suit := Suit.hearts }]
+#[{ rank := 2, suit := Suit.hearts }, { rank := 2, suit := Suit.hearts }, { rank := 10, suit := Suit.hearts },
+  { rank := 10, suit := Suit.spades }, { rank := 14, suit := Suit.clubs }]
+true false true true
+Ordering.gt Ordering.lt Suit.hearts
+{ name := "child",
+  verbose := false,
+  level := -1,
+  ratio := 0.500000,
+  tags := ["a", "b"],
+  limits := #[("cpu", 4), ("mem", 1024)],
+  parent := some { name := "default",
+              verbose := false,
+              level := -1,
+              ratio := 0.500000,
+              tags := [],
+              limits := #[("cpu", 4), ("mem", 1024)],
+              parent := none } }
+{ name := "child",
+  verbose := false,
+  level := 42,
+  ratio := 0.001000,
+  tags := ["a", "b"],
+  limits := #[],
+  parent := some { name := "default",
+              verbose := false,
+              level := -1,
+              ratio := 0.500000,
+              tags := [],
+              limits := #[("cpu", 4), ("mem", 1024)],
+              parent := none } }
+true false
+{ name := "child",
+  verbose := false,
+  level := -1,
+  ratio := 0.500000,
+  tags := ["a", "b"],
+  limits := #[("cpu", 4),
+              ("mem", 1024)],
+  parent := some { name := "default",
+              verbose := false,
+              level := -1,
+              ratio := 0.500000,
+              tags := [],
+              limits := #[("cpu", 4),
+                          ("mem",
+                           1024)],
+              parent := none } }
+Tree.node
+  (Tree.node (Tree.node (Tree.leaf) 1 (Tree.node (Tree.leaf) 2 (Tree.leaf))) 3 (Tree.node (Tree.leaf) 4 (Tree.leaf)))
+  5
+  (Tree.node (Tree.node (Tree.node (Tree.leaf) 6 (Tree.leaf)) 7 (Tree.leaf)) 8 (Tree.node (Tree.leaf) 9 (Tree.leaf)))
+[1, 2, 3, 4, 5, 6, 7, 8, 9] true true Ordering.gt
+{"name":"leanscript","tags":["lean","js"],"version":1,"nested":{"ok":true,"none":null}}
+Json.obj
+  [("name", Json.str "leanscript"),
+   ("tags", Json.arr [Json.str "lean", Json.str "js"]),
+   ("version", Json.num 1),
+   ("nested", Json.obj [("ok", Json.bool true), ("none", Json.null)])]
+199
+circle: area 12.566360, perimeter 12.566360
+rect: area 12.000000, perimeter 14.000000
+some (1, "x", [2.500000, -1.000000], #[some 'c', none])
+Except.error "bad"
+(1, 2) [(some 1), none] #[1, 2] 3 -7 x () s
+a,
+b,
+c
