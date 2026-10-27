@@ -43,15 +43,23 @@ function formatFixed6(x) {
   }
   let q = num / den;
   const twiceRem = 2n * (num % den);
-  if (twiceRem > den || (twiceRem === den && (q & 1n) === 1n)) q += 1n;
+  if (twiceRem > den || (twiceRem === den && (q & 1n) === 1n)) {
+    q += 1n;
+  }
   const digits = q.toString().padStart(7, "0");
   return `${negative ? "-" : ""}${digits.slice(0, -6)}.${digits.slice(-6)}`;
 }
 
 function floatToString(x) {
-  if (Number.isNaN(x)) return "NaN";
-  if (x === Infinity) return "inf";
-  if (x === -Infinity) return "-inf";
+  if (Number.isNaN(x)) {
+    return "NaN";
+  }
+  if (x === Infinity) {
+    return "inf";
+  }
+  if (x === -Infinity) {
+    return "-inf";
+  }
   return formatFixed6(x);
 }
 

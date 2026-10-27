@@ -24,6 +24,7 @@
             # `lean-toolchain`, which is what Lake and editor integrations read.
             pkgs.elan
             pkgs.nodejs
+            pkgs.pnpm
           ];
         };
       });

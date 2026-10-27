@@ -18,13 +18,17 @@ function isSmall(a, b) {
 export function natAdd(a, b) {
   if (isSmall(a, b)) {
     const r = a + b;
-    if (r <= Number.MAX_SAFE_INTEGER) return r;
+    if (r <= Number.MAX_SAFE_INTEGER) {
+      return r;
+    }
   }
   return normalize(BigInt(a) + BigInt(b));
 }
 
 export function natSub(a, b) {
-  if (isSmall(a, b)) return a < b ? 0 : a - b;
+  if (isSmall(a, b)) {
+    return a < b ? 0 : a - b;
+  }
   const r = BigInt(a) - BigInt(b);
   return r < 0n ? 0 : normalize(r);
 }
@@ -32,21 +36,31 @@ export function natSub(a, b) {
 export function natMul(a, b) {
   if (isSmall(a, b)) {
     const r = a * b;
-    if (r <= Number.MAX_SAFE_INTEGER) return r;
+    if (r <= Number.MAX_SAFE_INTEGER) {
+      return r;
+    }
   }
   return normalize(BigInt(a) * BigInt(b));
 }
 
 export function natDiv(a, b) {
-  if (b === 0) return 0;
+  if (b === 0) {
+    return 0;
+  }
   // Unlike `Math.floor(a / b)`, this is exact for every safe integer.
-  if (isSmall(a, b)) return (a - (a % b)) / b;
+  if (isSmall(a, b)) {
+    return (a - (a % b)) / b;
+  }
   return normalize(BigInt(a) / BigInt(b));
 }
 
 export function natMod(a, b) {
-  if (b === 0) return a;
-  if (isSmall(a, b)) return a % b;
+  if (b === 0) {
+    return a;
+  }
+  if (isSmall(a, b)) {
+    return a % b;
+  }
   return normalize(BigInt(a) % BigInt(b));
 }
 
@@ -56,8 +70,12 @@ export function natPow(a, b) {
 
 export function natLog2(a) {
   if (typeof a === "number") {
-    if (a === 0) return 0;
-    if (a <= 0xffffffff) return 31 - Math.clz32(a);
+    if (a === 0) {
+      return 0;
+    }
+    if (a <= 0xffffffff) {
+      return 31 - Math.clz32(a);
+    }
     return 63 - Math.clz32(Math.floor(a / 2 ** 32));
   }
   return a.toString(2).length - 1;
@@ -84,14 +102,18 @@ export function natXor(a, b) {
 }
 
 export function intNeg(a) {
-  if (typeof a === "number") return a === 0 ? 0 : -a;
+  if (typeof a === "number") {
+    return a === 0 ? 0 : -a;
+  }
   return normalize(-a);
 }
 
 export function intAdd(a, b) {
   if (isSmall(a, b)) {
     const r = a + b;
-    if (Number.isSafeInteger(r)) return r;
+    if (Number.isSafeInteger(r)) {
+      return r;
+    }
   }
   return normalize(BigInt(a) + BigInt(b));
 }
@@ -99,7 +121,9 @@ export function intAdd(a, b) {
 export function intSub(a, b) {
   if (isSmall(a, b)) {
     const r = a - b;
-    if (Number.isSafeInteger(r)) return r;
+    if (Number.isSafeInteger(r)) {
+      return r;
+    }
   }
   return normalize(BigInt(a) - BigInt(b));
 }

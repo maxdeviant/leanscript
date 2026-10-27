@@ -18,9 +18,13 @@ export function mkArray(xs) {
  * is shared.
  */
 function ensureExclusive(a) {
-  if (isExclusive(a)) return a;
+  if (isExclusive(a)) {
+    return a;
+  }
   const r = mkArray(a.slice());
-  for (const x of r) inc(x);
+  for (const x of r) {
+    inc(x);
+  }
   dec(a);
   return r;
 }
@@ -46,14 +50,18 @@ function getOrPanic(d, a, i) {
 export const externs = {
   "Array.mk": (_α, list) => {
     const xs = listToArray(list);
-    for (const x of xs) inc(x);
+    for (const x of xs) {
+      inc(x);
+    }
     dec(list);
     return mkArray(xs);
   },
   "Array.mkEmpty": (_α, _capacity) => mkArray([]),
   "Array.emptyWithCapacity": (_α, _capacity) => mkArray([]),
   "Array.toList": (_α, a) => {
-    for (const x of a) inc(x);
+    for (const x of a) {
+      inc(x);
+    }
     const list = arrayToList(a);
     dec(a);
     return list;
@@ -76,7 +84,9 @@ export const externs = {
     return r;
   },
   "Array.pop": (_α, a) => {
-    if (a.length === 0) return a;
+    if (a.length === 0) {
+      return a;
+    }
     const r = ensureExclusive(a);
     dec(r.pop());
     return r;
@@ -84,7 +94,9 @@ export const externs = {
   "Array.set": (_α, a, i, v, _h) => set(a, i, v),
   "Array.uset": (_α, a, i, v, _h) => set(a, i, v),
   "Array.set!": (_α, a, i, v) => {
-    if (i < a.length) return set(a, i, v);
+    if (i < a.length) {
+      return set(a, i, v);
+    }
     dec(v);
     return panic(a, OUT_OF_BOUNDS);
   },

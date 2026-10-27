@@ -47,14 +47,22 @@ function useAfterFree(op, x) {
 
 /** Returns the reference counted children of `x`, which must be an object. */
 function children(x) {
-  if (x instanceof Ctor) return x.f;
-  if (x instanceof Closure) return x.args;
-  if (Array.isArray(x)) return x;
+  if (x instanceof Ctor) {
+    return x.f;
+  }
+  if (x instanceof Closure) {
+    return x.args;
+  }
+  if (Array.isArray(x)) {
+    return x;
+  }
   return undefined;
 }
 
 export function inc(x) {
-  if (typeof x !== "object") return;
+  if (typeof x !== "object") {
+    return;
+  }
   const rc = x.rc;
   if (rc > 0) {
     x.rc = rc + 1;
@@ -64,7 +72,9 @@ export function inc(x) {
 }
 
 export function incN(x, n) {
-  if (typeof x !== "object") return;
+  if (typeof x !== "object") {
+    return;
+  }
   const rc = x.rc;
   if (rc > 0) {
     x.rc = rc + n;
@@ -74,7 +84,9 @@ export function incN(x, n) {
 }
 
 export function dec(x) {
-  if (typeof x !== "object") return;
+  if (typeof x !== "object") {
+    return;
+  }
   const rc = x.rc;
   if (rc > 1) {
     x.rc = rc - 1;
@@ -92,10 +104,14 @@ function free(x) {
     const o = todo.pop();
     o.rc = FREED;
     const cs = children(o);
-    if (cs === undefined) continue;
+    if (cs === undefined) {
+      continue;
+    }
     for (let i = 0; i < cs.length; i++) {
       const c = cs[i];
-      if (typeof c !== "object") continue;
+      if (typeof c !== "object") {
+        continue;
+      }
       const rc = c.rc;
       if (rc > 1) {
         c.rc = rc - 1;
@@ -113,7 +129,9 @@ function free(x) {
  * `lean_del_object`, does nothing if `x` is a scalar.
  */
 export function del(x) {
-  if (typeof x === "object") x.rc = FREED;
+  if (typeof x === "object") {
+    x.rc = FREED;
+  }
 }
 
 export function isExclusive(x) {
@@ -130,7 +148,9 @@ export function isShared(x) {
  */
 export function reset(x, n) {
   if (x.rc === 1) {
-    for (let i = 0; i < n; i++) dec(x.f[i]);
+    for (let i = 0; i < n; i++) {
+      dec(x.f[i]);
+    }
     return x;
   }
   dec(x);
@@ -142,11 +162,17 @@ export function markPersistent(x) {
   const todo = [x];
   while (todo.length > 0) {
     const o = todo.pop();
-    if (typeof o !== "object" || !(o.rc > 0)) continue;
+    if (typeof o !== "object" || !(o.rc > 0)) {
+      continue;
+    }
     o.rc = 0;
     const cs = children(o);
-    if (cs === undefined) continue;
-    for (let i = 0; i < cs.length; i++) todo.push(cs[i]);
+    if (cs === undefined) {
+      continue;
+    }
+    for (let i = 0; i < cs.length; i++) {
+      todo.push(cs[i]);
+    }
   }
   return x;
 }
@@ -175,8 +201,12 @@ export function lazy(init) {
   let state = 0;
   let value;
   return () => {
-    if (state === 2) return value;
-    if (state === 1) throw new Error("LeanScript: cyclic constant initialization");
+    if (state === 2) {
+      return value;
+    }
+    if (state === 1) {
+      throw new Error("LeanScript: cyclic constant initialization");
+    }
     state = 1;
     value = markPersistent(init());
     state = 2;
@@ -198,7 +228,9 @@ function takeArgs(f) {
     del(f);
     return f.args;
   }
-  for (const arg of f.args) inc(arg);
+  for (const arg of f.args) {
+    inc(arg);
+  }
   dec(f);
   return f.args;
 }

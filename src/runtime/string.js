@@ -35,7 +35,9 @@ export class LeanString {
 
 function countScalars(s) {
   let length = 0;
-  for (const _ of s) length++;
+  for (const _ of s) {
+    length++;
+  }
   return length;
 }
 
@@ -116,8 +118,12 @@ function encodeChar(c) {
 /** Decodes the UTF-8 sequence starting at byte `i`, which must be the start of a sequence. */
 function decodeCharAt(bytes, i) {
   const c = bytes[i];
-  if (c < 0x80) return c;
-  if ((c & 0xe0) === 0xc0) return ((c & 0x1f) << 6) | (bytes[i + 1] & 0x3f);
+  if (c < 0x80) {
+    return c;
+  }
+  if ((c & 0xe0) === 0xc0) {
+    return ((c & 0x1f) << 6) | (bytes[i + 1] & 0x3f);
+  }
   if ((c & 0xf0) === 0xe0) {
     return ((c & 0x0f) << 12) | ((bytes[i + 1] & 0x3f) << 6) | (bytes[i + 2] & 0x3f);
   }
@@ -137,7 +143,9 @@ function isCharBoundary(s, i) {
 const DEFAULT_CHAR = 65;
 
 export function stringAppend(s, t) {
-  if (t.size === 0) return s;
+  if (t.size === 0) {
+    return s;
+  }
   return appendBytes(s, t.bytes, t.size, t.length);
 }
 
@@ -150,7 +158,9 @@ function stringGet(s, i) {
 }
 
 function stringSet(s, i, c) {
-  if (!isCharBoundary(s, i)) return s;
+  if (!isCharBoundary(s, i)) {
+    return s;
+  }
   const oldSize = sequenceSize(s.bytes[i]);
   if (s.rc === 1 && oldSize === utf8Size(c)) {
     s.bytes.set(encodeChar(c).subarray(0, oldSize), i);
@@ -174,7 +184,9 @@ function stringNext(s, i) {
 function countChars(bytes, start, end) {
   let length = 0;
   for (let i = start; i < end; i++) {
-    if ((bytes[i] & 0xc0) !== 0x80) length++;
+    if ((bytes[i] & 0xc0) !== 0x80) {
+      length++;
+    }
   }
   return length;
 }
@@ -189,17 +201,25 @@ function extractValid(s, b, e) {
  * a valid position, and runs to the end of the string if `e` is not.
  */
 function stringExtract(s, b, e) {
-  if (b >= e || b >= s.size || !isCharBoundary(s, b)) return mkString("");
-  if (e > s.size || (e < s.size && !isCharBoundary(s, e))) e = s.size;
+  if (b >= e || b >= s.size || !isCharBoundary(s, b)) {
+    return mkString("");
+  }
+  if (e > s.size || (e < s.size && !isCharBoundary(s, e))) {
+    e = s.size;
+  }
   return extractValid(s, b, e);
 }
 
 function stringEq(s, t) {
-  if (s.size !== t.size) return false;
+  if (s.size !== t.size) {
+    return false;
+  }
   const a = s.bytes;
   const b = t.bytes;
   for (let i = 0; i < s.size; i++) {
-    if (a[i] !== b[i]) return false;
+    if (a[i] !== b[i]) {
+      return false;
+    }
   }
   return true;
 }
@@ -210,15 +230,21 @@ function stringLt(s, t) {
   const b = t.bytes;
   const n = Math.min(s.size, t.size);
   for (let i = 0; i < n; i++) {
-    if (a[i] !== b[i]) return a[i] < b[i];
+    if (a[i] !== b[i]) {
+      return a[i] < b[i];
+    }
   }
   return s.size < t.size;
 }
 
 function isPrefixOf(p, s) {
-  if (p.size > s.size) return false;
+  if (p.size > s.size) {
+    return false;
+  }
   for (let i = 0; i < p.size; i++) {
-    if (p.bytes[i] !== s.bytes[i]) return false;
+    if (p.bytes[i] !== s.bytes[i]) {
+      return false;
+    }
   }
   return true;
 }
@@ -302,13 +328,16 @@ export const externs = {
   },
   "String.Internal.offsetOfPos": (s, pos) => {
     let offset = 0;
-    for (let i = 0; i < pos && i < s.size; i += sequenceSize(s.bytes[i])) offset++;
+    for (let i = 0; i < pos && i < s.size; i += sequenceSize(s.bytes[i])) {
+      offset++;
+    }
     dec(s);
     return offset;
   },
   "String.Internal.pushn": (s, c, n) => {
-    for (let i = 0; i < n; i++) s = stringPush(s, c);
+    for (let i = 0; i < n; i++) {
+      s = stringPush(s, c);
+    }
     return s;
   },
 };
-
