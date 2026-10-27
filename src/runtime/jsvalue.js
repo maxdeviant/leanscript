@@ -20,8 +20,22 @@ export const jsToFloat = (v) => option(typeof v === "number" ? v : undefined);
 /** Returns the JS boolean `v` as a Lean `Option Bool`. */
 export const jsToBool = (v) => option(typeof v === "boolean" ? Number(v) : undefined);
 
+/** Returns the JS number `v` as a Lean `Option Int`, if it is a safe integer. */
+export const jsToInt = (v) => option(Number.isSafeInteger(v) ? normalizeZero(v) : undefined);
+
+/** Returns the JS number `v` as a Lean `Option Nat`, if it is a nonnegative safe integer. */
+export const jsToNat = (v) =>
+  option(Number.isSafeInteger(v) && v >= 0 ? normalizeZero(v) : undefined);
+
+/** Returns `n`, with `-0` replaced by `0`, which is how `Nat` and `Int` represent zero. */
+const normalizeZero = (n) => (n === 0 ? 0 : n);
+
 /** Returns a copy of the JS array `v` as a Lean `Option (Array JsValue)`. */
 export const jsToArray = (v) => option(Array.isArray(v) ? mkArray([...v]) : undefined);
+
+/** Returns a JS object with the properties in `entries`, a Lean `Array (String × JsValue)`. */
+export const jsObject = (entries) =>
+  Object.fromEntries(Array.from(entries, (p) => [p.f[0].toString(), p.f[1]]));
 
 /**
  * Calls `f` and returns its result as an `EST.Out`, converting anything it throws to an

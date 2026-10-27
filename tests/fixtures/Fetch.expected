@@ -1,0 +1,9 @@
+201 GET https://example.com/a?b=c from test: 
+#[(content-type, text/plain), (x-lean, yes)]
+201 POST https://example.com/ from unknown: hi
+#[(content-type, text/plain), (x-lean, yes)]
+((some (1, 2)), (true, none))
+#[(a, 1, 2)]
+https://example.com/
+error: expected a Request, got object
+error: RangeError: init["status"] must be in the range of 200 to 599, inclusive.

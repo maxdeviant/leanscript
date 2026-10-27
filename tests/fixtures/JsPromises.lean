@@ -31,9 +31,9 @@ def program : Async Unit := do
   -- A Lean computation as a JS promise, and back.
   let p ← JsValue.ofAsync do
     let v ← JsValue.await (← delay 5 (.ofString "inner"))
-    return .ofString s!"{str v}, round trip"
+    return s!"{str v}, round trip"
   IO.println s!"awaited {str (← JsValue.await p)}"
-  let q ← JsValue.ofAsync (throw (IO.userError "failed in Lean"))
+  let q ← JsValue.ofAsync (α := Unit) (throw (IO.userError "failed in Lean"))
   try
     discard <| JsValue.await q
   catch e =>

@@ -48,11 +48,11 @@ def answer : Nat := 42
 def greetLater (name : JsValue) : BaseIO JsValue :=
   JsValue.ofAsync do
     let name ← JsValue.await name
-    return .ofString s!"Hello later, {name.toString?.getD "?"}!"
+    return s!"Hello later, {name.toString?.getD "?"}!"
 
 /-- An `async` function whose promise is rejected. -/
 @[export failLater]
 def failLater (msg : JsValue) : BaseIO JsValue :=
-  JsValue.ofAsync do
+  JsValue.ofAsync (α := Unit) do
     let msg ← JsValue.await msg
     throw (IO.userError (msg.toString?.getD "?"))

@@ -58,7 +58,16 @@ export {
   unreachable,
 } from "./core.js";
 export { ioError, ioOk } from "./io.js";
-export { jsAttempt, jsToArray, jsToBool, jsToFloat, jsToString } from "./jsvalue.js";
+export {
+  jsAttempt,
+  jsObject,
+  jsToArray,
+  jsToBool,
+  jsToFloat,
+  jsToInt,
+  jsToNat,
+  jsToString,
+} from "./jsvalue.js";
 export { mkString } from "./string.js";
 export { jsPromiseOfTask, taskOfJsPromise } from "./task.js";
 

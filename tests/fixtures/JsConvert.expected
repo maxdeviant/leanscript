@@ -1,0 +1,31 @@
+"héllo"
+42
+-7
+2.5
+true
+["x",null]
+[1,2,3]
+[["a",1],["b",2]]
+1152921504606847000
+undefined
+héllo
+9007199254740991
+-9007199254740991
+#[(some a), none]
+[(true, 1.500000), (false, -0.500000)]
+3
+0
+error: expected a nonnegative integer, got number
+error: expected a nonnegative integer, got number
+error: expected a nonnegative integer, got number
+-3
+error: expected a string, got number
+none
+(some x)
+#[1, 2, 3]
+error: expected a nonnegative integer, got string
+error: expected an array, got object
+[(a, true), (b, false)]
+error: expected a two-element array, got object
+()
+error: expected a boolean, got null
