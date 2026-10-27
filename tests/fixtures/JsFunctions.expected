@@ -1,0 +1,12 @@
+5
+5
+Hello, nobody!
+Hello, world!
+#[2, 4, 6]
+ticked 3 times
+(4, 3)
+caught: Error: boom
+caught: Error: expected a nonnegative integer, got string
+timer fired
+later: 42
+done

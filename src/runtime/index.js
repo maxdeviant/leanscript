@@ -61,6 +61,7 @@ export {
 export { ioError, ioOk } from "./io.js";
 export {
   jsAttempt,
+  jsFunction,
   jsObject,
   jsToArray,
   jsToBool,

@@ -1,7 +1,7 @@
 // Support for `JsValue`, which is any JS value, in the `Js` Lean library. Its externs are inline
 // JS that calls these functions.
 
-import { Ctor } from "./core.js";
+import { apply, Ctor, dec, del, markPersistent } from "./core.js";
 import { mkArray } from "./array.js";
 import { ioError, ioOk, userError } from "./io.js";
 import { mkString } from "./string.js";
@@ -47,4 +47,27 @@ export function jsAttempt(f) {
   } catch (e) {
     return ioError(userError(String(e)));
   }
+}
+
+/**
+ * Returns a JS function that calls the Lean closure `f`, of type
+ * `Array JsValue → BaseIO (Except String JsValue)`, with an array of its arguments, and returns the
+ * result, or throws an `Error` with the message of the error.
+ *
+ * The JS function may be called for as long as it exists, which only the garbage collector knows,
+ * so `f` becomes persistent: reference counting never frees it, or anything it captures.
+ */
+export function jsFunction(f) {
+  markPersistent(f);
+  return (...args) => {
+    const result = apply(f, [mkArray(args), 0]);
+    const value = result.f[0];
+    if (result.tag === 0) {
+      const msg = value.toString();
+      dec(result);
+      throw new Error(msg);
+    }
+    del(result);
+    return value;
+  };
 }

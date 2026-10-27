@@ -100,10 +100,11 @@ export class Task {
 export const CHILDREN = Symbol("children");
 
 /**
- * The persistent refs, if debug checks are enabled. Values stored in them after they were made
- * persistent are reference counted but never freed, so they are not leaks.
+ * The persistent refs and tasks, if debug checks are enabled. Values stored in them after they were
+ * made persistent, such as the value a task finishes with, are reference counted but never freed,
+ * so they are not leaks.
  */
-const persistentRefs = live === undefined ? undefined : [];
+const persistentCells = live === undefined ? undefined : [];
 
 function useAfterFree(op, x) {
   throw new Error(`LeanScript: ${op} of freed object ${x?.constructor?.name}`);
@@ -155,7 +156,7 @@ export function checkLeaks() {
     return false;
   }
   const reachable = new Set();
-  const todo = persistentRefs.map((r) => r.value);
+  const todo = persistentCells.flatMap((c) => children(c));
   while (todo.length > 0) {
     const x = todo.pop();
     if (typeof x !== "object" || x === null || reachable.has(x)) {
@@ -311,8 +312,8 @@ export function markPersistent(x) {
       continue;
     }
     o[RC] = 0;
-    if (o instanceof Ref) {
-      persistentRefs?.push(o);
+    if (o instanceof Ref || o instanceof Task) {
+      persistentCells?.push(o);
     }
     const cs = children(o);
     if (cs === undefined) {

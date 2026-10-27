@@ -2,6 +2,7 @@ import Js.Value
 import Js.Convert
 import Js.Promise
 import Js.Fetch
+import Js.Function
 import Js.Deriving
 
 /-!
