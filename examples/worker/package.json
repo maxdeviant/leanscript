@@ -1,0 +1,16 @@
+{
+  "name": "leanscript-worker-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "../../.lake/build/bin/leanscript compile Worker.lean -o build/Worker.mjs --target browser",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "leanscript": "link:../.."
+  },
+  "devDependencies": {
+    "wrangler": "^4.153.0"
+  }
+}

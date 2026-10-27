@@ -1,0 +1,8 @@
+{
+  "name": "leanscript-worker",
+  "main": "index.js",
+  "compatibility_date": "2026-10-01",
+  "build": {
+    "command": "pnpm run build"
+  }
+}
