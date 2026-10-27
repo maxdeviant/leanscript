@@ -75,14 +75,26 @@ export class Thunk {
   }
 }
 
-/** A `Task`, which owns its value. Tasks run when they are created, so every task has finished. */
+/**
+ * A `Task`. A finished task owns its `value`, and has `waiters === null`. An unfinished task is
+ * waiting for a promise to be resolved, and `waiters` holds the continuations to run when it
+ * finishes, each of which owns its function `f` (or `0` if it has none) and the task `target` that
+ * it finishes.
+ */
 export class Task {
-  constructor(value) {
+  constructor(value, waiters = null) {
     this.rc = 1;
     this.value = value;
+    this.waiters = waiters;
     live?.add(this);
   }
 }
+
+/**
+ * The key of a method that an object of a class not defined here may define to return its reference
+ * counted children.
+ */
+export const CHILDREN = Symbol("children");
 
 /**
  * The persistent refs, if debug checks are enabled. Values stored in them after they were made
@@ -134,7 +146,7 @@ function describe(x) {
     return x.fn === null ? "evaluated thunk" : "unevaluated thunk";
   }
   if (x instanceof Task) {
-    return "task";
+    return x.waiters === null ? "finished task" : "unfinished task";
   }
   return typeof x.describe === "function" ? x.describe() : String(x?.constructor?.name);
 }
@@ -188,9 +200,9 @@ function children(x) {
     return [x.fn ?? x.value];
   }
   if (x instanceof Task) {
-    return [x.value];
+    return x.waiters === null ? [x.value] : x.waiters.flatMap((w) => [w.f, w.target]);
   }
-  return undefined;
+  return x[CHILDREN]?.();
 }
 
 export function inc(x) {
@@ -239,16 +251,16 @@ export function dec(x) {
 
 /**
  * Frees `x` and decrements its children, using a worklist so that long lists cannot overflow. Freed
- * objects without children that have a `finalize` method, such as file handles, are finalized.
+ * objects that have a `finalize` method, such as file handles, are finalized before their children
+ * are decremented.
  */
 function free(x) {
   const todo = [x];
   while (todo.length > 0) {
     const o = todo.pop();
+    o.finalize?.();
     const cs = children(o);
-    if (cs === undefined) {
-      o.finalize?.();
-    } else {
+    if (cs !== undefined) {
       for (let i = 0; i < cs.length; i++) {
         const c = cs[i];
         if (typeof c !== "object") {

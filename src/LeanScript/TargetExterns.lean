@@ -194,6 +194,9 @@ IO.Process.forceExit
 IO.Process.getCurrentDir
 IO.Process.getPID
 IO.Process.setCurrentDir
+IO.Promise.new
+IO.Promise.resolve
+IO.Promise.result?
 IO.cancel
 IO.checkCanceled
 IO.currentDir
@@ -651,6 +654,7 @@ USize.toUInt64
 USize.toUInt8
 USize.xor
 Void.mk
+_private.Init.System.Promise.0.IO.Option.getOrBlock!
 allocprof
 dbgSleep
 dbgStackTrace
@@ -838,6 +842,9 @@ Float32.toUInt32
 Float32.toUInt64
 Float32.toUInt8
 Float32.toUSize
+IO.Promise.new
+IO.Promise.resolve
+IO.Promise.result?
 IO.cancel
 IO.checkCanceled
 IO.getEnv
@@ -1289,6 +1296,7 @@ USize.toUInt64
 USize.toUInt8
 USize.xor
 Void.mk
+_private.Init.System.Promise.0.IO.Option.getOrBlock!
 allocprof
 dbgSleep
 dbgStackTrace
