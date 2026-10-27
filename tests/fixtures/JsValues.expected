@@ -1,0 +1,20 @@
+some héllo
+some 2.500000
+some true
+none
+[undefined, object, string, number, boolean, object]
+(true, (false, true))
+(true, false)
+{"x":1,"y":2,"rc":1}
+#[{"x":1,"y":2,"rc":1}, {"x":1,"y":2,"rc":1}, {"x":3,"y":4,"rc":1}]
+some 1.000000
+{"x":10,"y":2,"rc":1,"label":null}
+[1,"two",null]
+#[number, string, object]
+false
+{"greeting":"hi"}
+some 7.000000
+some [1,"two",null]
+some 1970-01-01T00:00:00.000Z
+caught: TypeError: Cannot read properties of null (reading 'x')
+caught: SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)

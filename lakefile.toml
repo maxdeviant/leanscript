@@ -1,9 +1,13 @@
 name = "leanscript"
-defaultTargets = ["leanscript"]
+defaultTargets = ["leanscript", "Js"]
 srcDir = "src"
 
 [[lean_lib]]
 name = "LeanScript"
+
+# The library that compiled programs import to interoperate with JS.
+[[lean_lib]]
+name = "Js"
 
 [[lean_exe]]
 name = "leanscript"
