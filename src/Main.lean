@@ -7,7 +7,8 @@ def usage : String :=
   leanscript compile <file.lean> [-o <out.mjs>] [--runtime <specifier>]
                      [--target node|browser] [--allow-unavailable]
   leanscript dump-ir <file.lean>
-  leanscript list-externs <file.lean>"
+  leanscript list-externs <file.lean>
+  leanscript stdlib-externs"
 
 def moduleNameFor (path : System.FilePath) : Name :=
   (path.fileStem.getD "Main").toName
@@ -28,6 +29,15 @@ def listExterns (path : System.FilePath) : IO UInt32 := do
       if decl.isExtern then
         IO.println (format decl).pretty
     return 0
+
+/--
+Prints every standard library extern that the runtime must implement, one per line, followed by a
+tab and the module that declares it.
+-/
+def listStdlibExterns : IO UInt32 := do
+  for (name, mod) in ← stdlibExterns do
+    IO.println s!"{name}\t{mod}"
+  return 0
 
 structure CompileArgs where
   input : System.FilePath
@@ -86,6 +96,7 @@ def main (args : List String) : IO UInt32 := do
   match args with
   | ["dump-ir", path] => dumpIr path
   | ["list-externs", path] => listExterns path
+  | ["stdlib-externs"] => listStdlibExterns
   | "compile" :: input :: rest =>
     match parseCompileArgs input rest { input } with
     | .ok args => compile args
