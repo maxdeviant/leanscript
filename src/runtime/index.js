@@ -3,6 +3,11 @@
 // See `src/LeanScript/EmitJs.lean` for how Lean values are represented, and the individual modules for
 // the representation of each builtin type.
 //
+// The externs that depend on the platform, and the host services that the rest of the runtime
+// uses, are implemented once for each platform in `platform/<platform>/`. The `#platform/*` import
+// resolves to the browser implementation under the `browser` export condition, to the Node one under
+// `node`, and to the browser one elsewhere.
+//
 // Every extern implementation receives every IR parameter of the declaration it implements, in
 // order, including erased type arguments and the `void` world token.
 
@@ -11,14 +16,20 @@ import { externs as arrayExterns } from "./array.js";
 import { externs as byteArrayExterns } from "./bytearray.js";
 import { externs as fixedExterns } from "./fixed.js";
 import { externs as floatExterns } from "./float.js";
-import { externs as fsExterns } from "./fs.js";
 import { externs as hashExterns } from "./hash.js";
 import { externs as ioExterns } from "./io.js";
 import { externs as miscExterns } from "./misc.js";
 import { externs as natExterns } from "./nat.js";
 import { externs as refExterns } from "./ref.js";
-import { commandLineArgs, runWithLargeStack, setExitCode, writeStderr } from "./platform.js";
 import { externs as stringExterns, mkString } from "./string.js";
+import { externs as platformExterns } from "#platform/externs.js";
+import {
+  commandLineArgs,
+  flushOutput,
+  runWithLargeStack,
+  setExitCode,
+  writeStderr,
+} from "#platform/host.js";
 
 export {
   apply,
@@ -48,7 +59,7 @@ export const externs = {
   ...miscExterns,
   ...hashExterns,
   ...ioExterns,
-  ...fsExterns,
+  ...platformExterns,
   ...refExterns,
   panicCore: (_α, defaultValue, msg) => {
     const text = msg.toString();
@@ -62,15 +73,26 @@ export const externs = {
 /**
  * Returns the implementations of the externs named `names`.
  *
- * Throws if any of them are missing, so that a program fails when it loads instead of partway
- * through running.
+ * An extern in `unavailable` that this platform does not implement is replaced by a function that
+ * throws when called. Throws if any other extern is missing, so that a program fails when it loads
+ * instead of partway through running.
  */
-export function resolveExterns(names) {
-  const missing = names.filter((name) => !Object.hasOwn(externs, name));
+export function resolveExterns(names, unavailable = []) {
+  const missing = names.filter(
+    (name) => !Object.hasOwn(externs, name) && !unavailable.includes(name),
+  );
   if (missing.length > 0) {
     throw new Error(`LeanScript: missing implementations for externs:\n  ${missing.join("\n  ")}`);
   }
-  return externs;
+  const stubs = unavailable
+    .filter((name) => !Object.hasOwn(externs, name))
+    .map((name) => [
+      name,
+      () => {
+        throw new Error(`LeanScript: ${name} is not available on this platform`);
+      },
+    ]);
+  return { ...externs, ...Object.fromEntries(stubs) };
 }
 
 /**
@@ -89,7 +111,7 @@ export function runMain(moduleUrl, inits, main, arity, errorToString) {
  * Each initializer is an `IO` action, paired with the getter of the `[init]` declaration it
  * initializes, if any. Sets the exit code from the result, reporting an uncaught error from an
  * initializer or `main` with `errorToString`. Finally reports any leaked objects, if reference
- * counting debug checks are enabled.
+ * counting debug checks are enabled, and flushes standard output and error.
  */
 function runProgram(inits, main, arity, errorToString) {
   if (runInits(inits, errorToString)) {
@@ -104,6 +126,8 @@ function runProgram(inits, main, arity, errorToString) {
     }
   }
   checkLeaks();
+  flushOutput(1);
+  flushOutput(2);
 }
 
 /** Runs `inits`, returning whether they all succeeded. */

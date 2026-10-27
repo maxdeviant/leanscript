@@ -1,5 +1,6 @@
 import Lean
 import LeanScript.Collect
+import LeanScript.Target
 
 /-!
 Emits a JavaScript module from Lean IR.
@@ -293,20 +294,37 @@ def emitDecl (decl : Decl) : EmitM Unit := do
 structure EmitOptions where
   /-- The module specifier used to import the LeanScript runtime. -/
   runtime : String := "leanscript/runtime"
+  /-- The platform that the program runs on. -/
+  target : Target := .node
+
+/-- A JS program. -/
+structure EmitOutput where
+  js : String
+  /--
+  For each extern that the program uses but the runtime does not implement on its target, a chain
+  of calls from where the program starts to the extern. The program replaces these externs with
+  functions that throw when called.
+  -/
+  unavailable : Array (Array Name)
 
 /--
 Emits a JS program that runs `main`, containing every declaration reachable from it.
 
 `env` must contain IR for `main` and everything it depends on.
 -/
-def emitProgram (env : Environment) (opts : EmitOptions := {}) : Except String String := do
+def emitProgram (env : Environment) (opts : EmitOptions := {}) : Except String EmitOutput := do
   let some mainDecl := findEnvDecl env `main | throw "no `main` function found"
   let inits := initDecls env
   -- `IO Unit` initializers always run for their side effects, but an `[init]` declaration is only
   -- initialized if it is used. The runtime uses `IO.Error.toString` to report uncaught errors.
   let ioUnitInits := inits.filter fun n => (getInitFnNameFor? env n).isNone
-  let { decls, aliases } ← collectReachable env (#[`main, `IO.Error.toString] ++ ioUnitInits)
+  let roots := #[`main, `IO.Error.toString] ++ ioUnitInits
+  let program ← collectReachable env roots
+  let { decls, aliases } := program
   let externs := decls.filterMap fun d => if d.isExtern then some d.name else none
+  let available := opts.target.externs
+  let unavailable := externs.filter (!available.contains ·.toString)
+    |>.qsort (·.toString < ·.toString)
   let ctx : EmitContext := {
     env
     decls := decls.foldl (fun m d => m.insert d.name d) {}
@@ -320,7 +338,11 @@ def emitProgram (env : Environment) (opts : EmitOptions := {}) : Except String S
     emitLn s!"import * as $rt from {quoteJs opts.runtime};"
     emitLn ""
     emitLn "const $Ctor = $rt.Ctor;"
-    emitLn s!"const $ext = $rt.resolveExterns([{", ".intercalate (externs.map (quoteJs ·.toString)).toList}]);"
+    let quoteNames (ns : Array Name) := ", ".intercalate (ns.map (quoteJs ·.toString)).toList
+    if unavailable.isEmpty then
+      emitLn s!"const $ext = $rt.resolveExterns([{quoteNames externs}]);"
+    else
+      emitLn s!"const $ext = $rt.resolveExterns([{quoteNames externs}], [{quoteNames unavailable}]);"
     emitLn ""
     for decl in decls do
       -- Join point ids are only unique within a declaration.
@@ -340,6 +362,9 @@ def emitProgram (env : Environment) (opts : EmitOptions := {}) : Except String S
     emitLn "];"
     emitLn s!"$rt.runMain(import.meta.url, $inits, {toJsName `main}, {mainDecl.params.size}, {toJsName `IO.Error.toString});"
   let ((), st) ← go.run ctx |>.run {}
-  return st.out
+  return {
+    js := st.out
+    unavailable := unavailable.map fun ext => (program.callPath env roots ext).getD #[ext]
+  }
 
 end LeanScript

@@ -1,7 +1,7 @@
 // `Bool` conversions, `Thunk`, and debugging and unsafe primitives.
 
 import { apply, dec, inc, isExclusive, Thunk } from "./core.js";
-import { sleep, writeStderr } from "./platform.js";
+import { sleep, writeStderr } from "#platform/host.js";
 
 /** Returns stable, distinct numbers standing in for object addresses. */
 const addresses = new WeakMap();

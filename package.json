@@ -5,12 +5,20 @@
   "exports": {
     "./runtime": "./src/runtime/index.js"
   },
+  "imports": {
+    "#platform/*": {
+      "browser": "./src/runtime/platform/browser/*",
+      "node": "./src/runtime/platform/node/*",
+      "default": "./src/runtime/platform/browser/*"
+    }
+  },
   "scripts": {
-    "format": "prettier --write src/runtime",
-    "format:check": "prettier --check src/runtime",
-    "lint": "oxlint src/runtime",
-    "lint:fix": "oxlint --fix src/runtime && prettier --write src/runtime",
-    "test": "node tests/run.js"
+    "format": "prettier --write src/runtime scripts tests",
+    "format:check": "prettier --check src/runtime scripts tests",
+    "lint": "oxlint src/runtime scripts tests",
+    "lint:fix": "oxlint --fix src/runtime scripts tests && prettier --write src/runtime scripts tests",
+    "test": "node scripts/gen-target-externs.js --check && node tests/run.js",
+    "gen-externs": "node scripts/gen-target-externs.js"
   },
   "devDependencies": {
     "oxlint": "^1.89.0",

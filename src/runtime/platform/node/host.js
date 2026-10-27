@@ -1,4 +1,4 @@
-// Host platform services. This is the only runtime module that depends on Node.
+// Host services, implemented with Node's APIs.
 
 import * as fs from "node:fs";
 import { constants as osConstants } from "node:os";
@@ -68,6 +68,9 @@ export function writeBytes(fd, bytes, position = null) {
   }
 }
 
+/** Writes any output held back for the file descriptor `fd`. Writes are unbuffered, so there is none. */
+export function flushOutput(_fd) {}
+
 const encoder = new TextEncoder();
 
 /** Writes the JS string `s` to standard error. */
@@ -83,6 +86,9 @@ export const isTty = (fd) => isatty(fd);
 export function getEnv(name) {
   return process.env[name];
 }
+
+/** Returns whether the debug option `name` is set, as a nonempty environment variable. */
+export const debugOption = (name) => Boolean(process.env[name]);
 
 export function commandLineArgs() {
   return process.argv.slice(2);

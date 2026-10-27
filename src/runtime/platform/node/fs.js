@@ -1,10 +1,12 @@
-// File handles, standard streams, and file system operations.
+// File handles and file system operations.
 
-import { Ctor, dec, inc, markPersistent, pap, track } from "./core.js";
-import { mkArray } from "./array.js";
-import { LeanByteArray } from "./bytearray.js";
-import { attempt, ioOk } from "./io.js";
-import { normalize } from "./nat.js";
+import { Ctor, dec, inc, track } from "../../core.js";
+import { mkArray } from "../../array.js";
+import { LeanByteArray } from "../../bytearray.js";
+import { attempt } from "../../io.js";
+import { normalize } from "../../nat.js";
+import { decodeLossy } from "../../stream.js";
+import { mkString } from "../../string.js";
 import {
   changeDir,
   closeFile,
@@ -23,8 +25,7 @@ import {
   renamePath,
   truncateFile,
   writeBytes,
-} from "./platform.js";
-import { mkString } from "./string.js";
+} from "./host.js";
 
 const EMPTY = new Uint8Array(0);
 
@@ -37,7 +38,7 @@ const LINE_CHUNK_SIZE = 4096;
  *
  * The file is closed when the handle is freed.
  */
-class Handle {
+export class Handle {
   /**
    * @param {number} fd
    * @param {boolean} seekable Whether the file supports positioned reads and writes, in which case
@@ -60,6 +61,13 @@ class Handle {
   finalize() {
     closeFile(this.fd);
   }
+
+  isTty() {
+    return isTty(this.fd);
+  }
+
+  /** Does nothing, as writes are unbuffered. */
+  flush() {}
 
   /** Reads from the file into `buffer` at `offset`, returning the number of bytes read. */
   readFile(buffer, offset, length) {
@@ -144,11 +152,6 @@ class Handle {
   }
 }
 
-const decoder = new TextDecoder();
-
-/** Decodes the UTF-8 in `bytes`, replacing invalid sequences with U+FFFD. */
-const decodeLossy = (bytes) => mkString(decoder.decode(bytes));
-
 /** The `fopen` mode of each `IO.FS.Mode`. */
 const openFlags = ["r", "w", "wx", "r+", "a"];
 
@@ -180,94 +183,15 @@ function metadata(p, follow) {
   });
 }
 
-/**
- * Returns an `IO.FS.Stream` backed by the persistent handle `h`, like `IO.FS.Stream.ofHandle`.
- *
- * Each field is a closure, which takes ownership of its arguments.
- */
-function mkStream(h) {
-  const stream = new Ctor(
-    0,
-    [
-      // flush : IO Unit
-      pap((_w) => ioOk(0), 1, []),
-      // read : USize → IO ByteArray
-      pap((n, _w) => attempt(undefined, () => h.read(n)), 2, []),
-      // write : ByteArray → IO Unit
-      pap(
-        (b, _w) => {
-          const r = attempt(undefined, () => h.write(b.bytes.subarray(0, b.size)));
-          dec(b);
-          return r;
-        },
-        2,
-        [],
-      ),
-      // getLine : IO String
-      pap((_w) => attempt(undefined, () => decodeLossy(h.getLine())), 1, []),
-      // putStr : String → IO Unit
-      pap(
-        (s, _w) => {
-          const r = attempt(undefined, () => h.write(s.bytes.subarray(0, s.size)));
-          dec(s);
-          return r;
-        },
-        2,
-        [],
-      ),
-      // isTty : BaseIO Bool. `BaseIO` results are not wrapped in `EST.Out`.
-      pap((_w) => (isTty(h.fd) ? 1 : 0), 1, []),
-    ],
-    null,
-  );
-  return markPersistent(stream);
-}
-
-const stdHandle = (fd) => markPersistent(new Handle(fd, false));
-
-let stdin = mkStream(stdHandle(0));
-let stdout = mkStream(stdHandle(1));
-let stderr = mkStream(stdHandle(2));
-
 export const externs = {
-  // These are `BaseIO` actions, so their results are not wrapped in `EST.Out`.
-  "IO.getStdin": (_w) => {
-    inc(stdin);
-    return stdin;
-  },
-  "IO.getStdout": (_w) => {
-    inc(stdout);
-    return stdout;
-  },
-  "IO.getStderr": (_w) => {
-    inc(stderr);
-    return stderr;
-  },
-  // The old stream's reference moves from the global to the caller.
-  "IO.setStdin": (s, _w) => {
-    const old = stdin;
-    stdin = s;
-    return old;
-  },
-  "IO.setStdout": (s, _w) => {
-    const old = stdout;
-    stdout = s;
-    return old;
-  },
-  "IO.setStderr": (s, _w) => {
-    const old = stderr;
-    stderr = s;
-    return old;
-  },
-
   "IO.FS.Handle.mk": (path, mode, _w) =>
     attempt(path, () => {
       const fd = openFile(path.toString(), openFlags[mode]);
       // Appends ignore the position, so there is no need to track it.
       return new Handle(fd, mode !== 4 && isRegularFile(fd));
     }),
-  "IO.FS.Handle.isTty": (h, _w) => (isTty(h.fd) ? 1 : 0),
-  "IO.FS.Handle.flush": (_h, _w) => ioOk(0),
+  "IO.FS.Handle.isTty": (h, _w) => (h.isTty() ? 1 : 0),
+  "IO.FS.Handle.flush": (h, _w) => attempt(undefined, () => h.flush()),
   "IO.FS.Handle.rewind": (h, _w) => attempt(undefined, () => h.rewind()),
   "IO.FS.Handle.truncate": (h, _w) => attempt(undefined, () => h.truncate()),
   "IO.FS.Handle.read": (h, n, _w) => attempt(undefined, () => h.read(n)),

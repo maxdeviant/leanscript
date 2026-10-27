@@ -1,0 +1,18 @@
+error: the program uses externs that are not available on target 'browser':
+  main → fileOps → IO.FS.lines → IO.FS.Handle.lines → IO.FS.Handle.lines.read → IO.FS.Handle.getLine
+  main → fileOps → IO.FS.Handle.mk
+  main → fileOps → IO.FS.writeFile → IO.FS.Handle.putStr
+  main → fileOps → IO.FS.readBinFile → IO.FS.Handle.read
+  main → fileOps → IO.FS.writeBinFile → IO.FS.Handle.write
+  main → errors → IO.FS.createDir
+  main → fileOps → IO.FS.removeDirAll → IO.FS.removeDir
+  main → fileOps → IO.FS.removeFile
+  main → IO.Process.exit
+  main → directories → IO.Process.getCurrentDir
+  main → directories → IO.Process.setCurrentDir
+  main → directories → IO.currentDir
+  main → IO.getStdin
+  main → fileOps → System.FilePath.pathExists → System.FilePath.metadata
+  main → fileOps → System.FilePath.readDir
+  main → fileOps → IO.FS.removeDirAll → Array.forIn'Unsafe.loop._at_.IO.FS.removeDirAll.spec_0 → System.FilePath.symlinkMetadata
+Compile with `--allow-unavailable` to make them throw when called instead.

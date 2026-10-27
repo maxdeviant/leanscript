@@ -3,7 +3,7 @@
 import { Ctor, inc } from "./core.js";
 import { LeanByteArray } from "./bytearray.js";
 import { normalize } from "./nat.js";
-import { exitProcess, getEnv, monotonicNanos, processId, systemError } from "./platform.js";
+import { getEnv, monotonicNanos, systemError } from "#platform/host.js";
 import { mkString } from "./string.js";
 
 /** Returns a successful `EST.Out`. Its `Void σ` field is erased, so it has a single field. */
@@ -197,9 +197,6 @@ export const externs = {
     }
     return ioOk(new LeanByteArray(bytes, n));
   },
-  "IO.Process.getPID": (_w) => processId(),
-  "IO.Process.exit": (_α, code, _w) => exitProcess(code),
-  "IO.Process.forceExit": (_α, code, _w) => exitProcess(code),
   "System.Platform.getIsWindows": (_unit) => 0,
   "System.Platform.getIsOSX": (_unit) => 0,
   "System.Platform.getIsEmscripten": (_unit) => 0,

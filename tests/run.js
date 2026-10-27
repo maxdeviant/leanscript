@@ -7,8 +7,15 @@
 // file (one per line) and the contents of the adjacent `.stdin` file as standard input, if those
 // files exist.
 //
-// With `--bless`, instead regenerates those files by compiling each program with native Lean and
-// running it. (`lean --run` is not used because it skips the main module's initializers.)
+// Each program is also compiled for the browser target and run on the browser runtime, by running
+// it under the `browser` export condition, where only its stdout is compared, as browsers have no
+// exit codes. A program that uses externs that are unavailable in browsers must instead fail to
+// compile for the browser target, with the error in the adjacent `.browser-error` file.
+//
+// With `--bless`, instead regenerates the `.expected` and `.exitcode` files by compiling each
+// program with native Lean and running it (`lean --run` is not used because it skips the main
+// module's initializers), and the `.browser-error` files by compiling each program for the browser
+// target.
 //
 // Usage: node tests/run.js [--bless] [name...]
 
@@ -45,6 +52,12 @@ for (const name of names) {
   const exitCodeFile = join(fixtures, `${name}.exitcode`);
   const argsFile = join(fixtures, `${name}.args`);
   const stdinFile = join(fixtures, `${name}.stdin`);
+  const browserErrorFile = join(fixtures, `${name}.browser-error`);
+  const browserOutput = join(outDir, `${name}.browser.mjs`);
+  const compileBrowser = () =>
+    spawnSync(compiler, ["compile", input, "-o", browserOutput, "--target", "browser"], {
+      encoding: "utf8",
+    });
   const programArgs = existsSync(argsFile)
     ? readFileSync(argsFile, "utf8").split("\n").slice(0, -1)
     : [];
@@ -68,6 +81,12 @@ for (const name of names) {
     } else {
       writeFileSync(exitCodeFile, `${native.status}\n`);
     }
+    const browser = compileBrowser();
+    if (browser.status === 0) {
+      rmSync(browserErrorFile, { force: true });
+    } else {
+      writeFileSync(browserErrorFile, browser.stderr);
+    }
     console.log(`blessed ${name} (exit ${native.status})`);
     continue;
   }
@@ -80,23 +99,70 @@ for (const name of names) {
     continue;
   }
 
+  const expected = existsSync(expectedFile) ? readFileSync(expectedFile, "utf8") : "";
+  const expectedStatus = existsSync(exitCodeFile) ? Number(readFileSync(exitCodeFile, "utf8")) : 0;
   const run = spawnSync(process.execPath, [output, ...programArgs], {
     ...runOptions,
     env: { ...process.env, LEANSCRIPT_DEBUG_RC: "1" },
   });
-  const expected = existsSync(expectedFile) ? readFileSync(expectedFile, "utf8") : "";
-  const expectedStatus = existsSync(exitCodeFile) ? Number(readFileSync(exitCodeFile, "utf8")) : 0;
+  if (!checkRun(name, run, expected, expectedStatus)) {
+    failures++;
+    continue;
+  }
+
+  const browserLabel = `${name} (browser)`;
+  const browser = compileBrowser();
+  const expectedBrowserError = existsSync(browserErrorFile)
+    ? readFileSync(browserErrorFile, "utf8")
+    : undefined;
+  if (browser.status !== 0 || expectedBrowserError !== undefined) {
+    if (browser.status !== 0 && browser.stderr === expectedBrowserError) {
+      console.log(`ok   ${browserLabel}, which fails to compile`);
+    } else {
+      failures++;
+      console.log(`FAIL ${browserLabel} (compile)`);
+      console.log(`--- expected\n${expectedBrowserError ?? ""}--- actual\n${browser.stderr}`);
+    }
+    continue;
+  }
+  rmSync(cwd, { recursive: true, force: true });
+  mkdirSync(cwd, { recursive: true });
+  const browserRun = spawnSync(
+    process.execPath,
+    [
+      // Browsers don't give programs a large stack as Node does, so deeply recursive programs
+      // overflow theirs. Until the browser runtime handles that, approximate a large stack with
+      // the largest that fits in the main thread's typical 8MB.
+      "--stack-size=4000",
+      "--conditions=browser",
+      "--import=data:text/javascript,globalThis.LEANSCRIPT_DEBUG_RC=true",
+      browserOutput,
+      ...programArgs,
+    ],
+    runOptions,
+  );
+  if (!checkRun(browserLabel, browserRun, expected, undefined)) {
+    failures++;
+  }
+}
+
+/**
+ * Reports whether the program run `run` printed `expected` and exited with `expectedStatus`, if it
+ * is defined, without reporting a runtime error, and returns whether it did.
+ */
+function checkRun(label, run, expected, expectedStatus) {
   if (
-    run.status !== expectedStatus ||
+    (expectedStatus !== undefined && run.status !== expectedStatus) ||
     run.stdout !== expected ||
     run.stderr.includes("LeanScript: ")
   ) {
-    failures++;
-    console.log(`FAIL ${name} (exit ${run.status}, expected ${expectedStatus})`);
+    const expectedExit = expectedStatus === undefined ? "" : `, expected ${expectedStatus}`;
+    console.log(`FAIL ${label} (exit ${run.status}${expectedExit})`);
     console.log(`--- expected\n${expected}--- actual\n${run.stdout}--- stderr\n${run.stderr}`);
-  } else {
-    console.log(`ok   ${name}`);
+    return false;
   }
+  console.log(`ok   ${label}`);
+  return true;
 }
 
 if (!bless) {

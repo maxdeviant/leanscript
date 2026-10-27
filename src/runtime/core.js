@@ -14,16 +14,16 @@
 // Freeing an object only decrements its children; the memory itself is left to the JS garbage
 // collector. The counts exist so that we know when an object is exclusive.
 //
-// Setting the `LEANSCRIPT_DEBUG_RC` environment variable enables extra checks: every allocated
-// object is registered so that `checkLeaks` can report the ones never freed, freed objects are
-// poisoned so that any later use of one fails, and objects without a reference count are reported.
+// Setting the `LEANSCRIPT_DEBUG_RC` debug option enables extra checks: every allocated object is
+// registered so that `checkLeaks` can report the ones never freed, freed objects are poisoned so
+// that any later use of one fails, and objects without a reference count are reported.
 
-import { getEnv, writeStderr } from "./platform.js";
+import { debugOption, writeStderr } from "#platform/host.js";
 
 const FREED = -1;
 
 /** The objects allocated and not yet freed, if debug checks are enabled. */
-const live = getEnv("LEANSCRIPT_DEBUG_RC") ? new Set() : undefined;
+const live = debugOption("LEANSCRIPT_DEBUG_RC") ? new Set() : undefined;
 
 /** Registers the newly allocated object `x` for leak checking, and returns it. */
 export function track(x) {

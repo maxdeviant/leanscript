@@ -74,6 +74,40 @@ def collectReachable (env : Environment) (roots : Array Name) : Except String Pr
   return result
 
 /--
+Returns a shortest chain of calls in `program` from one of `roots` to `target`, starting with the
+root and ending with `target`, or `none` if `target` is not reachable. Initializing an `[init]`
+declaration counts as a call to its initializer function.
+-/
+def Program.callPath (env : Environment) (program : Program) (roots : Array Name) (target : Name) :
+    Option (Array Name) := Id.run do
+  let decls : Std.HashMap Name Decl := program.decls.foldl (fun m d => m.insert d.name d) {}
+  let aliases : Std.HashMap Name Name := program.aliases.foldl (fun m (e, i) => m.insert e i) {}
+  -- The caller through which each declaration was first reached, or `none` for a root.
+  let mut callers : Std.HashMap Name (Option Name) := roots.foldl (fun m r => m.insert r none) {}
+  let mut queue := roots
+  let mut i := 0
+  while h : i < queue.size do
+    let name := queue[i]
+    i := i + 1
+    if name == target then
+      let mut path := #[name]
+      while true do
+        let some (some caller) := callers[path.back!]? | break
+        path := path.push caller
+      return some path.reverse
+    let mut callees := match aliases[name]?, decls[name]? with
+      | some impl, _ => #[impl]
+      | none, some (.fdecl (body := body) ..) => collectBodyFns body #[]
+      | _, _ => #[]
+    if let some initFn := getInitFnNameFor? env name then
+      callees := callees.push initFn
+    for callee in callees do
+      unless callers.contains callee do
+        callers := callers.insert callee (some name)
+        queue := queue.push callee
+  return none
+
+/--
 Returns the declarations that native Lean initializes at startup, in the order it initializes them:
 the `IO Unit` initializers and the `[init]` declarations of every imported module in import order,
 followed by those of the current module, each in declaration order.
