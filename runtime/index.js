@@ -6,7 +6,7 @@
 // Every extern implementation receives every IR parameter of the declaration it implements, in
 // order, including erased type arguments and the `void` world token.
 
-import { arrayToList, panic } from "./core.js";
+import { arrayToList, dec, inc, panic } from "./core.js";
 import { externs as arrayExterns } from "./array.js";
 import { externs as ioExterns } from "./io.js";
 import { externs as natExterns } from "./nat.js";
@@ -14,7 +14,20 @@ import { commandLineArgs, setExitCode, writeStderr } from "./platform.js";
 import { externs as stringExterns, mkString } from "./string.js";
 import { externs as uintExterns } from "./uint.js";
 
-export { apply, Ctor, lazy, pap, tag, unreachable } from "./core.js";
+export {
+  apply,
+  Ctor,
+  dec,
+  del,
+  inc,
+  incN,
+  isShared,
+  lazy,
+  pap,
+  reset,
+  tag,
+  unreachable,
+} from "./core.js";
 export { mkString } from "./string.js";
 
 /** Implementations of `@[extern]` declarations, keyed by the Lean declaration name. */
@@ -24,7 +37,13 @@ export const externs = {
   ...stringExterns,
   ...arrayExterns,
   ...ioExterns,
-  panicCore: (_α, defaultValue, msg) => panic(defaultValue, msg.toString()),
+  panicCore: (_α, defaultValue, msg) => {
+    const text = msg.toString();
+    dec(msg);
+    // The default value is borrowed, but we return it as an owned reference.
+    inc(defaultValue);
+    return panic(defaultValue, text);
+  },
 };
 
 /**

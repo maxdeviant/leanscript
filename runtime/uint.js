@@ -82,6 +82,7 @@ export const externs = {
 
   "UInt32.toNat": (a) => a,
   "UInt32.ofNat": ofNat32,
+  "UInt32.ofBitVec": ofNat32,
   "UInt32.add": (a, b) => u32(a + b),
   "UInt32.sub": (a, b) => u32(a - b),
   "UInt32.mul": (a, b) => Math.imul(a, b) >>> 0,
@@ -124,6 +125,9 @@ export const externs = {
   "Float.decLe": (a, b) => bool(a <= b),
   "Float.beq": (a, b) => bool(a === b),
   "Float.toString": (x) => mkString(floatToString(x)),
+
+  // The proof argument guarantees that `n` is a valid scalar value.
+  "Char.ofNatAux": (n, _h) => n,
 
   "System.Platform.getNumBits": (_unit) => 32,
 };

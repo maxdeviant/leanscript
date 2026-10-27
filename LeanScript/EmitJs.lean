@@ -11,10 +11,11 @@ Value representation (see `runtime/index.js` for the runtime side):
 - Constructors without fields are their tag as a JS number, mirroring `lean_box(cidx)` in C.
   All other constructors are `$Ctor` instances.
 - Strings are `LeanString`s, constructed from literals with `$rt.mkString`.
-- Nullary declarations become lazily initialized constants that are read by calling them.
+- Nullary declarations become lazily initialized constants that are read by calling them. Their
+  values are persistent.
 
-Reference counting instructions are dropped, and `isShared` always reports `true`, so the IR never
-takes a destructive-update path.
+Heap objects are reference counted exactly as in the C runtime, which lets the IR update unshared
+objects in place.
 -/
 
 namespace LeanScript
@@ -108,10 +109,8 @@ def ctorToJs (info : CtorInfo) (ys : Array Arg) : String :=
 
 def exprToJs (ty : IRType) : IR.Expr → EmitM String
   | .ctor info ys => return ctorToJs info ys
-  -- Without reference counts we can never prove `x` is unshared, so `reset` always fails and the
-  -- matching `reuse` allocates.
-  | .reset .. => return "0"
-  | .reuse _ info _ ys => return ctorToJs info ys
+  | .reset n x => return s!"$rt.reset({varName x}, {n})"
+  | .reuse .. => throw "`reuse` must be emitted with `emitReuse`"
   | .proj i x => return s!"{varName x}.f[{i}]"
   | .uproj i x => return s!"{varName x}.s[{scalarKey i 0}]"
   | .sproj n offset x => return s!"{varName x}.s[{scalarKey n offset}]"
@@ -127,7 +126,7 @@ def exprToJs (ty : IRType) : IR.Expr → EmitM String
   | .box _ x | .unbox x => return varName x
   | .lit (.num v) => return natLitToJs v ty
   | .lit (.str s) => return s!"$rt.mkString({quoteJs s})"
-  | .isShared _ => return "1"
+  | .isShared x => return s!"$rt.isShared({varName x})"
 
 def isSelfTailCall (x : VarId) (e : IR.Expr) (b : FnBody) : EmitM Bool := do
   let ctx ← read
@@ -157,6 +156,25 @@ def emitSelfTailCall (ys : Array Arg) : EmitM Unit := do
     for (p, _) in updates, i in [0:updates.size] do
       emitLn s!"{varName p.x} = _t{i};"
     emitLn "continue _start;"
+  emitLn "}"
+
+/--
+Emits `let x := reuse y in ctor_i ys`, where `y` is the result of a `reset`: either an exclusive
+object whose fields have been released, or `0` if it was shared.
+-/
+def emitReuse (x y : VarId) (info : CtorInfo) (updtHeader : Bool) (ys : Array Arg) : EmitM Unit := do
+  emitLn s!"let {varName x};"
+  emitLn s!"if ({varName y} === 0) \{"
+  withIndent (emitLn s!"{varName x} = {ctorToJs info ys};")
+  emitLn "} else {"
+  withIndent do
+    emitLn s!"{varName x} = {varName y};"
+    for y in ys, i in [0:ys.size] do
+      emitLn s!"{varName x}.f[{i}] = {argToJs y};"
+    if updtHeader then
+      emitLn s!"{varName x}.tag = {info.cidx};"
+    if info.usize > 0 || info.ssize > 0 then
+      emitLn s!"{varName x}.s ??= \{};"
   emitLn "}"
 
 mutual
@@ -192,6 +210,9 @@ partial def emitFnBody : FnBody → EmitM Unit
     if ← isSelfTailCall x e b then
       let .fap _ ys := e | unreachable!
       emitSelfTailCall ys
+    else if let .reuse y info updtHeader ys := e then
+      emitReuse x y info updtHeader ys
+      emitFnBody b
     else
       emitLn s!"let {varName x} = {← exprToJs ty e};"
       emitFnBody b
@@ -217,7 +238,17 @@ partial def emitFnBody : FnBody → EmitM Unit
   | .sset x i offset y _ b => do
     emitLn s!"{varName x}.s[{scalarKey i offset}] = {varName y};"
     emitFnBody b
-  | .inc (b := b) .. | .dec (b := b) .. | .del (b := b) .. => emitFnBody b
+  | .inc x n _ persistent b => do
+    unless persistent do
+      emitLn (if n == 1 then s!"$rt.inc({varName x});" else s!"$rt.incN({varName x}, {n});")
+    emitFnBody b
+  | .dec x _ _ persistent b => do
+    unless persistent do
+      emitLn s!"$rt.dec({varName x});"
+    emitFnBody b
+  | .del x b => do
+    emitLn s!"$rt.del({varName x});"
+    emitFnBody b
   | .case _ x xType alts => emitCase x xType alts
   | .ret y => emitLn s!"return {argToJs y};"
   | .jmp j ys => do

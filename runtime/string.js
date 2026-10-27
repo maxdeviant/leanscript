@@ -2,48 +2,34 @@
 //
 // `String.Pos` and `String.Pos.Raw` are single-field structures over `Nat`, so a position is just
 // its byte offset. A position may be a `BigInt` if it is huge, in which case it is past the end.
+//
+// Each extern follows the ownership conventions of its C counterpart: an exclusive string is
+// updated in place, and a shared one is copied first.
 
-import { apply, arrayToList } from "./core.js";
+import { apply, arrayToList, dec, inc } from "./core.js";
 import { natAdd } from "./nat.js";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-/** A growable byte buffer that may be shared by several strings that are prefixes of it. */
-class StringBuffer {
-  constructor(bytes, used) {
-    this.bytes = bytes;
-    this.used = used;
-  }
-}
-
-/**
- * An immutable UTF-8 string.
- *
- * A string is the first `size` bytes of its buffer. When a string is exactly the used part of its
- * buffer, appending to it writes into the buffer in place and returns a new string over the longer
- * prefix. This keeps repeated appends linear without knowing whether the string is shared.
- */
+/** A UTF-8 string, stored in the first `size` bytes of a buffer that may have spare capacity. */
 export class LeanString {
   /**
-   * @param {StringBuffer} buf
+   * @param {Uint8Array} bytes
    * @param {number} size The size in bytes.
    * @param {number} length The length in Unicode scalar values.
    */
-  constructor(buf, size, length) {
-    this.buf = buf;
+  constructor(bytes, size, length) {
+    this.rc = 1;
+    this.bytes = bytes;
     this.size = size;
     this.length = length;
-    /** @type {string | undefined} */
+    /** @type {string | undefined} The contents as a JS string, if known. */
     this.js = undefined;
   }
 
-  get bytes() {
-    return this.buf.bytes;
-  }
-
   toString() {
-    return (this.js ??= decoder.decode(this.buf.bytes.subarray(0, this.size)));
+    return (this.js ??= decoder.decode(this.bytes.subarray(0, this.size)));
   }
 }
 
@@ -56,29 +42,45 @@ function countScalars(s) {
 /** Converts a JS string to a Lean `String`. */
 export function mkString(s) {
   const bytes = encoder.encode(s);
-  const str = new LeanString(new StringBuffer(bytes, bytes.length), bytes.length, countScalars(s));
+  const str = new LeanString(bytes, bytes.length, countScalars(s));
   str.js = s;
   return str;
 }
 
 /** Returns a string of the `size` bytes of `bytes` starting at `start`, containing `length` chars. */
 function stringOfBytes(bytes, start, size, length) {
-  const copy = bytes.slice(start, start + size);
-  return new LeanString(new StringBuffer(copy, size), size, length);
+  return new LeanString(bytes.slice(start, start + size), size, length);
 }
 
-function appendBytes(s, bytes, size, length) {
-  const newSize = s.size + size;
-  let buf = s.buf;
-  if (buf.used !== s.size || buf.bytes.length < newSize) {
-    const capacity = buf.used === s.size ? Math.max(16, 2 * newSize) : newSize;
-    const newBytes = new Uint8Array(capacity);
-    newBytes.set(buf.bytes.subarray(0, s.size));
-    buf = new StringBuffer(newBytes, s.size);
+/**
+ * Takes ownership of `s` and returns an exclusive string with its contents and room for `extra`
+ * more bytes, copying it if it is shared.
+ */
+function reserve(s, extra) {
+  const newSize = s.size + extra;
+  if (s.rc === 1) {
+    if (s.bytes.length < newSize) {
+      const bytes = new Uint8Array(Math.max(16, 2 * newSize));
+      bytes.set(s.bytes.subarray(0, s.size));
+      s.bytes = bytes;
+    }
+    s.js = undefined;
+    return s;
   }
-  buf.bytes.set(bytes.subarray(0, size), s.size);
-  buf.used = newSize;
-  return new LeanString(buf, newSize, s.length + length);
+  const bytes = new Uint8Array(Math.max(16, 2 * newSize));
+  bytes.set(s.bytes.subarray(0, s.size));
+  const r = new LeanString(bytes, s.size, s.length);
+  dec(s);
+  return r;
+}
+
+/** Appends `length` chars, encoded as the first `size` bytes of `bytes`, to the owned `s`. */
+function appendBytes(s, bytes, size, length) {
+  const r = reserve(s, size);
+  r.bytes.set(bytes.subarray(0, size), r.size);
+  r.size += size;
+  r.length += length;
+  return r;
 }
 
 function utf8Size(c) {
@@ -149,11 +151,19 @@ function stringGet(s, i) {
 
 function stringSet(s, i, c) {
   if (!isCharBoundary(s, i)) return s;
-  const end = i + sequenceSize(s.bytes[i]);
+  const oldSize = sequenceSize(s.bytes[i]);
+  if (s.rc === 1 && oldSize === utf8Size(c)) {
+    s.bytes.set(encodeChar(c).subarray(0, oldSize), i);
+    s.js = undefined;
+    return s;
+  }
+  const end = i + oldSize;
   let r = stringOfBytes(s.bytes, 0, i, 0);
   r = stringPush(r, c);
   r = appendBytes(r, s.bytes.subarray(end, s.size), s.size - end, 0);
-  return new LeanString(r.buf, r.size, s.length);
+  r.length = s.length;
+  dec(s);
+  return r;
 }
 
 /** `String.Pos.Raw.next`, which steps one byte past an invalid position. */
@@ -226,13 +236,17 @@ const bool = (b) => (b ? 1 : 0);
 export const externs = {
   "String.ofList": (list) => {
     let s = mkString("");
-    while (list !== 0) {
-      s = stringPush(s, list.f[0]);
-      list = list.f[1];
+    for (let l = list; l !== 0; l = l.f[1]) {
+      s = stringPush(s, l.f[0]);
     }
+    dec(list);
     return s;
   },
-  "String.toList": (s) => arrayToList(toChars(s)),
+  "String.toList": (s) => {
+    const list = arrayToList(toChars(s));
+    dec(s);
+    return list;
+  },
   "String.length": (s) => s.length,
   "String.utf8ByteSize": (s) => s.size,
   "String.append": stringAppend,
@@ -255,22 +269,41 @@ export const externs = {
   "String.Internal.length": (s) => s.length,
   "String.Internal.next": stringNext,
   "String.Internal.extract": stringExtract,
-  "String.Internal.isPrefixOf": (p, s) => bool(isPrefixOf(p, s)),
+  "String.Internal.isPrefixOf": (p, s) => {
+    const r = bool(isPrefixOf(p, s));
+    dec(p);
+    dec(s);
+    return r;
+  },
   "String.Internal.any": (s, p) => {
+    let r = 0;
     for (let i = 0; i < s.size; i += sequenceSize(s.bytes[i])) {
-      if (apply(p, [decodeCharAt(s.bytes, i)]) === 1) return 1;
+      // `apply` consumes the closure, but we need it for the next char.
+      inc(p);
+      if (apply(p, [decodeCharAt(s.bytes, i)]) === 1) {
+        r = 1;
+        break;
+      }
     }
-    return 0;
+    dec(p);
+    dec(s);
+    return r;
   },
   "String.Internal.posOf": (s, c) => {
+    let pos = s.size;
     for (let i = 0; i < s.size; i += sequenceSize(s.bytes[i])) {
-      if (decodeCharAt(s.bytes, i) === c) return i;
+      if (decodeCharAt(s.bytes, i) === c) {
+        pos = i;
+        break;
+      }
     }
-    return s.size;
+    dec(s);
+    return pos;
   },
   "String.Internal.offsetOfPos": (s, pos) => {
     let offset = 0;
     for (let i = 0; i < pos && i < s.size; i += sequenceSize(s.bytes[i])) offset++;
+    dec(s);
     return offset;
   },
   "String.Internal.pushn": (s, c, n) => {
