@@ -124,6 +124,10 @@ def new (body : String) (init : ResponseInit := {}) : IO Response := do
 @[extern js inline "#1.status"]
 opaque status (r : @& Response) : Nat
 
+/-- Whether the response's status is successful, from 200 to 299. -/
+@[extern js inline "#1.ok ? 1 : 0"]
+opaque ok (r : @& Response) : Bool
+
 /-- The response's headers, which are always the same object. -/
 @[extern js inline "#1.headers"]
 opaque headers (r : @& Response) : Headers
@@ -137,5 +141,13 @@ def json (r : Response) : Async JsValue := do
   JsValue.await (← r.val.callMethod "json" #[])
 
 end Response
+
+/--
+Sends a request for `url`, and returns the response once its headers arrive. Throws an error if the
+request fails, such as on a network error, but not if the response has an error status.
+-/
+def fetch (url : String) (init : RequestInit := {}) : Async Response := do
+  let promise ← (← JsValue.getGlobal "fetch").call .undefined #[.ofString url, ← toJs init]
+  fromJs (← JsValue.await promise)
 
 end Js.Fetch

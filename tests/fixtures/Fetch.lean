@@ -35,5 +35,15 @@ def program : Async Unit := do
   catch e =>
     IO.println s!"error: {e}"
 
+  -- Fetching, which `data:` URLs do without a network.
+  let res ← fetch "data:text/plain,hello"
+  IO.println s!"{res.status} {res.ok} {← res.headers.get "content-type"}: {← res.text}"
+  let res ← fetch "data:application/json,%7B%22a%22%3A1%7D" { method := "POST" }
+  IO.println (← (fromJs (← (← res.json).get "a") : IO Nat))
+  try
+    discard <| fetch "not a URL"
+  catch e =>
+    IO.println s!"error: {e}"
+
 def main : IO Unit := do
   discard <| EAsync.toBaseIO program

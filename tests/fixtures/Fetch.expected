@@ -7,3 +7,6 @@
 https://example.com/
 error: expected an instance of Request, got object
 error: RangeError: init["status"] must be in the range of 200 to 599, inclusive.
+200 true (some text/plain): hello
+1
+error: TypeError: Failed to parse URL from not a URL
