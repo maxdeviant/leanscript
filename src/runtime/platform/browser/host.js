@@ -54,6 +54,14 @@ export function runWithLargeStack(_moduleUrl, run) {
   run();
 }
 
+/**
+ * Calls `f` once the program has nothing left to do. A page never finishes, so this only calls `f`
+ * when the browser runtime runs under Node, as it does in tests.
+ */
+export function whenFinished(f) {
+  globalThis.process?.once?.("beforeExit", f);
+}
+
 let sleepCell;
 
 /**

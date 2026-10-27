@@ -14,8 +14,8 @@ import { isMainThread, parentPort, Worker, workerData } from "node:worker_thread
 const STACK_SIZE_MB = 1024;
 
 /**
- * Calls `run` on a thread with a large stack, waits for the promise it returns, then exits with the
- * exit code it set.
+ * Calls `run` on a thread with a large stack. The process exits once the thread has nothing left to
+ * do, with the exit code that `run` set.
  *
  * `moduleUrl` must be the URL of the calling module: on the main thread, this starts a worker that
  * imports it again, which must then call this function again.
@@ -50,7 +50,15 @@ export function runWithLargeStack(moduleUrl, run) {
     });
     return;
   }
-  run().then(() => process.exit(process.exitCode ?? 0));
+  run();
+}
+
+/**
+ * Calls `f` once the program has nothing left to do, when the event loop is empty, but not when it
+ * exits early with `exitProcess`.
+ */
+export function whenFinished(f) {
+  process.once("beforeExit", f);
 }
 
 /**

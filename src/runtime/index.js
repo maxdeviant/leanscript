@@ -31,13 +31,14 @@ import { externs as miscExterns } from "./misc.js";
 import { externs as natExterns } from "./nat.js";
 import { externs as refExterns } from "./ref.js";
 import { externs as stringExterns, mkString } from "./string.js";
-import { externs as taskExterns, whenIdle } from "./task.js";
+import { externs as taskExterns } from "./task.js";
 import { externs as platformExterns } from "#platform/externs.js";
 import {
   commandLineArgs,
   flushOutput,
   runWithLargeStack,
   setExitCode,
+  whenFinished,
   writeStderr,
 } from "#platform/host.js";
 
@@ -136,10 +137,9 @@ export function runMain(moduleUrl, inits, main, arity, errorToString) {
  * initializes, if any. Sets the exit code from the result, reporting an uncaught error from an
  * initializer or `main` with `errorToString`.
  *
- * The program finishes once no task is waiting for a JS promise, as continuations may still run
- * when one settles. Then reports any leaked objects, if reference counting debug checks are
- * enabled, and flushes standard output and error. Returns a promise that resolves when the program
- * has finished.
+ * The program finishes once it has nothing left to do, as JS may still call it back, or continue
+ * one of its tasks when a JS promise settles. Then reports any leaked objects, if reference counting
+ * debug checks are enabled, and flushes standard output and error.
  *
  * An internal panic stops the program with exit code 1, without checking for leaks.
  */
@@ -166,14 +166,11 @@ function runProgram(inits, main, arity, errorToString) {
     writeStderr(`INTERNAL PANIC: ${e.message}\n`);
     setExitCode(1);
     flushAll();
-    return Promise.resolve();
+    return;
   }
-  return new Promise((resolve) => {
-    whenIdle(() => {
-      checkLeaks();
-      flushAll();
-      resolve();
-    });
+  whenFinished(() => {
+    checkLeaks();
+    flushAll();
   });
 }
 

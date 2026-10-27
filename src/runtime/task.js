@@ -152,25 +152,6 @@ function then(t, f, io, bind) {
   return target;
 }
 
-/** The number of JS promises that tasks are waiting for. */
-let pendingJsPromises = 0;
-
-/** The functions to call once no task is waiting for a JS promise. */
-let idleCallbacks = [];
-
-/**
- * Calls `f` once no task is waiting for a JS promise, which may be right away. Continuations that
- * run when a JS promise settles may wait for more JS promises, so this may take several turns of
- * the event loop.
- */
-export function whenIdle(f) {
-  if (pendingJsPromises === 0) {
-    f();
-  } else {
-    idleCallbacks.push(f);
-  }
-}
-
 /**
  * Returns a task, of type `Task (Except IO.Error JsValue)`, that finishes when the JS value `p`
  * settles, if it is a promise, or right after the current turn of the event loop otherwise. A
@@ -181,21 +162,9 @@ export function taskOfJsPromise(p) {
   promiseTasks.add(t);
   // The reference that the callbacks below hold until `p` settles.
   inc(t);
-  pendingJsPromises++;
   const settle = (result) => {
-    try {
-      finish(t, result);
-      dec(t);
-    } finally {
-      pendingJsPromises--;
-      if (pendingJsPromises === 0) {
-        const callbacks = idleCallbacks;
-        idleCallbacks = [];
-        for (const f of callbacks) {
-          f();
-        }
-      }
-    }
+    finish(t, result);
+    dec(t);
   };
   Promise.resolve(p).then(
     (v) => settle(new Ctor(1, [v], null)),
