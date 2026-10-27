@@ -1,6 +1,6 @@
 // File handles and file system operations.
 
-import { Ctor, dec, inc, track } from "../../core.js";
+import { Ctor, dec, inc, RC, track } from "../../core.js";
 import { mkArray } from "../../array.js";
 import { LeanByteArray } from "../../bytearray.js";
 import { attempt } from "../../io.js";
@@ -45,7 +45,7 @@ export class Handle {
    *   the handle tracks its own position so that it can be rewound.
    */
   constructor(fd, seekable) {
-    this.rc = 1;
+    this[RC] = 1;
     this.fd = fd;
     /** The file offset of the next read or write, or `null` to use the current file offset. */
     this.pos = seekable ? 0 : null;

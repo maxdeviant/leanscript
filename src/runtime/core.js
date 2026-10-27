@@ -1,26 +1,29 @@
 // Objects, reference counting, closures, and other core runtime support.
 //
-// Heap objects (`Ctor`s, closures, arrays, and strings) carry a reference count in their `rc`
-// field, with the same meaning and ownership discipline as `m_rc` in the C runtime:
+// Heap objects (`Ctor`s, closures, arrays, and strings) carry a reference count under the `RC`
+// symbol, with the same meaning and ownership discipline as `m_rc` in the C runtime:
 //
 // - `rc > 0`: the number of references. An object with `rc === 1` is exclusive and may be updated
 //   in place.
 // - `rc === 0`: persistent. Never freed and never exclusive.
 // - `rc === FREED`: freed. Touching it again is a reference counting bug, so we throw.
 //
-// Objects without an `rc` field, such as values from foreign JS code, are treated as persistent.
-// Numbers and `BigInt`s are never reference counted.
+// Values from foreign JS code have no reference count, and are never reference counted. Neither
+// are numbers and `BigInt`s. The count is keyed by a symbol so that no foreign object can have one.
 //
 // Freeing an object only decrements its children; the memory itself is left to the JS garbage
 // collector. The counts exist so that we know when an object is exclusive.
 //
 // Setting the `LEANSCRIPT_DEBUG_RC` debug option enables extra checks: every allocated object is
 // registered so that `checkLeaks` can report the ones never freed, freed objects are poisoned so
-// that any later use of one fails, and objects without a reference count are reported.
+// that any later use of one fails.
 
 import { debugOption, writeStderr } from "#platform/host.js";
 
 const FREED = -1;
+
+/** The key of an object's reference count. */
+export const RC = Symbol("rc");
 
 /** The objects allocated and not yet freed, if debug checks are enabled. */
 const live = debugOption("LEANSCRIPT_DEBUG_RC") ? new Set() : undefined;
@@ -38,7 +41,7 @@ export class Ctor {
    * @param {Record<number, unknown> | null} s The scalar fields, keyed by byte offset.
    */
   constructor(tag, f, s) {
-    this.rc = 1;
+    this[RC] = 1;
     this.tag = tag;
     this.f = f;
     this.s = s;
@@ -48,7 +51,7 @@ export class Ctor {
 
 export class Closure {
   constructor(fn, arity, args) {
-    this.rc = 1;
+    this[RC] = 1;
     this.fn = fn;
     this.arity = arity;
     this.args = args;
@@ -59,7 +62,7 @@ export class Closure {
 /** A mutable reference cell, `ST.Ref`, which owns its value. */
 export class Ref {
   constructor(value) {
-    this.rc = 1;
+    this[RC] = 1;
     this.value = value;
     live?.add(this);
   }
@@ -68,7 +71,7 @@ export class Ref {
 /** A lazily computed value, `Thunk`. Until it is forced, `fn` holds the closure that computes it. */
 export class Thunk {
   constructor(fn, value) {
-    this.rc = 1;
+    this[RC] = 1;
     this.fn = fn;
     this.value = value;
     live?.add(this);
@@ -83,7 +86,7 @@ export class Thunk {
  */
 export class Task {
   constructor(value, waiters = null) {
-    this.rc = 1;
+    this[RC] = 1;
     this.value = value;
     this.waiters = waiters;
     live?.add(this);
@@ -106,24 +109,16 @@ function useAfterFree(op, x) {
   throw new Error(`LeanScript: ${op} of freed object ${x?.constructor?.name}`);
 }
 
-function checkCounted(x) {
-  if (live !== undefined && x.rc === undefined) {
-    throw new Error(`LeanScript: object without a reference count: ${describe(x)}`);
-  }
-}
-
 /** Marks `x` as freed. Its children must already have been decremented or moved elsewhere. */
 function release(x) {
-  x.rc = FREED;
+  x[RC] = FREED;
   if (live !== undefined) {
     live.delete(x);
     if (Array.isArray(x)) {
       x.length = 0;
     } else {
       for (const key of Object.keys(x)) {
-        if (key !== "rc") {
-          x[key] = null;
-        }
+        x[key] = null;
       }
     }
   }
@@ -163,7 +158,7 @@ export function checkLeaks() {
   const todo = persistentRefs.map((r) => r.value);
   while (todo.length > 0) {
     const x = todo.pop();
-    if (typeof x !== "object" || reachable.has(x)) {
+    if (typeof x !== "object" || x === null || reachable.has(x)) {
       continue;
     }
     reachable.add(x);
@@ -171,11 +166,11 @@ export function checkLeaks() {
       todo.push(c);
     }
   }
-  const leaked = [...live].filter((x) => x.rc > 0 && !reachable.has(x));
+  const leaked = [...live].filter((x) => x[RC] > 0 && !reachable.has(x));
   if (leaked.length === 0) {
     return false;
   }
-  const shown = leaked.slice(0, 10).map((x) => `  ${describe(x)} (rc ${x.rc})\n`);
+  const shown = leaked.slice(0, 10).map((x) => `  ${describe(x)} (rc ${x[RC]})\n`);
   const more =
     leaked.length > shown.length ? `  ...and ${leaked.length - shown.length} more\n` : "";
   writeStderr(`LeanScript: ${leaked.length} objects leaked:\n${shown.join("")}${more}`);
@@ -206,46 +201,40 @@ function children(x) {
 }
 
 export function inc(x) {
-  if (typeof x !== "object") {
+  if (typeof x !== "object" || x === null) {
     return;
   }
-  const rc = x.rc;
+  const rc = x[RC];
   if (rc > 0) {
-    x.rc = rc + 1;
+    x[RC] = rc + 1;
   } else if (rc === FREED) {
     useAfterFree("inc", x);
-  } else {
-    checkCounted(x);
   }
 }
 
 export function incN(x, n) {
-  if (typeof x !== "object") {
+  if (typeof x !== "object" || x === null) {
     return;
   }
-  const rc = x.rc;
+  const rc = x[RC];
   if (rc > 0) {
-    x.rc = rc + n;
+    x[RC] = rc + n;
   } else if (rc === FREED) {
     useAfterFree("inc", x);
-  } else {
-    checkCounted(x);
   }
 }
 
 export function dec(x) {
-  if (typeof x !== "object") {
+  if (typeof x !== "object" || x === null) {
     return;
   }
-  const rc = x.rc;
+  const rc = x[RC];
   if (rc > 1) {
-    x.rc = rc - 1;
+    x[RC] = rc - 1;
   } else if (rc === 1) {
     free(x);
   } else if (rc === FREED) {
     useAfterFree("dec", x);
-  } else {
-    checkCounted(x);
   }
 }
 
@@ -263,18 +252,16 @@ function free(x) {
     if (cs !== undefined) {
       for (let i = 0; i < cs.length; i++) {
         const c = cs[i];
-        if (typeof c !== "object") {
+        if (typeof c !== "object" || c === null) {
           continue;
         }
-        const rc = c.rc;
+        const rc = c[RC];
         if (rc > 1) {
-          c.rc = rc - 1;
+          c[RC] = rc - 1;
         } else if (rc === 1) {
           todo.push(c);
         } else if (rc === FREED) {
           useAfterFree("dec", c);
-        } else {
-          checkCounted(c);
         }
       }
     }
@@ -287,17 +274,17 @@ function free(x) {
  * `lean_del_object`, does nothing if `x` is a scalar.
  */
 export function del(x) {
-  if (typeof x === "object") {
+  if (typeof x === "object" && x !== null) {
     release(x);
   }
 }
 
 export function isExclusive(x) {
-  return x.rc === 1;
+  return x[RC] === 1;
 }
 
 export function isShared(x) {
-  return x.rc === 1 ? 0 : 1;
+  return x[RC] === 1 ? 0 : 1;
 }
 
 /**
@@ -305,7 +292,7 @@ export function isShared(x) {
  * reuse. Otherwise, gives up our reference to `x` and returns `0`.
  */
 export function reset(x, n) {
-  if (x.rc === 1) {
+  if (x[RC] === 1) {
     for (let i = 0; i < n; i++) {
       dec(x.f[i]);
     }
@@ -320,10 +307,10 @@ export function markPersistent(x) {
   const todo = [x];
   while (todo.length > 0) {
     const o = todo.pop();
-    if (typeof o !== "object" || !(o.rc > 0)) {
+    if (typeof o !== "object" || o === null || !(o[RC] > 0)) {
       continue;
     }
-    o.rc = 0;
+    o[RC] = 0;
     if (o instanceof Ref) {
       persistentRefs?.push(o);
     }
@@ -406,7 +393,7 @@ export function pap(fn, arity, args) {
  */
 function takeArgs(f) {
   const args = f.args;
-  if (f.rc === 1) {
+  if (f[RC] === 1) {
     del(f);
     return args;
   }

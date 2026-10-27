@@ -22,6 +22,7 @@ import {
   internalPanic,
   isInitializing,
   panic,
+  RC,
   Task,
   track,
 } from "./core.js";
@@ -45,7 +46,7 @@ const promiseTasks = new WeakSet();
 /** An `IO.Promise`, which owns its result task, and resolves it to `none` if it is dropped. */
 class IOPromise {
   constructor() {
-    this.rc = 1;
+    this[RC] = 1;
     this.task = new Task(0, []);
     promiseTasks.add(this.task);
     track(this);
@@ -78,7 +79,7 @@ function take(t) {
     throw blockedForever();
   }
   const value = t.value;
-  if (t.rc === 1) {
+  if (t[RC] === 1) {
     del(t);
   } else {
     inc(value);
@@ -221,7 +222,7 @@ export const externs = {
       throw BLOCKED;
     }
     const value = o.f[0];
-    if (o.rc === 1) {
+    if (o[RC] === 1) {
       del(o);
     } else {
       inc(value);

@@ -6,7 +6,7 @@
 // Each extern follows the ownership conventions of its C counterpart: an exclusive string is
 // updated in place, and a shared one is copied first.
 
-import { arrayToList, Ctor, dec, track } from "./core.js";
+import { arrayToList, Ctor, dec, RC, track } from "./core.js";
 import { mkByteArray } from "./bytearray.js";
 import { hashBytes } from "./hash.js";
 import { natAdd, natSub } from "./nat.js";
@@ -22,7 +22,7 @@ export class LeanString {
    * @param {number} length The length in Unicode scalar values.
    */
   constructor(bytes, size, length) {
-    this.rc = 1;
+    this[RC] = 1;
     this.bytes = bytes;
     this.size = size;
     this.length = length;
@@ -67,7 +67,7 @@ function stringOfBytes(bytes, start, size, length) {
  */
 function reserve(s, extra) {
   const newSize = s.size + extra;
-  if (s.rc === 1) {
+  if (s[RC] === 1) {
     if (s.bytes.length < newSize) {
       const bytes = new Uint8Array(Math.max(16, 2 * newSize));
       bytes.set(s.bytes.subarray(0, s.size));
@@ -169,7 +169,7 @@ function stringSet(s, i, c) {
     return s;
   }
   const oldSize = sequenceSize(s.bytes[i]);
-  if (s.rc === 1 && oldSize === utf8Size(c)) {
+  if (s[RC] === 1 && oldSize === utf8Size(c)) {
     s.bytes.set(encodeChar(c).subarray(0, oldSize), i);
     s.js = undefined;
     return s;

@@ -3,7 +3,7 @@
 // Each extern follows the ownership conventions of its C counterpart: an exclusive byte array is
 // updated in place, and a shared one is copied first.
 
-import { dec, track } from "./core.js";
+import { dec, RC, track } from "./core.js";
 import { mkArray } from "./array.js";
 import { hashBytes } from "./hash.js";
 
@@ -13,7 +13,7 @@ export class LeanByteArray {
    * @param {number} size
    */
   constructor(bytes, size) {
-    this.rc = 1;
+    this[RC] = 1;
     this.bytes = bytes;
     this.size = size;
     track(this);
@@ -34,7 +34,7 @@ export function mkByteArray(bytes, size) {
  * least `capacity` bytes, copying it if it is shared.
  */
 function reserve(a, capacity) {
-  if (a.rc === 1) {
+  if (a[RC] === 1) {
     if (a.bytes.length < capacity) {
       const bytes = new Uint8Array(Math.max(16, 2 * capacity));
       bytes.set(a.bytes.subarray(0, a.size));

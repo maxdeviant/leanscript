@@ -1,15 +1,15 @@
-// `Array`, represented as a JS array with an `rc` property (see `core.js`).
+// `Array`, represented as a JS array with a reference count (see `core.js`).
 //
 // Each extern follows the ownership conventions of its C counterpart: an exclusive array is updated
 // in place, and a shared one is copied first.
 
-import { arrayToList, dec, inc, incN, isExclusive, listToArray, panic, track } from "./core.js";
+import { arrayToList, dec, inc, incN, isExclusive, listToArray, panic, RC, track } from "./core.js";
 
 const OUT_OF_BOUNDS = "Error: index out of bounds";
 
 /** Makes the JS array `xs` into a Lean `Array` owning its elements. */
 export function mkArray(xs) {
-  xs.rc = 1;
+  xs[RC] = 1;
   return track(xs);
 }
 
