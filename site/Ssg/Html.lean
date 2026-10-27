@@ -83,6 +83,7 @@ def code (attrs : List Attr := []) (children : List Html := []) : Html := .eleme
 def strong (attrs : List Attr := []) (children : List Html := []) : Html := .element "strong" attrs children
 def em (attrs : List Attr := []) (children : List Html := []) : Html := .element "em" attrs children
 def img (attrs : List Attr := []) : Html := .element "img" attrs []
+def button (attrs : List Attr := []) (children : List Html := []) : Html := .element "button" attrs children
 
 end Html
 
