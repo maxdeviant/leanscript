@@ -1,0 +1,9 @@
+circle r=2
+rect 3x4
+triangle 3 4 5
+point
+p@(200, 60000) visible=true color=Color.blue weight=1.500000
+p@(200, 60000) visible=false color=Color.red weight=1.500000
+(some 2)
+none
+true

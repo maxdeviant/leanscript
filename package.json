@@ -1,0 +1,11 @@
+{
+  "name": "leanscript",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./runtime": "./runtime/index.js"
+  },
+  "scripts": {
+    "test": "node tests/run.js"
+  }
+}
