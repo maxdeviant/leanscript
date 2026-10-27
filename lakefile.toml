@@ -1,5 +1,6 @@
 name = "leanscript"
 defaultTargets = ["leanscript"]
+srcDir = "src"
 
 [[lean_lib]]
 name = "LeanScript"

@@ -1,6 +1,6 @@
 // The LeanScript runtime.
 //
-// See `LeanScript/EmitJs.lean` for how Lean values are represented, and the individual modules for
+// See `src/LeanScript/EmitJs.lean` for how Lean values are represented, and the individual modules for
 // the representation of each builtin type.
 //
 // Every extern implementation receives every IR parameter of the declaration it implements, in

@@ -4,7 +4,7 @@ import LeanScript.Collect
 /-!
 Emits a JavaScript module from Lean IR.
 
-Value representation (see `runtime/index.js` for the runtime side):
+Value representation (see `src/runtime/index.js` for the runtime side):
 
 - Scalars (`u8`, `u16`, `u32`, `usize`, `float`, `float32`) are JS numbers; `u64` is a `BigInt`.
 - Boxing and unboxing are the identity.
