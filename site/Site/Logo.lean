@@ -5,12 +5,12 @@ namespace Site
 open Ssg Html
 
 /--
-The site's mark: the letters "LS" on a yellow square, with the stem of the L leaning toward the S. The
-letters are strokes on a 32×32 grid, rather than text, so that they look the same everywhere.
+The site's mark: the letters "LS" on a marigold square, with the stem of the L leaning toward the S.
+The letters are strokes on a 32×32 grid, rather than text, so that they look the same everywhere.
 -/
 def mark (attrs : List Attr := []) : Html :=
   .element "svg" ([("xmlns", "http://www.w3.org/2000/svg"), ("viewBox", "0 0 32 32")] ++ attrs) [
-    .element "rect" [("width", "32"), ("height", "32"), ("rx", "4"), ("fill", "#f7df1e")] [],
+    .element "rect" [("width", "32"), ("height", "32"), ("rx", "4"), ("fill", "#f5a524")] [],
     .element "g" [("fill", "none"), ("stroke", "#1d1a16"), ("stroke-width", "3.5")] [
       .element "path" [("d", "M11.5 7L7.5 24.25H14.75")] [],
       -- The S runs along the baseline from the gap, and then is two arcs of radius 3.875 that meet

@@ -36,9 +36,12 @@
   --color-ink: light-dark(#1d1a16, #ece5d8);
   --color-muted: light-dark(#6e655a, #a1968a);
   --color-rule: light-dark(#ddd3c2, #2e2a24);
-  --color-accent: light-dark(#b4410e, #f08a4b);
-  /* JavaScript's yellow, which stays the same in dark mode, along with the text on it. */
-  --color-highlight: #f7df1e;
+  --color-accent: light-dark(#2952a3, #8aa9f0);
+  /*
+   * The brand's marigold, which stays the same in dark mode, along with the text on it. `Site.mark`
+   * uses the same colors, for the logo and the favicon.
+   */
+  --color-highlight: #f5a524;
   --color-on-highlight: #1d1a16;
   --color-code: light-dark(#1d1a16, #0c0b09);
   --color-on-code: #ece5d8;
