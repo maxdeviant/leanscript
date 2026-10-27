@@ -7,6 +7,7 @@
 // updated in place, and a shared one is copied first.
 
 import { apply, arrayToList, dec, inc, track } from "./core.js";
+import { hashBytes } from "./hash.js";
 import { natAdd } from "./nat.js";
 
 const encoder = new TextEncoder();
@@ -261,6 +262,9 @@ function toChars(s) {
 const bool = (b) => (b ? 1 : 0);
 
 export const externs = {
+  // The proof argument guarantees that `n` is a valid scalar value.
+  "Char.ofNatAux": (n, _h) => n,
+
   "String.ofList": (list) => {
     let s = mkString("");
     for (let l = list; l !== 0; l = l.f[1]) {
@@ -274,6 +278,7 @@ export const externs = {
     dec(s);
     return list;
   },
+  "String.hash": (s) => hashBytes(s.bytes, s.size, 11n),
   "String.length": (s) => s.length,
   "String.utf8ByteSize": (s) => s.size,
   "String.append": stringAppend,

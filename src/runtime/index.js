@@ -8,11 +8,14 @@
 
 import { arrayToList, checkLeaks, dec, del, inc, panic } from "./core.js";
 import { externs as arrayExterns } from "./array.js";
+import { externs as fixedExterns } from "./fixed.js";
+import { externs as floatExterns } from "./float.js";
+import { externs as hashExterns } from "./hash.js";
 import { externs as ioExterns } from "./io.js";
 import { externs as natExterns } from "./nat.js";
+import { externs as refExterns } from "./ref.js";
 import { commandLineArgs, setExitCode, writeStderr } from "./platform.js";
 import { externs as stringExterns, mkString } from "./string.js";
-import { externs as uintExterns } from "./uint.js";
 
 export {
   apply,
@@ -34,10 +37,13 @@ export { mkString } from "./string.js";
 /** Implementations of `@[extern]` declarations, keyed by the Lean declaration name. */
 export const externs = {
   ...natExterns,
-  ...uintExterns,
+  ...fixedExterns,
+  ...floatExterns,
   ...stringExterns,
   ...arrayExterns,
+  ...hashExterns,
   ...ioExterns,
+  ...refExterns,
   panicCore: (_α, defaultValue, msg) => {
     const text = msg.toString();
     dec(msg);

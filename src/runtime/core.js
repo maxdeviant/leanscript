@@ -56,6 +56,21 @@ export class Closure {
   }
 }
 
+/** A mutable reference cell, `ST.Ref`, which owns its value. */
+export class Ref {
+  constructor(value) {
+    this.rc = 1;
+    this.value = value;
+    live?.add(this);
+  }
+}
+
+/**
+ * The persistent refs, if debug checks are enabled. Values stored in them after they were made
+ * persistent are reference counted but never freed, so they are not leaks.
+ */
+const persistentRefs = live === undefined ? undefined : [];
+
 function useAfterFree(op, x) {
   throw new Error(`LeanScript: ${op} of freed object ${x?.constructor?.name}`);
 }
@@ -93,6 +108,9 @@ function describe(x) {
   if (Array.isArray(x)) {
     return `array of size ${x.length}`;
   }
+  if (x instanceof Ref) {
+    return "ref";
+  }
   if (x.bytes !== undefined) {
     return `string ${JSON.stringify(String(x))}`;
   }
@@ -107,7 +125,19 @@ export function checkLeaks() {
   if (live === undefined) {
     return false;
   }
-  const leaked = [...live].filter((x) => x.rc > 0);
+  const reachable = new Set();
+  const todo = persistentRefs.map((r) => r.value);
+  while (todo.length > 0) {
+    const x = todo.pop();
+    if (typeof x !== "object" || reachable.has(x)) {
+      continue;
+    }
+    reachable.add(x);
+    for (const c of children(x) ?? []) {
+      todo.push(c);
+    }
+  }
+  const leaked = [...live].filter((x) => x.rc > 0 && !reachable.has(x));
   if (leaked.length === 0) {
     return false;
   }
@@ -128,6 +158,9 @@ function children(x) {
   }
   if (Array.isArray(x)) {
     return x;
+  }
+  if (x instanceof Ref) {
+    return [x.value];
   }
   return undefined;
 }
@@ -246,6 +279,9 @@ export function markPersistent(x) {
       continue;
     }
     o.rc = 0;
+    if (o instanceof Ref) {
+      persistentRefs?.push(o);
+    }
     const cs = children(o);
     if (cs === undefined) {
       continue;

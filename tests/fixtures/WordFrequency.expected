@@ -1,0 +1,18 @@
+distinct words: 12
+the: 4
+dog: 3
+fox: 3
+a: 2
+and: 2
+brown: 2
+lazy: 2
+quick: 2
+barks: 1
+jumps: 1
+over: 1
+sleeps: 1
+distinct letters: 26
+contains 'z': true, contains 'q': true
+3: #[and, dog, fox, the]
+4: #[lazy, over]
+5: #[barks, brown, jumps, quick]

@@ -1,0 +1,8 @@
+ok: [20]
+ok: [-2]
+error: stack underflow
+ok: (-1, [10])
+100 101 102 103
+#[a, b, c] #[z]
+55
+caught: failed with 5

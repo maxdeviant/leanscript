@@ -3,7 +3,7 @@
 // Each extern follows the ownership conventions of its C counterpart: an exclusive array is updated
 // in place, and a shared one is copied first.
 
-import { arrayToList, dec, inc, isExclusive, listToArray, panic, track } from "./core.js";
+import { arrayToList, dec, inc, incN, isExclusive, listToArray, panic, track } from "./core.js";
 
 const OUT_OF_BOUNDS = "Error: index out of bounds";
 
@@ -66,6 +66,19 @@ export const externs = {
     dec(a);
     return list;
   },
+  "Array.replicate": (_α, n, v) => {
+    if (typeof n !== "number" || n > 0xffffffff) {
+      throw new Error("LeanScript: out of memory");
+    }
+    if (n === 0) {
+      dec(v);
+    } else {
+      incN(v, n - 1);
+    }
+    return mkArray(Array.from({ length: n }, () => v));
+  },
+  // Arrays are never marked linear, so there is no mark to propagate.
+  "Array.propagateMark": (_α, _β, _xs, ys) => ys,
   "Array.size": (_α, a) => a.length,
   "Array.usize": (_α, a) => a.length,
   "Array.getInternal": (_α, a, i, _h) => getOwned(a, i),
