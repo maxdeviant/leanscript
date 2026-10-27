@@ -1,4 +1,5 @@
 name = "leanscript"
+version = "0.1.0"
 defaultTargets = ["leanscript", "Js"]
 srcDir = "src"
 

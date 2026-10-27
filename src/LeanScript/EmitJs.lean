@@ -2,6 +2,7 @@ import Lean
 import LeanScript.Collect
 import LeanScript.JsExtern
 import LeanScript.Target
+import LeanScript.Version
 
 /-!
 Emits a JavaScript module from Lean IR.
@@ -508,6 +509,7 @@ def emitProgram (env : Environment) (opts : EmitOptions := {}) : Except String E
       if let some (.import specifier name) := jsExterns[d.name]? then
         emitLn s!"import \{ {quoteJs name} as {jsImportName d.name} } from {quoteJs specifier};"
     emitLn ""
+    emitLn s!"$rt.checkVersion({quoteJs version});"
     emitLn "const $Ctor = $rt.Ctor;"
     let quoteNames (ns : Array Name) := ", ".intercalate (ns.map (quoteJs ·.toString)).toList
     if unavailable.isEmpty then

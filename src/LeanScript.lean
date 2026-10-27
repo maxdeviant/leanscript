@@ -4,3 +4,4 @@ import LeanScript.EmitJs
 import LeanScript.Frontend
 import LeanScript.Stdlib
 import LeanScript.Target
+import LeanScript.Version

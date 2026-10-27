@@ -14,7 +14,7 @@
     "format:check": "prettier --check packages scripts tests examples/*/vite.config.js",
     "lint": "oxlint packages scripts tests examples/*/vite.config.js",
     "lint:fix": "oxlint --fix packages scripts tests examples/*/vite.config.js && prettier --write packages scripts tests examples/*/vite.config.js",
-    "test": "node scripts/gen-target-externs.js --check && node tests/run.js",
+    "test": "node scripts/check-versions.js && node scripts/gen-target-externs.js --check && node tests/run.js",
     "gen-externs": "node scripts/gen-target-externs.js"
   },
   "dependencies": {

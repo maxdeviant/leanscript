@@ -8,7 +8,8 @@ def usage : String :=
                      [--target node|browser] [--allow-unavailable]
   leanscript dump-ir <file.lean>
   leanscript list-externs <file.lean>
-  leanscript stdlib-externs"
+  leanscript stdlib-externs
+  leanscript --version"
 
 def moduleNameFor (path : System.FilePath) : Name :=
   (path.fileStem.getD "Main").toName
@@ -110,6 +111,9 @@ def compile (args : CompileArgs) : IO UInt32 := do
 
 def run (args : List String) : IO UInt32 := do
   match args with
+  | ["--version"] =>
+    IO.println s!"leanscript {version}"
+    return 0
   | ["dump-ir", path] => dumpIr path
   | ["list-externs", path] => listExterns path
   | ["stdlib-externs"] => listStdlibExterns

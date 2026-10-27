@@ -73,6 +73,21 @@ export {
 export { mkString } from "./string.js";
 export { jsPromiseOfTask, taskOfJsPromise } from "./task.js";
 
+/** The version of the runtime, which must be the version of the compiler that compiled a program. */
+export const version = "0.1.0";
+
+/**
+ * Throws if `compilerVersion`, the version of the compiler that compiled the calling program, is not
+ * the version of the runtime, as the program may then use the runtime in ways it doesn't support.
+ */
+export function checkVersion(compilerVersion) {
+  if (compilerVersion !== version) {
+    throw new Error(
+      `LeanScript: this program was compiled by LeanScript ${compilerVersion}, but @leanscript/runtime is version ${version}; use the same version of both`,
+    );
+  }
+}
+
 /** Implementations of `@[extern]` declarations, keyed by the Lean declaration name. */
 export const externs = {
   ...natExterns,
