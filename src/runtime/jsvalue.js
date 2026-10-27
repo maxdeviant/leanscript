@@ -3,11 +3,8 @@
 
 import { Ctor } from "./core.js";
 import { mkArray } from "./array.js";
-import { ioError, ioOk } from "./io.js";
+import { ioError, ioOk, userError } from "./io.js";
 import { mkString } from "./string.js";
-
-/** The tag of the `IO.Error.userError` constructor. */
-const USER_ERROR = 18;
 
 /** Returns `some value`, or `none` if `value` is `undefined`. */
 function option(value) {
@@ -34,6 +31,6 @@ export function jsAttempt(f) {
   try {
     return ioOk(f());
   } catch (e) {
-    return ioError(new Ctor(USER_ERROR, [mkString(String(e))], null));
+    return ioError(userError(String(e)));
   }
 }

@@ -1,0 +1,9 @@
+starting
+main returned
+awaited first
+awaited a value that is not a promise
+awaited slow, then fast
+caught: Error: rejected
+awaited inner, round trip
+caught: Error: failed in Lean
+done

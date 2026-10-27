@@ -10,6 +10,9 @@
 // when it is dropped and resolves to `none`. Waiting for an unfinished task would block forever, as
 // nothing else can run to resolve the promise, so it throws instead.
 //
+// A task can also wait for a JS promise, and run its continuations when the promise settles. A JS
+// promise can likewise wait for a task.
+//
 // Each extern follows the ownership conventions of its C counterpart.
 
 import {
@@ -26,6 +29,7 @@ import {
   Task,
   track,
 } from "./core.js";
+import { userError } from "./io.js";
 
 /** The `IO.TaskState.waiting` constructor. */
 const WAITING = 0;
@@ -103,7 +107,11 @@ function finish(t, value) {
  * Runs the continuation `w` on the owned `value`, and finishes its target with the result. A
  * continuation without a function passes `value` on unchanged.
  */
-function run({ f, target, io, bind }, value) {
+function run({ f, target, io, bind, js }, value) {
+  if (js !== undefined) {
+    js(value);
+    return;
+  }
   let result;
   try {
     result = f === 0 ? value : apply(f, io ? [value, 0] : [value]);
@@ -142,6 +150,83 @@ function then(t, f, io, bind) {
     dec(t);
   }
   return target;
+}
+
+/** The number of JS promises that tasks are waiting for. */
+let pendingJsPromises = 0;
+
+/** The functions to call once no task is waiting for a JS promise. */
+let idleCallbacks = [];
+
+/**
+ * Calls `f` once no task is waiting for a JS promise, which may be right away. Continuations that
+ * run when a JS promise settles may wait for more JS promises, so this may take several turns of
+ * the event loop.
+ */
+export function whenIdle(f) {
+  if (pendingJsPromises === 0) {
+    f();
+  } else {
+    idleCallbacks.push(f);
+  }
+}
+
+/**
+ * Returns a task, of type `Task (Except IO.Error JsValue)`, that finishes when the JS value `p`
+ * settles, if it is a promise, or right after the current turn of the event loop otherwise. A
+ * rejection becomes an `IO.userError` with the rejection reason as its message.
+ */
+export function taskOfJsPromise(p) {
+  const t = new Task(0, []);
+  promiseTasks.add(t);
+  // The reference that the callbacks below hold until `p` settles.
+  inc(t);
+  pendingJsPromises++;
+  const settle = (result) => {
+    try {
+      finish(t, result);
+      dec(t);
+    } finally {
+      pendingJsPromises--;
+      if (pendingJsPromises === 0) {
+        const callbacks = idleCallbacks;
+        idleCallbacks = [];
+        for (const f of callbacks) {
+          f();
+        }
+      }
+    }
+  };
+  Promise.resolve(p).then(
+    (v) => settle(new Ctor(1, [v], null)),
+    (e) => settle(new Ctor(0, [userError(String(e))], null)),
+  );
+  return t;
+}
+
+/**
+ * Takes ownership of the task `t`, of type `Task (Except String JsValue)`, and returns a JS promise
+ * that settles when it finishes: it fulfills with the value, or rejects with an `Error` with the
+ * error message.
+ */
+export function jsPromiseOfTask(t) {
+  const { promise, resolve, reject } = Promise.withResolvers();
+  const settle = (result) => {
+    const value = result.f[0];
+    if (result.tag === 1) {
+      resolve(value);
+    } else {
+      reject(new Error(value.toString()));
+    }
+    dec(result);
+  };
+  if (t.waiters === null) {
+    settle(take(t));
+  } else {
+    t.waiters.push({ f: 0, target: 0, io: false, bind: false, js: settle });
+    dec(t);
+  }
+  return promise;
 }
 
 export const externs = {

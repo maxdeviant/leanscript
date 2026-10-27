@@ -38,3 +38,17 @@ def printLine (s : String) : IO Unit :=
 /-- A constant is exported as its value. -/
 @[export answer]
 def answer : Nat := 42
+
+/-- An `async` function, which returns a JS promise. -/
+@[export greetLater]
+def greetLater (name : JsValue) : BaseIO JsValue :=
+  JsValue.ofAsync do
+    let name ← JsValue.await name
+    return .ofString s!"Hello later, {name.toString?.getD "?"}!"
+
+/-- An `async` function whose promise is rejected. -/
+@[export failLater]
+def failLater (msg : JsValue) : BaseIO JsValue :=
+  JsValue.ofAsync do
+    let msg ← JsValue.await msg
+    throw (IO.userError (msg.toString?.getD "?"))

@@ -82,7 +82,7 @@ export class Thunk {
  * A `Task`. A finished task owns its `value`, and has `waiters === null`. An unfinished task is
  * waiting for a promise to be resolved, and `waiters` holds the continuations to run when it
  * finishes, each of which owns its function `f` (or `0` if it has none) and the task `target` that
- * it finishes.
+ * it finishes. A continuation may instead be a JS function `js`, with `f` and `target` both `0`.
  */
 export class Task {
   constructor(value, waiters = null) {

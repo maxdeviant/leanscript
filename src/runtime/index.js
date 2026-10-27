@@ -31,7 +31,7 @@ import { externs as miscExterns } from "./misc.js";
 import { externs as natExterns } from "./nat.js";
 import { externs as refExterns } from "./ref.js";
 import { externs as stringExterns, mkString } from "./string.js";
-import { externs as taskExterns } from "./task.js";
+import { externs as taskExterns, whenIdle } from "./task.js";
 import { externs as platformExterns } from "#platform/externs.js";
 import {
   commandLineArgs,
@@ -60,6 +60,7 @@ export {
 export { ioError, ioOk } from "./io.js";
 export { jsAttempt, jsToArray, jsToBool, jsToFloat, jsToString } from "./jsvalue.js";
 export { mkString } from "./string.js";
+export { jsPromiseOfTask, taskOfJsPromise } from "./task.js";
 
 /** Implementations of `@[extern]` declarations, keyed by the Lean declaration name. */
 export const externs = {
@@ -110,7 +111,7 @@ export function resolveExterns(names, unavailable = []) {
 }
 
 /**
- * Runs the program, on a thread with a large stack. `moduleUrl` must be the URL of the calling
+ * Runs the program, on a thread with a large stack, until it finishes. `moduleUrl` must be the URL of the calling
  * module, which may be imported again to run the program on that thread; see `runProgram` for the
  * other arguments.
  */
@@ -124,8 +125,12 @@ export function runMain(moduleUrl, inits, main, arity, errorToString) {
  *
  * Each initializer is an `IO` action, paired with the getter of the `[init]` declaration it
  * initializes, if any. Sets the exit code from the result, reporting an uncaught error from an
- * initializer or `main` with `errorToString`. Finally reports any leaked objects, if reference
- * counting debug checks are enabled, and flushes standard output and error.
+ * initializer or `main` with `errorToString`.
+ *
+ * The program finishes once no task is waiting for a JS promise, as continuations may still run
+ * when one settles. Then reports any leaked objects, if reference counting debug checks are
+ * enabled, and flushes standard output and error. Returns a promise that resolves when the program
+ * has finished.
  *
  * An internal panic stops the program with exit code 1, without checking for leaks.
  */
@@ -145,14 +150,25 @@ function runProgram(inits, main, arity, errorToString) {
         reportError(r, errorToString);
       }
     }
-    checkLeaks();
   } catch (e) {
     if (!(e instanceof InternalPanic)) {
       throw e;
     }
     writeStderr(`INTERNAL PANIC: ${e.message}\n`);
     setExitCode(1);
+    flushAll();
+    return Promise.resolve();
   }
+  return new Promise((resolve) => {
+    whenIdle(() => {
+      checkLeaks();
+      flushAll();
+      resolve();
+    });
+  });
+}
+
+function flushAll() {
   flushOutput(1);
   flushOutput(2);
 }

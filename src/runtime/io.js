@@ -16,6 +16,12 @@ export function ioError(e) {
   return new Ctor(1, [e], null);
 }
 
+/** Returns an `IO.userError` with the JS string `msg`. */
+export function userError(msg) {
+  // `userError` is the last constructor of `IO.Error`, after `unexpectedEof`.
+  return new Ctor(18, [mkString(msg)], null);
+}
+
 /**
  * The `IO.Error` constructor that `lean_decode_io_error` uses for each error name, other than
  * `otherError`.

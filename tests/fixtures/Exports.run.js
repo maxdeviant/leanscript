@@ -31,4 +31,10 @@ printString(lib.kind([1, 2]));
 printString(lib.kind("s"));
 lib.printLine(mkString("printed by Lean"));
 print(lib.answer);
+print(await lib.greetLater(Promise.resolve("async")));
+try {
+  await lib.failLater(new Promise((resolve) => setTimeout(() => resolve("too late"), 5)));
+} catch (e) {
+  print(`caught: ${e.message}`);
+}
 checkLeaks();
