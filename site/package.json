@@ -1,0 +1,13 @@
+{
+  "name": "leanscript-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node dev.js",
+    "build": "lake exe site && tailwindcss -i styles.css -o dist/style.css --minify"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "tailwindcss": "^4.3.3"
+  }
+}

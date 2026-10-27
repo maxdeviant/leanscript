@@ -1,0 +1,3 @@
+/* The classes are in the Lean sources of the pages, so Tailwind scans those rather than the output. */
+@import "tailwindcss" source(none);
+@source "./Site";

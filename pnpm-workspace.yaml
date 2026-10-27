@@ -1,7 +1,10 @@
 packages:
   - packages/*
   - examples/*
+  - site
 
 allowBuilds:
+  # Tailwind's watcher installs a prebuilt binary, so it doesn't need to build from source.
+  "@parcel/watcher": false
   esbuild: true
   workerd: true
