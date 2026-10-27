@@ -6,7 +6,7 @@
 // Every extern implementation receives every IR parameter of the declaration it implements, in
 // order, including erased type arguments and the `void` world token.
 
-import { arrayToList, dec, inc, panic } from "./core.js";
+import { arrayToList, checkLeaks, dec, del, inc, panic } from "./core.js";
 import { externs as arrayExterns } from "./array.js";
 import { externs as ioExterns } from "./io.js";
 import { externs as natExterns } from "./nat.js";
@@ -67,30 +67,48 @@ export function resolveExterns(names) {
  *
  * Each initializer is an `IO` action, paired with the getter of the `[init]` declaration it
  * initializes, if any. Sets the exit code from the result, reporting an uncaught error from an
- * initializer or `main` with `errorToString`.
+ * initializer or `main` with `errorToString`. Finally reports any leaked objects, if reference
+ * counting debug checks are enabled.
  */
 export function runMain(inits, main, arity, errorToString) {
+  if (runInits(inits, errorToString)) {
+    const r = arity === 2 ? main(arrayToList(commandLineArgs().map(mkString)), 0) : main(0);
+    if (r.tag === 0) {
+      const value = r.f[0];
+      // `IO Unit` returns `()`, which is boxed as 0, and `IO UInt32` returns the exit code.
+      setExitCode(typeof value === "number" ? value : 0);
+      dec(r);
+    } else {
+      reportError(r, errorToString);
+    }
+  }
+  checkLeaks();
+}
+
+/** Runs `inits`, returning whether they all succeeded. */
+function runInits(inits, errorToString) {
   for (const [init, cell] of inits) {
     const r = init(0);
     if (r.tag !== 0) {
-      reportError(r.f[0], errorToString);
-      return;
+      reportError(r, errorToString);
+      return false;
     }
-    if (cell !== undefined) {
+    if (cell === undefined) {
+      dec(r);
+    } else {
       cell.set(r.f[0]);
+      del(r);
     }
   }
-  const r = arity === 2 ? main(arrayToList(commandLineArgs().map(mkString)), 0) : main(0);
-  if (r.tag === 0) {
-    const value = r.f[0];
-    // `IO Unit` returns `()`, which is boxed as 0, and `IO UInt32` returns the exit code.
-    setExitCode(typeof value === "number" ? value : 0);
-  } else {
-    reportError(r.f[0], errorToString);
-  }
+  return true;
 }
 
-function reportError(error, errorToString) {
-  writeStderr(`uncaught exception: ${errorToString(error)}\n`);
+/** Reports the error in the failed `IO` result `r`, consuming it. */
+function reportError(r, errorToString) {
+  const error = r.f[0];
+  del(r);
+  const msg = errorToString(error);
+  writeStderr(`uncaught exception: ${msg}\n`);
+  dec(msg);
   setExitCode(1);
 }

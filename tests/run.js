@@ -1,6 +1,7 @@
 // Compiles each `tests/fixtures/*.lean` program to JS, runs it with Node, and compares its stdout
 // and exit code against the adjacent `.expected` and `.exitcode` files. A missing `.exitcode` file
-// means the exit code must be 0.
+// means the exit code must be 0. Programs run with reference counting debug checks enabled, and a
+// leak or other runtime error reported on stderr fails the test.
 //
 // With `--bless`, instead regenerates those files by compiling each program with native Lean and
 // running it. (`lean --run` is not used because it skips the main module's initializers.)
@@ -61,10 +62,17 @@ for (const name of names) {
     continue;
   }
 
-  const run = spawnSync(process.execPath, [output], { encoding: "utf8" });
+  const run = spawnSync(process.execPath, [output], {
+    encoding: "utf8",
+    env: { ...process.env, LEANSCRIPT_DEBUG_RC: "1" },
+  });
   const expected = existsSync(expectedFile) ? readFileSync(expectedFile, "utf8") : "";
   const expectedStatus = existsSync(exitCodeFile) ? Number(readFileSync(exitCodeFile, "utf8")) : 0;
-  if (run.status !== expectedStatus || run.stdout !== expected) {
+  if (
+    run.status !== expectedStatus ||
+    run.stdout !== expected ||
+    run.stderr.includes("LeanScript: ")
+  ) {
     failures++;
     console.log(`FAIL ${name} (exit ${run.status}, expected ${expectedStatus})`);
     console.log(`--- expected\n${expected}--- actual\n${run.stdout}--- stderr\n${run.stderr}`);

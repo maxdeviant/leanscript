@@ -6,7 +6,7 @@
 // Each extern follows the ownership conventions of its C counterpart: an exclusive string is
 // updated in place, and a shared one is copied first.
 
-import { apply, arrayToList, dec, inc } from "./core.js";
+import { apply, arrayToList, dec, inc, track } from "./core.js";
 import { natAdd } from "./nat.js";
 
 const encoder = new TextEncoder();
@@ -26,6 +26,7 @@ export class LeanString {
     this.length = length;
     /** @type {string | undefined} The contents as a JS string, if known. */
     this.js = undefined;
+    track(this);
   }
 
   toString() {

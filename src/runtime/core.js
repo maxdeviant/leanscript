@@ -13,10 +13,23 @@
 //
 // Freeing an object only decrements its children; the memory itself is left to the JS garbage
 // collector. The counts exist so that we know when an object is exclusive.
+//
+// Setting the `LEANSCRIPT_DEBUG_RC` environment variable enables extra checks: every allocated
+// object is registered so that `checkLeaks` can report the ones never freed, freed objects are
+// poisoned so that any later use of one fails, and objects without a reference count are reported.
 
-import { writeStderr } from "./platform.js";
+import { getEnv, writeStderr } from "./platform.js";
 
 const FREED = -1;
+
+/** The objects allocated and not yet freed, if debug checks are enabled. */
+const live = getEnv("LEANSCRIPT_DEBUG_RC") ? new Set() : undefined;
+
+/** Registers the newly allocated object `x` for leak checking, and returns it. */
+export function track(x) {
+  live?.add(x);
+  return x;
+}
 
 export class Ctor {
   /**
@@ -29,6 +42,7 @@ export class Ctor {
     this.tag = tag;
     this.f = f;
     this.s = s;
+    live?.add(this);
   }
 }
 
@@ -38,11 +52,70 @@ export class Closure {
     this.fn = fn;
     this.arity = arity;
     this.args = args;
+    live?.add(this);
   }
 }
 
 function useAfterFree(op, x) {
   throw new Error(`LeanScript: ${op} of freed object ${x?.constructor?.name}`);
+}
+
+function checkCounted(x) {
+  if (live !== undefined && x.rc === undefined) {
+    throw new Error(`LeanScript: object without a reference count: ${describe(x)}`);
+  }
+}
+
+/** Marks `x` as freed. Its children must already have been decremented or moved elsewhere. */
+function release(x) {
+  x.rc = FREED;
+  if (live !== undefined) {
+    live.delete(x);
+    if (Array.isArray(x)) {
+      x.length = 0;
+    } else {
+      for (const key of Object.keys(x)) {
+        if (key !== "rc") {
+          x[key] = null;
+        }
+      }
+    }
+  }
+}
+
+function describe(x) {
+  if (x instanceof Ctor) {
+    return `constructor ${x.tag} with ${x.f.length} fields`;
+  }
+  if (x instanceof Closure) {
+    return `closure of ${x.fn.name} with ${x.args.length}/${x.arity} arguments`;
+  }
+  if (Array.isArray(x)) {
+    return `array of size ${x.length}`;
+  }
+  if (x.bytes !== undefined) {
+    return `string ${JSON.stringify(String(x))}`;
+  }
+  return String(x?.constructor?.name);
+}
+
+/**
+ * Reports every allocated object that has not been freed or made persistent, if debug checks are
+ * enabled. Returns whether there were any.
+ */
+export function checkLeaks() {
+  if (live === undefined) {
+    return false;
+  }
+  const leaked = [...live].filter((x) => x.rc > 0);
+  if (leaked.length === 0) {
+    return false;
+  }
+  const shown = leaked.slice(0, 10).map((x) => `  ${describe(x)} (rc ${x.rc})\n`);
+  const more =
+    leaked.length > shown.length ? `  ...and ${leaked.length - shown.length} more\n` : "";
+  writeStderr(`LeanScript: ${leaked.length} objects leaked:\n${shown.join("")}${more}`);
+  return true;
 }
 
 /** Returns the reference counted children of `x`, which must be an object. */
@@ -68,6 +141,8 @@ export function inc(x) {
     x.rc = rc + 1;
   } else if (rc === FREED) {
     useAfterFree("inc", x);
+  } else {
+    checkCounted(x);
   }
 }
 
@@ -80,6 +155,8 @@ export function incN(x, n) {
     x.rc = rc + n;
   } else if (rc === FREED) {
     useAfterFree("inc", x);
+  } else {
+    checkCounted(x);
   }
 }
 
@@ -94,6 +171,8 @@ export function dec(x) {
     free(x);
   } else if (rc === FREED) {
     useAfterFree("dec", x);
+  } else {
+    checkCounted(x);
   }
 }
 
@@ -102,25 +181,26 @@ function free(x) {
   const todo = [x];
   while (todo.length > 0) {
     const o = todo.pop();
-    o.rc = FREED;
     const cs = children(o);
-    if (cs === undefined) {
-      continue;
-    }
-    for (let i = 0; i < cs.length; i++) {
-      const c = cs[i];
-      if (typeof c !== "object") {
-        continue;
+    if (cs !== undefined) {
+      for (let i = 0; i < cs.length; i++) {
+        const c = cs[i];
+        if (typeof c !== "object") {
+          continue;
+        }
+        const rc = c.rc;
+        if (rc > 1) {
+          c.rc = rc - 1;
+        } else if (rc === 1) {
+          todo.push(c);
+        } else if (rc === FREED) {
+          useAfterFree("dec", c);
+        } else {
+          checkCounted(c);
+        }
       }
-      const rc = c.rc;
-      if (rc > 1) {
-        c.rc = rc - 1;
-      } else if (rc === 1) {
-        todo.push(c);
-      } else if (rc === FREED) {
-        useAfterFree("dec", c);
-      }
     }
+    release(o);
   }
 }
 
@@ -130,7 +210,7 @@ function free(x) {
  */
 export function del(x) {
   if (typeof x === "object") {
-    x.rc = FREED;
+    release(x);
   }
 }
 
@@ -224,15 +304,16 @@ export function pap(fn, arity, args) {
  * owns.
  */
 function takeArgs(f) {
+  const args = f.args;
   if (f.rc === 1) {
     del(f);
-    return f.args;
+    return args;
   }
-  for (const arg of f.args) {
+  for (const arg of args) {
     inc(arg);
   }
   dec(f);
-  return f.args;
+  return args;
 }
 
 /**

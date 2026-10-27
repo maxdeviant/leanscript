@@ -21,6 +21,11 @@ export function isStdoutTty() {
   return !!process.stdout.isTTY;
 }
 
+/** Returns the value of the environment variable `name`, or `undefined` if it is not set. */
+export function getEnv(name) {
+  return process.env[name];
+}
+
 export function commandLineArgs() {
   return process.argv.slice(2);
 }
