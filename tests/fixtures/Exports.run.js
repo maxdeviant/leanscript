@@ -16,6 +16,7 @@ function printString(s) {
   dec(s);
 }
 
+print("imported");
 const name = mkString("world");
 printString(lib.greet(name));
 print(lib.add(2, 3));
@@ -30,7 +31,7 @@ try {
 printString(lib.kind([1, 2]));
 printString(lib.kind("s"));
 lib.printLine(mkString("printed by Lean"));
-print(lib.answer);
+print(lib.answer());
 print(await lib.greetLater(Promise.resolve("async")));
 try {
   await lib.failLater(new Promise((resolve) => setTimeout(() => resolve("too late"), 5)));

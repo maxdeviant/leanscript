@@ -378,28 +378,28 @@ def jsExports (env : Environment) : Except String (Array (Name × String)) := do
   return result
 
 /--
-Emits the export `exportName` of the main module's declaration `decl`.
+Emits the export `exportName` of the main module's declaration `decl`, as a function that first
+initializes the module, if it has not been initialized yet.
 
-An exported function takes the arguments of a JS extern with the same signature. Lean does not
-allow exported functions to borrow their parameters, so it takes ownership of them. An `IO` or `EIO` action returns its value or throws its error. A constant is
-exported as its value.
+The function takes the arguments of a JS extern with the same signature. Lean does not allow
+exported functions to borrow their parameters, so it takes ownership of them. An `IO` or `EIO`
+action returns its value or throws its error. A constant is exported as a function with no
+parameters that returns its value.
 -/
 def emitJsExport (decl : Decl) (exportName : String) : EmitM Unit := do
   let env := (← read).env
   let name := s!"$export_{toJsName decl.name}"
-  if decl.params.isEmpty then
-    emitLn s!"const {name} = {toJsName decl.name}();"
-  else
-    let jsParams := decl.params.filter isJsArg
-    let args := decl.params.map fun p => if isJsArg p then varName p.x else "0"
-    emitLn s!"function {name}({", ".intercalate (jsParams.map (varName ·.x)).toList}) \{"
-    withIndent do
-      let call := s!"{toJsName decl.name}({", ".intercalate args.toList})"
-      if returnsEstOut env decl.name then
-        emitLn s!"return $rt.takeIoResult({call}, {toJsName `IO.Error.toString});"
-      else
-        emitLn s!"return {call};"
-    emitLn "}"
+  let jsParams := decl.params.filter isJsArg
+  let args := decl.params.map fun p => if isJsArg p then varName p.x else "0"
+  emitLn s!"function {name}({", ".intercalate (jsParams.map (varName ·.x)).toList}) \{"
+  withIndent do
+    emitLn "$init();"
+    let call := s!"{toJsName decl.name}({", ".intercalate args.toList})"
+    if returnsEstOut env decl.name then
+      emitLn s!"return $rt.takeIoResult({call}, {toJsName `IO.Error.toString});"
+    else
+      emitLn s!"return {call};"
+  emitLn "}"
   emitLn s!"export \{ {name} as {quoteJs exportName} };"
 
 /-- The roots of a program: its entry points, and the declarations that the runtime uses. -/
@@ -446,8 +446,8 @@ structure EmitOutput where
 
 /--
 Emits a JS module for the program in `env`, containing every declaration reachable from its roots
-(see `programRoots`). The module runs `main` when it is loaded, or, for a library, runs the
-initializers and exports the library's declarations.
+(see `programRoots`). The module runs `main` when it is loaded, or, for a library, exports the
+library's declarations.
 
 `env` must contain IR for the roots and everything they depend on.
 -/
@@ -510,7 +510,9 @@ def emitProgram (env : Environment) (opts : EmitOptions := {}) : Except String E
     | some mainDecl =>
       emitLn s!"$rt.runMain(import.meta.url, $inits, {toJsName `main}, {mainDecl.params.size}, {errorToString});"
     | none =>
-      emitLn s!"$rt.initModule($inits, {errorToString});"
+      -- Initializing when the module is loaded would run the initializers in the global scope,
+      -- where some hosts, such as Cloudflare Workers, disallow I/O.
+      emitLn s!"const $init = $rt.initModuleOnce($inits, {errorToString});"
       for (n, exportName) in programRoots.exports do
         emitLn ""
         emitJsExport (← getDecl n) exportName

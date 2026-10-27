@@ -174,14 +174,32 @@ function flushAll() {
 }
 
 /**
- * Runs the initializers of a library module, as `runProgram` does, throwing an uncaught error from
- * one of them as a JS `Error`, with the message from `errorToString`.
+ * Returns a function that runs the initializers of a library module the first time it is called, as
+ * `runProgram` does. If an initializer fails, it and every later call throw the same JS `Error`,
+ * with the message from `errorToString`.
  */
-export function initModule(inits, errorToString) {
-  const failure = runInits(inits);
-  if (failure !== undefined) {
-    takeIoResult(failure, errorToString);
-  }
+export function initModuleOnce(inits, errorToString) {
+  let state = "uninitialized";
+  let error;
+  return () => {
+    if (state === "initialized") {
+      return;
+    }
+    if (state === "failed") {
+      throw error;
+    }
+    try {
+      const failure = runInits(inits);
+      if (failure !== undefined) {
+        takeIoResult(failure, errorToString);
+      }
+      state = "initialized";
+    } catch (e) {
+      state = "failed";
+      error = e;
+      throw e;
+    }
+  };
 }
 
 /**

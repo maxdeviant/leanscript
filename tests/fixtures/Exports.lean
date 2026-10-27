@@ -2,6 +2,10 @@ import Js
 
 initialize counter : IO.Ref Nat ← IO.mkRef 0
 
+/-- Runs when the first export is called, rather than when the library is imported. -/
+initialize
+  IO.println "initializing"
+
 @[export greet]
 def greet (name : String) : String :=
   s!"Hello, {name}!"
@@ -35,7 +39,7 @@ def kind (_α : Type) (v : JsValue) : String :=
 def printLine (s : String) : IO Unit :=
   IO.println s
 
-/-- A constant is exported as its value. -/
+/-- A constant is exported as a function that returns its value. -/
 @[export answer]
 def answer : Nat := 42
 
