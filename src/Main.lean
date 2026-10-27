@@ -108,7 +108,7 @@ def compile (args : CompileArgs) : IO UInt32 := do
     IO.FS.writeFile output js
     return 0
 
-def main (args : List String) : IO UInt32 := do
+def run (args : List String) : IO UInt32 := do
   match args with
   | ["dump-ir", path] => dumpIr path
   | ["list-externs", path] => listExterns path
@@ -121,4 +121,11 @@ def main (args : List String) : IO UInt32 := do
       return 1
   | _ =>
     IO.eprintln usage
+    return 1
+
+def main (args : List String) : IO UInt32 := do
+  try
+    run args
+  catch e =>
+    IO.eprintln s!"error: {e}"
     return 1

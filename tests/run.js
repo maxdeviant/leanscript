@@ -17,6 +17,10 @@
 // module's initializers), and the `.browser-error` files by compiling each program for the browser
 // target.
 //
+// A program with an adjacent `.compile-error` file must instead fail to compile, with exactly the
+// contents of that file on stderr. It is compiled from the fixtures directory, so that its messages
+// name it by a relative path. `--bless` regenerates the file.
+//
 // A library, which has no `main` function, is run by the adjacent `.run.js` driver instead, which is
 // given the path of the compiled library.
 //
@@ -62,6 +66,7 @@ for (const name of names) {
   const browserErrorFile = join(fixtures, `${name}.browser-error`);
   const browserOutput = join(outDir, `${name}.browser.mjs`);
   const driverFile = join(fixtures, `${name}.run.js`);
+  const compileErrorFile = join(fixtures, `${name}.compile-error`);
   const driver = existsSync(driverFile) ? [driverFile] : [];
   const compileBrowser = () =>
     spawnSync(compiler, ["compile", input, "-o", browserOutput, "--target", "browser"], {
@@ -78,6 +83,13 @@ for (const name of names) {
     encoding: "utf8",
     input: existsSync(stdinFile) ? readFileSync(stdinFile) : "",
   };
+
+  if (existsSync(compileErrorFile)) {
+    if (!checkCompileError(name, output, compileErrorFile)) {
+      failures++;
+    }
+    continue;
+  }
 
   if (bless) {
     if (existsSync(join(fixtures, `${name}.js`)) || driver.length > 0) {
@@ -158,6 +170,34 @@ for (const name of names) {
   if (!checkRun(browserLabel, browserRun, expected, undefined)) {
     failures++;
   }
+}
+
+/**
+ * Compiles the fixture `name` to `output`, which must fail with the error in `errorFile`, and
+ * reports whether it did. With `--bless`, instead writes the error to `errorFile`.
+ */
+function checkCompileError(name, output, errorFile) {
+  const result = spawnSync(compiler, ["compile", `${name}.lean`, "-o", output], {
+    cwd: fixtures,
+    encoding: "utf8",
+  });
+  if (result.status === 0) {
+    console.log(`FAIL ${name} (compiled, but a compile error was expected)`);
+    return false;
+  }
+  if (bless) {
+    writeFileSync(errorFile, result.stderr);
+    console.log(`blessed ${name} (compile error)`);
+    return true;
+  }
+  const expected = readFileSync(errorFile, "utf8");
+  if (result.stderr !== expected) {
+    console.log(`FAIL ${name} (compile error)`);
+    console.log(`--- expected\n${expected}--- actual\n${result.stderr}`);
+    return false;
+  }
+  console.log(`ok   ${name}, which fails to compile`);
+  return true;
 }
 
 /**

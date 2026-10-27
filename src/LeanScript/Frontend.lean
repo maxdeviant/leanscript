@@ -11,6 +11,8 @@ environment.
 Code generation runs during elaboration, so the returned environment contains IR for every
 definition in the file, as well as for everything it imports.
 
+Messages from elaboration, such as errors, are printed to stderr.
+
 Besides the standard library, the file may import the libraries built alongside the compiler, such
 as `Js`.
 -/
@@ -19,7 +21,8 @@ def elabFile (path : System.FilePath) (moduleName : Name) (opts : Options := {})
   let input ← IO.FS.readFile path
   initSearchPath (← findSysroot) [(← IO.appDir) / ".." / "lib" / "lean"]
   unsafe enableInitializersExecution
-  let some env ← Elab.runFrontend input opts path.toString moduleName
+  let some env ← IO.withStdout (← IO.getStderr) do
+      Elab.runFrontend input opts path.toString moduleName
     | throw <| .userError s!"failed to elaborate '{path}'"
   return env
 

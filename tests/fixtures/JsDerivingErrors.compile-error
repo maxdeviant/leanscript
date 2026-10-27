@@ -1,0 +1,5 @@
+JsDerivingErrors.lean:7:11: error: cannot derive `ToJs` for constructor `Unnamed.pair`, since some of its fields have no names
+JsDerivingErrors.lean:12:11: error: cannot derive `ToJs` for constructor `Token.word`, since its field `kind` would have the same JS property as the constructor's name, `kind`
+JsDerivingErrors.lean:16:11: error: cannot derive `FromJs` for constructor `Flag.flag`, since its field `kind?` would have the same JS property as the constructor's name, `kind`
+JsDerivingErrors.lean:21:11: error: cannot derive `ToJs` for `Vec`, since it has indices
+error: failed to elaborate 'JsDerivingErrors.lean'
