@@ -1,7 +1,9 @@
 // Host services, implemented with Node's APIs.
 
+import { randomBytes } from "node:crypto";
 import * as fs from "node:fs";
-import { constants as osConstants } from "node:os";
+import { constants as osConstants, tmpdir } from "node:os";
+import { join } from "node:path";
 import { isatty } from "node:tty";
 import { getSystemErrorMessage } from "node:util";
 import { isMainThread, parentPort, Worker, workerData } from "node:worker_threads";
@@ -177,6 +179,36 @@ export const renamePath = (from, to) => fs.renameSync(from, to);
 export const hardLink = (target, path) => fs.linkSync(target, path);
 
 export const realPath = (path) => fs.realpathSync.native(path);
+
+export const setMode = (path, mode) => fs.chmodSync(path, mode);
+
+/** The prefix of the names of temporary files and directories, as in the C runtime. */
+const TEMP_PREFIX = "tmp.";
+
+const TEMP_NAME_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+/**
+ * Creates a new file in the temporary directory that only the current user can read and write, and
+ * returns its file descriptor, open for reading and writing, and its path.
+ */
+export function makeTempFile() {
+  for (;;) {
+    const name = Array.from(randomBytes(6), (b) => TEMP_NAME_CHARS[b % TEMP_NAME_CHARS.length]);
+    const path = join(tmpdir(), TEMP_PREFIX + name.join(""));
+    try {
+      // Like `mkstemp`, creating the file exclusively means that no other file can be opened in
+      // its place, and a name that is already taken is retried.
+      return { fd: fs.openSync(path, "wx+", 0o600), path };
+    } catch (err) {
+      if (err.code !== "EEXIST") {
+        throw err;
+      }
+    }
+  }
+}
+
+/** Creates a new directory in the temporary directory that only the current user can access. */
+export const makeTempDir = () => fs.mkdtempSync(join(tmpdir(), TEMP_PREFIX));
 
 export const currentDir = () => process.cwd();
 

@@ -198,14 +198,14 @@ IO.FS.Handle.tryLock	Init.System.IO
 IO.FS.Handle.unlock	Init.System.IO	
 IO.FS.Handle.write	Init.System.IO	node
 IO.FS.createDir	Init.System.IO	node
-IO.FS.createTempDir	Init.System.IO	
-IO.FS.createTempFile	Init.System.IO	
+IO.FS.createTempDir	Init.System.IO	node
+IO.FS.createTempFile	Init.System.IO	node
 IO.FS.hardLink	Init.System.IO	node
 IO.FS.realPath	Init.System.IO	node
 IO.FS.removeDir	Init.System.IO	node
 IO.FS.removeFile	Init.System.IO	node
 IO.FS.rename	Init.System.IO	node
-IO.Prim.setAccessRights	Init.System.IO	
+IO.Prim.setAccessRights	Init.System.IO	node
 IO.Process.Child.kill	Init.System.IO	
 IO.Process.Child.pid	Init.System.IO	
 IO.Process.Child.takeStdin	Init.System.IO	

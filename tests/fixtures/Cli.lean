@@ -105,6 +105,37 @@ def directories : IO Unit := do
     IO.println s!"error: {e}"
   IO.println s!"unchanged: {(← IO.Process.getCurrentDir) == start}"
 
+/-- Returns whether `x` throws, without printing the error, whose message names a random path. -/
+def throws (x : IO Unit) : IO Bool :=
+  try x; return false catch _ => return true
+
+def temporaries : IO Unit := do
+  let tempPath ← IO.FS.withTempFile fun h path => do
+    h.putStr "temporary"
+    h.rewind
+    IO.println s!"temp file: {← h.readToEnd}, named tmp.*: {path.fileName.any (·.startsWith "tmp.")}"
+    let readOnly : IO.FileRight := { user := { read := true } }
+    IO.setAccessRights path readOnly
+    IO.println s!"read-only write fails: {← throws (IO.FS.writeFile path "x")}"
+    IO.setAccessRights path { user := { read := true, write := true } }
+    IO.FS.writeFile path "rewritten"
+    IO.println s!"after restoring: {← IO.FS.readFile path}"
+    return path
+  IO.println s!"temp file exists after use: {← tempPath.pathExists}"
+  let tempDir ← IO.FS.withTempDir fun dir => do
+    IO.FS.writeFile (dir / "inside.txt") "inside"
+    IO.println s!"temp dir is dir: {← dir.isDir}, entries: {(← dir.readDir).map (·.fileName)}"
+    return dir
+  IO.println s!"temp dir exists after use: {← tempDir.pathExists}"
+  let (h₁, p₁) ← IO.FS.createTempFile
+  let (h₂, p₂) ← IO.FS.createTempFile
+  h₁.putStr "one"
+  h₂.putStr "two"
+  IO.println s!"distinct temp files: {p₁ != p₂}, {← IO.FS.readFile p₁} {← IO.FS.readFile p₂}"
+  IO.FS.removeFile p₁
+  IO.FS.removeFile p₂
+  IO.println s!"missing file: {← throws (IO.setAccessRights "missing.txt" {})}"
+
 def timing : IO Unit := do
   let ms ← IO.monoMsNow
   let ns ← IO.monoNanosNow
@@ -136,6 +167,7 @@ def main (args : List String) : IO UInt32 := do
   fileOps opts contents
   errors
   directories
+  temporaries
   timing
   let stdout ← IO.getStdout
   stdout.flush

@@ -198,11 +198,14 @@ IO.FS.Handle.rewind
 IO.FS.Handle.truncate
 IO.FS.Handle.write
 IO.FS.createDir
+IO.FS.createTempDir
+IO.FS.createTempFile
 IO.FS.hardLink
 IO.FS.realPath
 IO.FS.removeDir
 IO.FS.removeFile
 IO.FS.rename
+IO.Prim.setAccessRights
 IO.Process.exit
 IO.Process.forceExit
 IO.Process.getCurrentDir

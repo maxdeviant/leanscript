@@ -1,12 +1,16 @@
 error: the program uses externs that are not available on target 'browser':
   main → fileOps → IO.FS.lines → IO.FS.Handle.lines → IO.FS.Handle.lines.read → IO.FS.Handle.getLine
   main → fileOps → IO.FS.Handle.mk
-  main → fileOps → IO.FS.writeFile → IO.FS.Handle.putStr
+  main → temporaries → IO.FS.Handle.putStr
   main → fileOps → IO.FS.readBinFile → IO.FS.Handle.read
+  main → temporaries → temporaries._closed_7 → temporaries._lam_1._boxed → temporaries._lam_1 → IO.FS.Handle.rewind
   main → fileOps → IO.FS.writeBinFile → IO.FS.Handle.write
   main → errors → IO.FS.createDir
+  main → temporaries → IO.FS.withTempDir._at_.temporaries.spec_1._redArg → IO.FS.createTempDir
+  main → temporaries → IO.FS.createTempFile
   main → fileOps → IO.FS.removeDirAll → IO.FS.removeDir
   main → fileOps → IO.FS.removeFile
+  main → temporaries → temporaries._closed_1 → IO.setAccessRights._boxed → IO.setAccessRights → IO.Prim.setAccessRights
   main → IO.Process.exit
   main → directories → IO.Process.getCurrentDir
   main → directories → IO.Process.setCurrentDir

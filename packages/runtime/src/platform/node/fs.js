@@ -16,6 +16,8 @@ import {
   isRegularFile,
   isTty,
   makeDir,
+  makeTempDir,
+  makeTempFile,
   openFile,
   readDirNames,
   readInto,
@@ -23,6 +25,7 @@ import {
   removeDir,
   removeFile,
   renamePath,
+  setMode,
   truncateFile,
   writeBytes,
 } from "./host.js";
@@ -212,6 +215,13 @@ export const externs = {
     dec(p);
     return r;
   },
+  "IO.FS.createTempFile": (_w) =>
+    attempt(undefined, () => {
+      const { fd, path } = makeTempFile();
+      return new Ctor(0, [new Handle(fd, true), mkString(path)], null);
+    }),
+  "IO.FS.createTempDir": (_w) => attempt(undefined, () => mkString(makeTempDir())),
+  "IO.Prim.setAccessRights": (p, mode, _w) => attempt(p, () => setMode(p.toString(), mode)),
   "IO.currentDir": (_w) => attempt(undefined, () => mkString(currentDir())),
   "IO.Process.getCurrentDir": (_w) => attempt(undefined, () => mkString(currentDir())),
   "IO.Process.setCurrentDir": (p, _w) => attempt(p, () => changeDir(p.toString())),
