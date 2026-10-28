@@ -124,7 +124,7 @@ def home : Html :=
       ]
     ],
     «section» [cls "pb-20"] [
-      ul [cls "grid gap-x-8 gap-y-10 sm:grid-cols-2"] [
+      ul [cls "grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2"] [
         feature "01" "All the power of Lean"
           "LeanScript picks up where the Lean compiler leaves off, so your code is checked and optimized just as it is for a native build. Dependent types, proofs, and macros all work, and proofs are erased before any JavaScript is emitted.",
         comingSoon "02",
@@ -148,7 +148,7 @@ def home : Html :=
       p [cls "mb-6 max-w-2xl leading-relaxed text-muted"] [
         "LeanScript fits into your existing Lean project and JavaScript package manager.",
       ],
-      ol [cls "grid gap-8"] [
+      ol [cls "grid grid-cols-1 gap-8"] [
         step "1" "Require LeanScript in your Lake package" "lakefile.toml" "toml" lakefileStep,
         step "2" "Install the Vite plugin" "Terminal" "bash" installStep,
         step "3" "Add the plugin to your Vite config" "vite.config.js" "javascript" viteConfigStep,

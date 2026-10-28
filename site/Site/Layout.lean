@@ -71,8 +71,9 @@ def themeSwitcher : Html :=
 def experimentalNotice : Html :=
   div [cls "caution-stripes px-4 py-1.5 text-center"] [
     p [cls "inline-block bg-highlight px-3 py-0.5 font-mono text-xs text-on-highlight"] [
-      strong [cls "font-bold tracking-widest uppercase"] ["Experimental"],
-      " · Expect bugs and breaking changes"
+      strong [cls "block font-bold tracking-widest uppercase sm:inline"] ["Experimental"],
+      span [cls "hidden sm:inline"] [" · "],
+      "Expect bugs and breaking changes"
     ]
   ]
 
