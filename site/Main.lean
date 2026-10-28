@@ -12,14 +12,18 @@ def rasterizer : Ssg.Rasterizer :=
 /-- The stylesheet that Tailwind builds, which the site serves under a name with its fingerprint. -/
 def stylesheetSource : System.FilePath := "build/style.css"
 
+/-- The coverage data, which `scripts/runtime-coverage.js` writes. -/
+def coverageSource : System.FilePath := "data/runtime-coverage.tsv"
+
 def build (clean : Bool) : IO Unit := do
   unless ← stylesheetSource.pathExists do
     throw <| IO.userError s!"{stylesheetSource} doesn't exist, so build it with Tailwind first"
   let css ← IO.FS.readFile stylesheetSource
   let stylesheet := s!"style.{Ssg.fingerprint css}.css"
   let ctx : Site.Context := { stylesheet := s!"/{stylesheet}" }
-  Ssg.build "dist" (Site.pages ctx) ({ path := stylesheet, content := css } :: Site.files) (clean := clean)
-    (highlighter := highlighter) (images := Site.images) (rasterizer := rasterizer)
+  let coverage ← Site.Coverage.load coverageSource
+  Ssg.build "dist" (Site.pages ctx coverage) ({ path := stylesheet, content := css } :: Site.files)
+    (clean := clean) (highlighter := highlighter) (images := Site.images coverage) (rasterizer := rasterizer)
 
 def main (args : List String) : IO UInt32 := do
   match args with

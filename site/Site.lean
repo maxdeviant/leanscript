@@ -8,13 +8,13 @@ namespace Site
 open Ssg
 
 /-- The pages of the site. -/
-def pages (ctx : Context) : List Page := [
+def pages (ctx : Context) (coverage : Coverage) : List Page := [
   { path := "index.html", html := home ctx },
-  { path := "coverage/index.html", html := coveragePage ctx }
+  { path := "coverage/index.html", html := coveragePage ctx coverage }
 ]
 
 /-- The cards of the pages, as images. -/
-def images : List Image := [homeCard.image, coverageCard.image]
+def images (coverage : Coverage) : List Image := [homeCard.image, (coverageCard coverage).image]
 
 /-- The files of the site other than its pages and images. -/
 def files : List File := [
