@@ -2,7 +2,7 @@
 
 import { randomBytes } from "node:crypto";
 import * as fs from "node:fs";
-import { constants as osConstants, tmpdir } from "node:os";
+import { networkInterfaces, constants as osConstants, tmpdir } from "node:os";
 import { join } from "node:path";
 import { isatty } from "node:tty";
 import { getSystemErrorMessage } from "node:util";
@@ -116,6 +116,13 @@ export const processId = () => process.pid;
 
 /** Returns the absolute path of the Node executable that runs the program. */
 export const executablePath = () => process.execPath;
+
+/**
+ * Returns the addresses of the network interfaces, as `[name, address]` pairs in the form of
+ * `os.networkInterfaces()`.
+ */
+export const interfaceAddresses = () =>
+  Object.entries(networkInterfaces()).flatMap(([name, addrs]) => addrs.map((a) => [name, a]));
 
 const sleepCell = new Int32Array(new SharedArrayBuffer(4));
 

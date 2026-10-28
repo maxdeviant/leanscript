@@ -645,11 +645,11 @@ Std.Internal.UV.UDP.Socket.setMulticastLoop	Std.Internal.UV.UDP
 Std.Internal.UV.UDP.Socket.setMulticastTTL	Std.Internal.UV.UDP	
 Std.Internal.UV.UDP.Socket.setTTL	Std.Internal.UV.UDP	
 Std.Internal.UV.UDP.Socket.waitReadable	Std.Internal.UV.UDP	
-Std.Net.IPv4Addr.ofString	Std.Net.Addr	
-Std.Net.IPv4Addr.toString	Std.Net.Addr	
-Std.Net.IPv6Addr.ofString	Std.Net.Addr	
-Std.Net.IPv6Addr.toString	Std.Net.Addr	
-Std.Net.interfaceAddresses	Std.Net.Addr	
+Std.Net.IPv4Addr.ofString	Std.Net.Addr	node,browser
+Std.Net.IPv4Addr.toString	Std.Net.Addr	node,browser
+Std.Net.IPv6Addr.ofString	Std.Net.Addr	node,browser
+Std.Net.IPv6Addr.toString	Std.Net.Addr	node,browser
+Std.Net.interfaceAddresses	Std.Net.Addr	node
 Std.Time.Database.Windows.getLocalTimeZoneIdentifierAt	Std.Time.Zoned.Database.Windows	
 Std.Time.Database.Windows.getNextTransition	Std.Time.Zoned.Database.Windows	
 Std.Time.Timestamp.now	Std.Time.DateTime.Timestamp	node,browser

@@ -458,6 +458,11 @@ ShareCommon.Object.eq
 ShareCommon.Object.hash
 ShareCommon.State.shareCommon
 ShareCommon.shareCommon'
+Std.Net.IPv4Addr.ofString
+Std.Net.IPv4Addr.toString
+Std.Net.IPv6Addr.ofString
+Std.Net.IPv6Addr.toString
+Std.Net.interfaceAddresses
 Std.Time.Timestamp.now
 String.Internal.append
 String.Internal.atEnd
@@ -1142,6 +1147,10 @@ ShareCommon.Object.eq
 ShareCommon.Object.hash
 ShareCommon.State.shareCommon
 ShareCommon.shareCommon'
+Std.Net.IPv4Addr.ofString
+Std.Net.IPv4Addr.toString
+Std.Net.IPv6Addr.ofString
+Std.Net.IPv6Addr.toString
 Std.Time.Timestamp.now
 String.Internal.append
 String.Internal.atEnd

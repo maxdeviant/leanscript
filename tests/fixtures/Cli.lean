@@ -1,3 +1,5 @@
+import Std.Net.Addr
+
 /-! A small command-line tool that reads scores from standard input, writes a report to a file, reads
 it back, and exits with a status code reporting whether every input line was valid. -/
 
@@ -136,6 +138,12 @@ def temporaries : IO Unit := do
   IO.FS.removeFile p₂
   IO.println s!"missing file: {← throws (IO.setAccessRights "missing.txt" {})}"
 
+/-- Prints only what every machine has in common, a loopback interface with `127.0.0.1`. -/
+def network : IO Unit := do
+  let addrs ← Std.Net.interfaceAddresses
+  let loopback := addrs.find? fun a => a.address.toString == "127.0.0.1"
+  IO.println s!"loopback: {loopback.map (·.isLoopback)}, netmask: {loopback.map (·.netMask)}"
+
 def timing : IO Unit := do
   let ms ← IO.monoMsNow
   let ns ← IO.monoNanosNow
@@ -168,6 +176,7 @@ def main (args : List String) : IO UInt32 := do
   errors
   directories
   temporaries
+  network
   timing
   let stdout ← IO.getStdout
   stdout.flush

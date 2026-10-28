@@ -38,4 +38,5 @@ temp dir is dir: true, entries: #[inside.txt]
 temp dir exists after use: false
 distinct temp files: true, one two
 missing file: true
+loopback: (some true), netmask: (some 255.0.0.0)
 slept at least 20ms: true

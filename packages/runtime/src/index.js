@@ -30,6 +30,7 @@ import { externs as hashExterns } from "./hash.js";
 import { externs as ioExterns } from "./io.js";
 import { externs as miscExterns } from "./misc.js";
 import { externs as natExterns } from "./nat.js";
+import { externs as netExterns } from "./net.js";
 import { externs as refExterns } from "./ref.js";
 import { externs as stringExterns, mkString } from "./string.js";
 import { externs as taskExterns } from "./task.js";
@@ -101,6 +102,7 @@ export const externs = {
   ...miscExterns,
   ...hashExterns,
   ...ioExterns,
+  ...netExterns,
   ...platformExterns,
   ...refExterns,
   ...taskExterns,

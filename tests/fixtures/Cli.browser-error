@@ -16,6 +16,7 @@ error: the program uses externs that are not available on target 'browser':
   main → directories → IO.Process.setCurrentDir
   main → directories → IO.currentDir
   main → IO.getStdin
+  main → network → Std.Net.interfaceAddresses
   main → fileOps → System.FilePath.pathExists → System.FilePath.metadata
   main → fileOps → System.FilePath.readDir
   main → fileOps → IO.FS.removeDirAll → Array.forIn'Unsafe.loop._at_.IO.FS.removeDirAll.spec_0 → System.FilePath.symlinkMetadata
