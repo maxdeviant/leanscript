@@ -22,6 +22,9 @@ import * as children from "./children.js";
  */
 const STACK_SIZE_MB = 1024;
 
+/** Returns whether `runWithLargeStack` calls its function on the current thread. */
+export const runsProgram = () => !isMainThread;
+
 /**
  * Calls `run` on a thread with a large stack. The process exits once the thread has nothing left to
  * do, with the exit code that `run` set.

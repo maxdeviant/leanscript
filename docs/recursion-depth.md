@@ -73,10 +73,12 @@ The alternatives are worse:
 
 Running on a worker is invisible to most programs, but not at the JS boundary:
 
-- **The program module is evaluated twice.** The compiled program calls `runMain` with its own URL,
-  so the main thread imports the whole program, including the JS files it imports for its externs,
-  only to start a worker that imports it all again. Top-level side effects in those JS files, such
-  as logging or opening a connection, happen on both threads.
+- **The program module is loaded twice.** The compiled program calls `runMain` with its own URL, so
+  the main thread loads the whole program, only to start a worker that loads it again. A program
+  compiled for Node imports the JS files for its externs with `import()`, and only on the worker, so
+  their top-level side effects, such as logging or opening a connection, happen once. A missing
+  export is still an error when the program loads, but only after the module that lacks it has
+  been evaluated.
 - **JS externs run on a worker.** There, `process.env` is a copy of the process's environment,
   `process.chdir` throws, and `process.stdout` is an asynchronous pipe through the main thread.
   Some npm packages, notably native addons that aren't safe to load in workers, don't work at all.
@@ -125,8 +127,10 @@ PureScript and Elm do.
 
 ## What we could do
 
-- **Stop evaluating the program module twice.** The compiler could emit a small entry module that
-  only starts the worker, and a separate one with the program, which only the worker imports.
+- **Stop loading the program module twice.** The compiler could emit a small entry module that only
+  starts the worker, and a separate one with the program, which only the worker imports. Now that
+  the JS externs are only imported on the worker, this would only save the main thread the time it
+  takes to load the program.
 - **Run mutual tail calls on a trampoline**, as js_of_ocaml does. Only groups of mutually recursive
   functions would pay for it. Native Lean doesn't eliminate these calls either, so it would go
   beyond native rather than catch up with it, but it would help in browsers, where the stack is

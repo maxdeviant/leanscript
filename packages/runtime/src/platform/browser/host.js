@@ -49,6 +49,9 @@ export const commandLineArgs = () => [];
 /** Does nothing, as browsers have no exit codes. */
 export function setExitCode(_code) {}
 
+/** Returns whether `runWithLargeStack` calls its function on the current thread, which it always does. */
+export const runsProgram = () => true;
+
 /** Calls `run` on the current thread, whose stack size is up to the browser. */
 export function runWithLargeStack(_moduleUrl, run) {
   run();

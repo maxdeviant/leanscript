@@ -40,6 +40,7 @@ import { externs as platformExterns } from "#platform/externs.js";
 import {
   commandLineArgs,
   flushOutput,
+  runsProgram,
   runWithLargeStack,
   setExitCode,
   whenFinished,
@@ -90,6 +91,28 @@ export function checkVersion(compilerVersion) {
       `LeanScript: this program was compiled by LeanScript ${compilerVersion}, but @leanscript/runtime is version ${version}; use the same version of both`,
     );
   }
+}
+
+/**
+ * Imports the module `specifier` with `load`, and returns its exports `names`, in order, if the
+ * program runs on the current thread. On any other thread, which only starts the one the program
+ * runs on, doesn't import the module, and returns `undefined` for each.
+ *
+ * Throws if the module lacks one of the exports, as a static import would.
+ */
+export async function importForProgram(load, specifier, names) {
+  if (!runsProgram()) {
+    return names.map(() => undefined);
+  }
+  const module = await load();
+  return names.map((name) => {
+    if (!(name in module)) {
+      throw new SyntaxError(
+        `The requested module '${specifier}' does not provide an export named '${name}'`,
+      );
+    }
+    return module[name];
+  });
 }
 
 /** Implementations of `@[extern]` declarations, keyed by the Lean declaration name. */
