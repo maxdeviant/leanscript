@@ -67,6 +67,15 @@ def themeSwitcher : Html :=
     span [cls "hidden dark:block"] [.raw sunIcon]
   ]
 
+/-- A strip of caution tape across the top of the page, which says that LeanScript is experimental. -/
+def experimentalNotice : Html :=
+  div [cls "caution-stripes px-4 py-1.5 text-center"] [
+    p [cls "inline-block bg-highlight px-3 py-0.5 font-mono text-xs text-on-highlight"] [
+      strong [cls "font-bold tracking-widest uppercase"] ["Experimental"],
+      " · Expect bugs and breaking changes"
+    ]
+  ]
+
 /-- Wraps `content` in the markup that every page shares. -/
 def layout (pageTitle : String) (description : String) (content : List Html) : Html :=
   html [("lang", "en")] [
@@ -83,6 +92,7 @@ def layout (pageTitle : String) (description : String) (content : List Html) : H
       link [("rel", "stylesheet"), ("href", "/style.css")]
     ],
     body [cls "bg-paper font-sans text-ink antialiased selection:bg-highlight selection:text-on-highlight"] [
+      experimentalNotice,
       div [cls "mx-auto flex min-h-screen max-w-4xl flex-col px-4 sm:px-8"] [
         header [cls "flex items-center justify-between border-b border-rule py-5"] [
           logo,
@@ -92,10 +102,19 @@ def layout (pageTitle : String) (description : String) (content : List Html) : H
           ]
         ],
         main [cls "flex-1"] content,
-        footer [cls "border-t border-rule py-8 font-mono text-xs text-muted"] [
-          "I got nerd-sniped by ",
-          a [href "https://bsky.app/profile/tonofcrates.bsky.social/post/3my3zodphxk2k", cls "hover:text-accent"] ["Will Crichton"],
-          "."
+        footer [cls "flex flex-col gap-2 border-t border-rule py-8 font-mono text-xs text-muted sm:flex-row sm:justify-between"] [
+          p [] [
+            "Nerd-sniped by ",
+            a [href "https://bsky.app/profile/tonofcrates.bsky.social/post/3my3zodphxk2k", cls "hover:text-accent"] ["Will Crichton"],
+            "."
+          ],
+          p [] [
+            "Released under the ",
+            a [href s!"{repoUrl}/blob/main/LICENSE", cls "hover:text-accent"] ["MIT License"],
+            ". © 2026 ",
+            a [href "https://maxdeviant.com", cls "hover:text-accent"] ["Marshall Bowers"],
+            "."
+          ]
         ]
       ],
       script [] [.raw setUpThemeSwitcher]

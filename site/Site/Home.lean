@@ -144,7 +144,7 @@ def home : Html :=
     «section» [("id", "getting-started"), cls "pb-20"] [
       sectionHeading "Getting started" "Set up LeanScript in your project",
       p [cls "mb-6 max-w-2xl leading-relaxed text-muted"] [
-        "LeanScript fits in to your existing Lean project and JavaScript package manager.",
+        "LeanScript fits into your existing Lean project and JavaScript package manager.",
       ],
       ol [cls "grid gap-8"] [
         step "1" "Require LeanScript in your Lake package" "lakefile.toml" "toml" lakefileStep,
