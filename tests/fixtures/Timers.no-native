@@ -1,0 +1,1 @@
+Native programs exit when `main` returns, but this one keeps running on timers after that.

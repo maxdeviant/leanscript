@@ -458,6 +458,11 @@ ShareCommon.Object.eq
 ShareCommon.Object.hash
 ShareCommon.State.shareCommon
 ShareCommon.shareCommon'
+Std.Internal.UV.Timer.cancel
+Std.Internal.UV.Timer.mk
+Std.Internal.UV.Timer.next
+Std.Internal.UV.Timer.reset
+Std.Internal.UV.Timer.stop
 Std.Net.IPv4Addr.ofString
 Std.Net.IPv4Addr.toString
 Std.Net.IPv6Addr.ofString
@@ -1147,6 +1152,11 @@ ShareCommon.Object.eq
 ShareCommon.Object.hash
 ShareCommon.State.shareCommon
 ShareCommon.shareCommon'
+Std.Internal.UV.Timer.cancel
+Std.Internal.UV.Timer.mk
+Std.Internal.UV.Timer.next
+Std.Internal.UV.Timer.reset
+Std.Internal.UV.Timer.stop
 Std.Net.IPv4Addr.ofString
 Std.Net.IPv4Addr.toString
 Std.Net.IPv6Addr.ofString

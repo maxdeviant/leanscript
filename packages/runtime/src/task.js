@@ -48,7 +48,7 @@ const BLOCKED = Symbol("blocked");
 const promiseTasks = new WeakSet();
 
 /** An `IO.Promise`, which owns its result task, and resolves it to `none` if it is dropped. */
-class IOPromise {
+export class IOPromise {
   constructor() {
     this[RC] = 1;
     this.task = new Task(0, []);
@@ -68,6 +68,18 @@ class IOPromise {
 
   describe() {
     return this.task.waiters === null ? "resolved promise" : "unresolved promise";
+  }
+}
+
+/** Returns whether the borrowed `promise` has been resolved. */
+export const isResolved = (promise) => promise.task.waiters === null;
+
+/** Resolves the borrowed `promise` with the owned `value`, unless it has already been resolved. */
+export function resolvePromise(promise, value) {
+  if (isResolved(promise)) {
+    dec(value);
+  } else {
+    finish(promise.task, new Ctor(1, [value], null));
   }
 }
 
@@ -256,11 +268,7 @@ export const externs = {
   },
   // Only the first call has an effect.
   "IO.Promise.resolve": (_α, value, promise, _w) => {
-    if (promise.task.waiters === null) {
-      dec(value);
-    } else {
-      finish(promise.task, new Ctor(1, [value], null));
-    }
+    resolvePromise(promise, value);
     return 0;
   },
   "IO.Promise.result?": (_α, promise) => {

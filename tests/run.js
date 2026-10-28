@@ -28,8 +28,9 @@
 // up its environment, such as the globals of a web page.
 //
 // A program with an adjacent `.js` file, which implements externs in JS, or `.setup.js` file, or a
-// library cannot run natively. Its `.expected` and `.exitcode` files are written by hand, and
-// `--bless` leaves them alone.
+// library cannot run natively. Neither can a program with an adjacent `.no-native` file, which
+// explains why, such as that it keeps running after `main` returns, where a native program exits.
+// Its `.expected` and `.exitcode` files are written by hand, and `--bless` leaves them alone.
 //
 // Usage: node tests/run.js [--bless] [name...]
 
@@ -98,7 +99,12 @@ for (const name of names) {
   }
 
   if (bless) {
-    if (existsSync(join(fixtures, `${name}.js`)) || driver.length > 0 || setup.length > 0) {
+    if (
+      existsSync(join(fixtures, `${name}.js`)) ||
+      existsSync(join(fixtures, `${name}.no-native`)) ||
+      driver.length > 0 ||
+      setup.length > 0
+    ) {
       console.log(`skipping native run of ${name}, which cannot run natively`);
     } else {
       const nativeExe = join(nativeDir, name);

@@ -625,11 +625,11 @@ Std.Internal.UV.TCP.Socket.send	Std.Internal.UV.TCP
 Std.Internal.UV.TCP.Socket.shutdown	Std.Internal.UV.TCP	
 Std.Internal.UV.TCP.Socket.tryAccept	Std.Internal.UV.TCP	
 Std.Internal.UV.TCP.Socket.waitReadable	Std.Internal.UV.TCP	
-Std.Internal.UV.Timer.cancel	Std.Internal.UV.Timer	
-Std.Internal.UV.Timer.mk	Std.Internal.UV.Timer	
-Std.Internal.UV.Timer.next	Std.Internal.UV.Timer	
-Std.Internal.UV.Timer.reset	Std.Internal.UV.Timer	
-Std.Internal.UV.Timer.stop	Std.Internal.UV.Timer	
+Std.Internal.UV.Timer.cancel	Std.Internal.UV.Timer	node,browser
+Std.Internal.UV.Timer.mk	Std.Internal.UV.Timer	node,browser
+Std.Internal.UV.Timer.next	Std.Internal.UV.Timer	node,browser
+Std.Internal.UV.Timer.reset	Std.Internal.UV.Timer	node,browser
+Std.Internal.UV.Timer.stop	Std.Internal.UV.Timer	node,browser
 Std.Internal.UV.UDP.Socket.bind	Std.Internal.UV.UDP	
 Std.Internal.UV.UDP.Socket.cancelRecv	Std.Internal.UV.UDP	
 Std.Internal.UV.UDP.Socket.connect	Std.Internal.UV.UDP	

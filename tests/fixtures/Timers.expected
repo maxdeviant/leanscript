@@ -1,0 +1,19 @@
+starting
+main returned
+sleep: at least 20ms: true
+fast
+slow
+concurrently: at least 30ms: true
+race: fast
+reset sleep: at least 45ms: true
+interval: at least 30ms: true
+stopped: dropped
+canceled: dropped
+restarted: resolved
+finished: true
+first tick: resolved
+second is new: true
+second tick: resolved
+second tick: at least 5ms: true
+after stop: dropped
+done

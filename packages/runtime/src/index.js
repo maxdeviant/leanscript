@@ -34,6 +34,7 @@ import { externs as netExterns } from "./net.js";
 import { externs as refExterns } from "./ref.js";
 import { externs as stringExterns, mkString } from "./string.js";
 import { externs as taskExterns } from "./task.js";
+import { externs as timerExterns } from "./timer.js";
 import { externs as platformExterns } from "#platform/externs.js";
 import {
   commandLineArgs,
@@ -106,6 +107,7 @@ export const externs = {
   ...platformExterns,
   ...refExterns,
   ...taskExterns,
+  ...timerExterns,
   panicCore: (_α, defaultValue, msg) => {
     const text = msg.toString();
     dec(msg);
