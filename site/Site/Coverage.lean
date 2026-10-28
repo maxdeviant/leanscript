@@ -11,10 +11,13 @@ structure Target where
 
 def runtimeTargets : List Target := [⟨"node", "Node"⟩, ⟨"browser", "Browser"⟩]
 
-/-- The libraries whose externs make up the standard library. -/
+/-- The libraries that ship with Lean, whose externs the page tracks. -/
 def libraries : List String := ["Init", "Std", "Lean"]
 
-/-- An extern of the standard library, and the IDs of the targets whose runtime implements it. -/
+/--
+An extern of the libraries that ship with Lean, and the IDs of the targets whose runtime implements
+it.
+-/
 structure Extern where
   name : String
   module : String
@@ -59,15 +62,17 @@ def docUrl (e : Extern) : String :=
 
 end Extern
 
-/-- The coverage data that `scripts/stdlib-coverage.js` writes. -/
+/-- The coverage data that `scripts/runtime-coverage.js` writes. -/
 structure Coverage where
   toolchain : String := ""
   /-- The date that the data was generated, such as `2026-10-28`. -/
   generated : String := ""
   externs : Array Extern := #[]
-  /-- Externs that the runtime implements, but that aren't externs in the toolchain. -/
-  stale : Array String := #[]
 
+/--
+Parses the coverage data. Skips the lines for runtime externs that aren't externs in the toolchain,
+which have no module, since no program can call them.
+-/
 def Coverage.parse (data : String) : Coverage :=
   (data.splitOn "\n").foldl (init := {}) fun coverage line =>
     if let some toolchain := line.dropPrefix? "# toolchain " then
@@ -78,14 +83,14 @@ def Coverage.parse (data : String) : Coverage :=
       coverage
     else
       match line.splitOn "\t" with
-      | [name, "", _] => { coverage with stale := coverage.stale.push name }
+      | [_, "", _] => coverage
       | [name, module, ids] =>
         let targets := if ids.isEmpty then [] else ids.splitOn ","
         { coverage with externs := coverage.externs.push { name, module, targets } }
       | _ => coverage
 
 def coverage : Coverage :=
-  .parse (include_str "../data/stdlib-coverage.tsv")
+  .parse (include_str "../data/runtime-coverage.tsv")
 
 /-- The number of `externs` that `target` implements. -/
 def count (externs : Array Extern) (target : Target) : Nat :=
@@ -201,21 +206,8 @@ def libraryHeading (heading : String) (note : String) : Html :=
 def librarySection (library : String) (externs : Array Extern) : Html :=
   let externs := externs.filter (·.library == library)
   let note := " · ".intercalate (runtimeTargets.map fun target => s!"{target.label} {count externs target}/{externs.size}")
-  «section» [cls "mt-12"] (libraryHeading library note :: (byNamespace externs).toList.map fun (ns, es) =>
+  «section» [cls "mt-12 last-of-type:pb-20"] (libraryHeading library note :: (byNamespace externs).toList.map fun (ns, es) =>
     namespaceBlock ns es)
-
-def staleSection (coverage : Coverage) : Html :=
-  «section» [cls "mt-12 pb-20"] [
-    libraryHeading "Not externs in this toolchain" (toString coverage.stale.size),
-    p [cls "mb-3 max-w-2xl text-sm leading-relaxed text-muted"] [
-      s!"The runtime implements these, but no program compiled with {coverage.toolchain} can call them, because the toolchain has no extern by that name."
-    ],
-    details [] [
-      summary [cls "cursor-pointer font-mono text-xs text-accent"] [s!"Show {coverage.stale.size} names"],
-      ul [cls "mt-2 columns-2xs gap-6"] (coverage.stale.toList.map fun (name : String) =>
-        li [cls "break-inside-avoid py-px break-all"] [code [cls "font-mono text-xs"] [name]])
-    ]
-  ]
 
 /-- Dims the squares whose names don't contain the filter's text, and hides namespaces without any. -/
 def filterScript : String := "
@@ -280,17 +272,21 @@ addEventListener("scroll", hideTooltip, { passive: true });
 "#
 
 def coveragePage : Html :=
-  layout "Standard library coverage · LeanScript"
-    "How much of Lean's standard library the LeanScript runtime implements, on each target." ([
+  layout "Runtime coverage · LeanScript"
+    "Which of the externs in Lean's core libraries the LeanScript runtime implements, on each target." ([
       «section» [cls "pt-16 pb-10"] [
-        h1 [cls "mb-3 font-mono text-3xl font-bold tracking-tight sm:text-4xl"] ["Standard library coverage"],
+        h1 [cls "mb-3 font-mono text-3xl font-bold tracking-tight sm:text-4xl"] ["Runtime coverage"],
         p [cls "mb-6 font-mono text-xs text-muted"] [s!"{coverage.toolchain} · generated {coverage.generated}"],
-        p [cls "max-w-2xl leading-relaxed text-muted"] [
-          s!"Of the {coverage.externs.size} externs in ",
+        p [cls "mb-4 max-w-2xl leading-relaxed text-muted"] [
+          "Most of the libraries that ship with Lean, ",
           code [cls "font-mono text-sm"] ["Init"], ", ",
           code [cls "font-mono text-sm"] ["Std"], ", and ",
           code [cls "font-mono text-sm"] ["Lean"],
-          " that a program can call, these are the ones that the runtime implements on each target. Externs that a Lean declaration implements through ",
+          ", compile to JavaScript like any other Lean code. The exceptions are externs: functions that native Lean implements in C, which the runtime has to implement in JavaScript instead. ",
+          s!"Of the {coverage.externs.size} externs that a program can call, this page shows which ones the runtime implements on each target."
+        ],
+        p [cls "max-w-2xl text-sm leading-relaxed text-muted"] [
+          "Externs that a Lean declaration implements through ",
           code [cls "font-mono text-sm"] ["@[export]"],
           " aren't counted, since the compiler calls that declaration instead."
         ]
@@ -303,7 +299,6 @@ def coveragePage : Html :=
           cls "w-full max-w-72 rounded-sm border border-rule bg-paper px-3 py-1.5 font-mono text-sm focus-visible:outline-2 focus-visible:outline-accent"]
       ]
     ] ++ libraries.map (librarySection · coverage.externs) ++ [
-      staleSection coverage,
       tooltip,
       script [] [.raw filterScript],
       script [] [.raw tooltipScript]
