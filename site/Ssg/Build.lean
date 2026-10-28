@@ -16,6 +16,14 @@ structure File where
   path : FilePath
   content : String
 
+/--
+A fingerprint of `content`, as 16 hexadecimal digits, for a file name that changes whenever its
+content does. It isn't cryptographic, but it's the same on every build of the same content.
+-/
+def fingerprint (content : String) : String :=
+  let digits := Nat.toDigits 16 (hash content).toNat
+  String.ofList (List.replicate (16 - digits.length) '0' ++ digits)
+
 /-- Copies the files in `src`, recursively, into `dest`. -/
 def copyDir (src dest : FilePath) : IO Unit := do
   for file in ← src.walkDir do

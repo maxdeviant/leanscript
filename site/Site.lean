@@ -8,9 +8,9 @@ namespace Site
 open Ssg
 
 /-- The pages of the site. -/
-def pages : List Page := [
-  { path := "index.html", html := home },
-  { path := "coverage/index.html", html := coveragePage }
+def pages (ctx : Context) : List Page := [
+  { path := "index.html", html := home ctx },
+  { path := "coverage/index.html", html := coveragePage ctx }
 ]
 
 /-- The files of the site other than its pages. -/

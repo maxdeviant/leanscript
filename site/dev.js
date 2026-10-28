@@ -57,7 +57,7 @@ async function generate() {
   generating = true;
   do {
     queued = false;
-    // Tailwind writes `style.css` into `dist/` too, so the generator mustn't clear it.
+    // Clearing `dist/` would remove the directory that the server watches for reloads.
     await run("lake", ["exe", "site", "--no-clean"]);
   } while (queued);
   generating = false;
@@ -106,14 +106,18 @@ const server = createServer(async (req, res) => {
   res.end(body);
 });
 
-// The first build clears `dist/`, so that it doesn't have files from earlier builds.
+const tailwindBin = join(root, "node_modules", ".bin", "tailwindcss");
+const tailwindArgs = ["-i", "styles.css", "-o", "build/style.css"];
+
+// The site reads the stylesheet when it's built. The first build clears `dist/`, so that it doesn't
+// have files from earlier builds.
+await run(tailwindBin, tailwindArgs);
 await run("lake", ["exe", "site"]);
 
-const tailwind = spawn(
-  join(root, "node_modules", ".bin", "tailwindcss"),
-  ["-i", "styles.css", "-o", "dist/style.css", "--watch=always"],
-  { cwd: root, stdio: ["ignore", "inherit", "inherit"] },
-);
+const tailwind = spawn(tailwindBin, [...tailwindArgs, "--watch=always"], {
+  cwd: root,
+  stdio: ["ignore", "inherit", "inherit"],
+});
 process.on("exit", () => tailwind.kill());
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => process.exit());
@@ -127,6 +131,9 @@ for (const dir of ["Site", "Ssg", "data", "static"]) {
   }
 }
 watch(join(root, "Main.lean"), regenerate);
+// The site serves the stylesheet under a name with its fingerprint, so it's rebuilt when Tailwind
+// rewrites it.
+watch(join(root, "build"), regenerate);
 
 const reload = debounce(100, () => {
   for (const client of clients) {

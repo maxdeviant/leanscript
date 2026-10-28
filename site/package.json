@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "node dev.js",
-    "build": "lake exe site && tailwindcss -i styles.css -o dist/style.css --minify"
+    "build": "tailwindcss -i styles.css -o build/style.css --minify && lake exe site"
   },
   "devDependencies": {
     "@arborium/arborium": "^2.18.2",

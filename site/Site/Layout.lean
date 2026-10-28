@@ -77,8 +77,13 @@ def experimentalNotice : Html :=
     ]
   ]
 
+/-- What the pages need to know about the build, which isn't known until the site is built. -/
+structure Context where
+  /-- The URL of the stylesheet, which changes whenever its content does. -/
+  stylesheet : String
+
 /-- Wraps `content` in the markup that every page shares. -/
-def layout (pageTitle : String) (description : String) (content : List Html) : Html :=
+def layout (ctx : Context) (pageTitle : String) (description : String) (content : List Html) : Html :=
   html [("lang", "en")] [
     head [] [
       «meta» [("charset", "utf-8")],
@@ -90,7 +95,7 @@ def layout (pageTitle : String) (description : String) (content : List Html) : H
       link [("rel", "preconnect"), ("href", "https://fonts.googleapis.com")],
       link [("rel", "preconnect"), ("href", "https://fonts.gstatic.com"), ("crossorigin", "")],
       link [("rel", "stylesheet"), ("href", fontsUrl)],
-      link [("rel", "stylesheet"), ("href", "/style.css")]
+      link [("rel", "stylesheet"), ("href", ctx.stylesheet)]
     ],
     body [cls "bg-paper font-sans text-ink antialiased selection:bg-highlight selection:text-on-highlight"] [
       experimentalNotice,

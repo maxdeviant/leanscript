@@ -100,8 +100,8 @@ def comingSoon (number : String) : Html :=
     ]
   ]
 
-def home : Html :=
-  layout "LeanScript" "LeanScript compiles Lean code into JavaScript that runs in the browser, Node.js, Cloudflare Workers, or anywhere else you can run JavaScript." [
+def home (ctx : Context) : Html :=
+  layout ctx "LeanScript" "LeanScript compiles Lean code into JavaScript that runs in the browser, Node.js, Cloudflare Workers, or anywhere else you can run JavaScript." [
     «section» [cls "py-20 sm:py-28"] [
       h1 [cls "mb-8 max-w-3xl font-mono text-4xl leading-tight font-bold tracking-tight sm:text-6xl"] [
         span [cls "bg-highlight px-2 text-on-highlight" ] ["Lean"],

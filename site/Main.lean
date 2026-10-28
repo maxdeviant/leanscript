@@ -6,10 +6,22 @@ def usage : String :=
 def highlighter : Ssg.Highlighter :=
   Ssg.highlightWith "node" #["highlight.mjs"]
 
+/-- The stylesheet that Tailwind builds, which the site serves under a name with its fingerprint. -/
+def stylesheetSource : System.FilePath := "build/style.css"
+
+def build (clean : Bool) : IO Unit := do
+  unless ← stylesheetSource.pathExists do
+    throw <| IO.userError s!"{stylesheetSource} doesn't exist, so build it with Tailwind first"
+  let css ← IO.FS.readFile stylesheetSource
+  let stylesheet := s!"style.{Ssg.fingerprint css}.css"
+  let ctx : Site.Context := { stylesheet := s!"/{stylesheet}" }
+  Ssg.build "dist" (Site.pages ctx) ({ path := stylesheet, content := css } :: Site.files) (clean := clean)
+    (highlighter := highlighter)
+
 def main (args : List String) : IO UInt32 := do
   match args with
-  | [] => Ssg.build "dist" Site.pages Site.files (highlighter := highlighter)
-  | ["--no-clean"] => Ssg.build "dist" Site.pages Site.files (clean := false) (highlighter := highlighter)
+  | [] => build (clean := true)
+  | ["--no-clean"] => build (clean := false)
   | _ =>
     IO.eprintln usage
     return 1

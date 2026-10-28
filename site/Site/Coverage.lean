@@ -271,8 +271,8 @@ for (const type of ["pointerout", "focusout"]) {
 addEventListener("scroll", hideTooltip, { passive: true });
 "#
 
-def coveragePage : Html :=
-  layout "Runtime coverage · LeanScript"
+def coveragePage (ctx : Context) : Html :=
+  layout ctx "Runtime coverage · LeanScript"
     "Which of the externs in Lean's core libraries the LeanScript runtime implements, on each target." ([
       «section» [cls "pt-16 pb-10"] [
         h1 [cls "mb-3 font-mono text-3xl font-bold tracking-tight sm:text-4xl"] ["Runtime coverage"],
