@@ -31,20 +31,22 @@ def home : Html :=
   layout "LeanScript" "Lorem ipsum dolor sit amet, consectetur adipiscing elit." [
     «section» [cls "py-20 sm:py-28"] [
       h1 [cls "mb-8 max-w-3xl font-mono text-4xl leading-tight font-bold tracking-tight sm:text-6xl"] [
-        "Lorem ipsum ",
-        span [cls "bg-highlight px-2 text-on-highlight"] ["dolor"],
-        " sit amet"
+        span [cls "bg-highlight px-2 text-on-highlight" ] ["Lean"],
+        " into JavaScript"
       ],
       p [cls "mb-10 max-w-2xl text-lg leading-relaxed text-muted"] [
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut ",
-        "labore et dolore magna aliqua."
+        "LeanScript compiles ",
+        a [href "https://lean-lang.org/", cls "font-medium text-ink underline decoration-highlight decoration-2 underline-offset-4 hover:text-accent"] ["Lean"],
+        " code into JavaScript.",
+        " ",
+        "Run your code in the browser, Node.js, Cloudflare Workers, or anywhere else you can run JavaScript."
       ],
       div [cls "flex flex-wrap gap-3 font-mono text-sm"] [
         a [href "#getting-started", cls "rounded-sm bg-ink px-5 py-2.5 font-semibold text-paper hover:bg-accent"] [
-          "Lorem ipsum"
+          "Get started"
         ],
         a [href repoUrl, cls "rounded-sm border border-ink px-5 py-2.5 font-semibold hover:border-accent hover:text-accent"] [
-          "Dolor sit"
+          "GitHub"
         ]
       ]
     ],
