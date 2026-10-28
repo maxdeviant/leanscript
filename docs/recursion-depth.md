@@ -25,9 +25,11 @@ The largest `n` that it handles, measured on macOS with Node 24.21 and Lean 4.35
 | A worker with a 1GB stack      | 1,000,000  | 10,000,000                              |
 | Native Lean                    | 10,000,000 | 100,000,000 ("Stack overflow detected") |
 
-Native Lean has a limit too, so Lean programmers already avoid deep recursion on huge inputs. But
-nobody writing native Lean expects to run out of stack on a list of 10,000 elements, which is where
-Node's default stack gives out.
+Native Lean runs `main` on a thread with a 1GB stack too, on 64-bit platforms, which
+`LEAN_STACK_SIZE_KB` overrides, so the last two rows have the same stack, and the difference between
+them is the size of a frame. Native Lean has a limit, so Lean programmers already avoid deep
+recursion on huge inputs. But nobody writing native Lean expects to run out of stack on a list of
+10,000 elements, which is where Node's default stack gives out.
 
 ## Where deep recursion comes from
 
@@ -38,17 +40,23 @@ Node's default stack gives out.
 - **Structural recursion on data.** Derived instances, such as `Repr` and `BEq`, recurse once per
   level of a recursive type, which for a list-like type is once per element.
 - **Mutual tail calls**, as in state machines. Lean's compiler turns only a function's tail calls
-  to itself into loops. Natively, the C compiler often turns mutual tail calls into jumps as well,
-  but JS engines other than Safari's don't, so each call takes a frame.
-- **Recursive monadic loops**, such as `partial def loop := do ...; loop`. In `IO`, these usually
-  specialize to a tail call to the function itself, and so become loops. Whether they always do in
-  larger monad stacks, where a bind may not be inlined, is worth measuring before relying on it.
+  to itself into loops, so each mutual call takes a frame, natively as well. The C compiler doesn't
+  turn them into jumps either, even at `-O3`, as a borrowed argument is often decremented after
+  the call, which then isn't in tail position.
+- **Monadic loops in a user-defined monad, or in code that isn't specialized.** A loop in `IO`, in
+  `StateT`, `ReaderT`, or `ExceptT` over `IO`, in a stack of all three, or in `StateM`, whether a
+  recursive `partial def` or a `for` or `while` loop, is specialized to a tail call of the function
+  to itself, and so becomes a loop, which runs a million iterations on Node's default stack. But in
+  a monad that the user defines as a function, such as a parser's, or in a function that is
+  polymorphic in its monad and not specialized, each iteration calls the next through a closure,
+  and takes a frame, natively as well.
 - **Lean's own frontend**, if it is ever compiled to JS, which traverses expressions deeply.
 
 ## Why programs run on a worker
 
 On Node, the runtime runs Lean code on a worker with a 1GB stack, which raises the limit from
-thousands to about a million. Untouched stack pages cost nothing, so the size can be generous.
+thousands to about a million. This is what native Lean does, with a thread of the same size.
+Untouched stack pages cost nothing, so the size can be generous.
 
 The alternatives are worse:
 
@@ -94,8 +102,10 @@ and make their standard libraries avoid deep recursion:
   on the JS stack. Stack safety is up to libraries: `MonadRec` and `tailRecM`, from Phil Freeman's
   paper "Stack Safety for Free", `Trampoline` for pure code, `Aff`, which runs on its own
   trampolined interpreter, and `Data.List`, whose functions avoid deep recursion. Recursion through
-  `Effect`'s bind isn't stack-safe, and programs are expected to use `tailRecM` or `forever` for
-  long loops. Stack overflows are a common question from new users.
+  `Effect`'s bind isn't stack-safe, as `bindE` runs the rest of the computation inside the call
+  that runs the first action, so each bind takes a frame, and a loop of 10,000 overflows. Long loops
+  are expected to use `tailRecM` or `forever`, which `Effect`'s `MonadRec` instance runs as a
+  `while` loop.
 - **Elm** turns tail calls of a function to itself into loops. Its `List.foldr` recurses normally
   up to a fixed depth, and then switches to reversing the list and folding from the left.
 - **Scala.js** and **Kotlin/JS** turn tail calls of a function to itself into loops. Scala's
@@ -118,8 +128,10 @@ PureScript and Elm do.
 - **Stop evaluating the program module twice.** The compiler could emit a small entry module that
   only starts the worker, and a separate one with the program, which only the worker imports.
 - **Run mutual tail calls on a trampoline**, as js_of_ocaml does. Only groups of mutually recursive
-  functions would pay for it, and it would close the gap with native code that the C compiler
-  optimizes. It would also help in browsers, though recursion on lists still wouldn't.
+  functions would pay for it. Native Lean doesn't eliminate these calls either, so it would go
+  beyond native rather than catch up with it, but it would help in browsers, where the stack is
+  small. Calls through closures, as in user-defined monads, and recursion on lists would still take
+  frames.
 - **Allow running on the main thread**, with a compiler option, for programs that are mostly JS
   interop and don't recurse deeply, which would give up blocking requests such as child processes.
 
