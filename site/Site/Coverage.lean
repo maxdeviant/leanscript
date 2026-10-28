@@ -278,11 +278,11 @@ def coveragePage : Html :=
         h1 [cls "mb-3 font-mono text-3xl font-bold tracking-tight sm:text-4xl"] ["Runtime coverage"],
         p [cls "mb-6 font-mono text-xs text-muted"] [s!"{coverage.toolchain} · generated {coverage.generated}"],
         p [cls "mb-4 max-w-2xl leading-relaxed text-muted"] [
-          "Most of the libraries that ship with Lean, ",
+          "Most of the libraries that ship with Lean—",
           code [cls "font-mono text-sm"] ["Init"], ", ",
           code [cls "font-mono text-sm"] ["Std"], ", and ",
           code [cls "font-mono text-sm"] ["Lean"],
-          ", compile to JavaScript like any other Lean code. The exceptions are externs: functions that native Lean implements in C, which the runtime has to implement in JavaScript instead. ",
+          "—compile to JavaScript like any other Lean code. The exceptions are externs: functions that native Lean implements in C, which the LeanScript runtime has to implement in JavaScript instead. ",
           s!"Of the {coverage.externs.size} externs that a program can call, this page shows which ones the runtime implements on each target."
         ],
         p [cls "max-w-2xl text-sm leading-relaxed text-muted"] [
