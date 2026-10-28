@@ -14,7 +14,7 @@
     "format:check": "prettier --check packages scripts tests examples/*/vite.config.js site/dev.js site/highlight.mjs site/rasterize.mjs",
     "lint": "oxlint packages scripts tests examples/*/vite.config.js site/dev.js site/highlight.mjs site/rasterize.mjs",
     "lint:fix": "oxlint --fix packages scripts tests examples/*/vite.config.js site/dev.js site/highlight.mjs site/rasterize.mjs && prettier --write packages scripts tests examples/*/vite.config.js site/dev.js site/highlight.mjs site/rasterize.mjs",
-    "test": "node scripts/check-versions.js && node scripts/gen-target-externs.js --check && node tests/run.js",
+    "test": "node scripts/check-versions.js && node scripts/gen-target-externs.js --check && node scripts/runtime-coverage.js --check && node tests/run.js",
     "gen-externs": "node scripts/gen-target-externs.js"
   },
   "dependencies": {

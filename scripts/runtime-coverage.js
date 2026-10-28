@@ -4,11 +4,12 @@
 // program can call.
 //
 // Prints a summary by default. With `--data <file>`, instead writes every extern's status to
-// `<file>`, for the site's coverage page.
+// `<file>`, for the site's coverage page. With `--check`, instead fails if the runtime implements
+// any externs that are not externs in the current toolchain.
 //
 // Requires the compiler to be built with `lake build`.
 //
-// Usage: node scripts/runtime-coverage.js [--data <file>]
+// Usage: node scripts/runtime-coverage.js [--data <file> | --check]
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -98,7 +99,14 @@ function writeData(file, { externs, stale }) {
 
 const data = collect();
 const dataIndex = process.argv.indexOf("--data");
-if (dataIndex === -1) {
+if (process.argv.includes("--check")) {
+  if (data.stale.length > 0) {
+    console.error(
+      `the runtime implements externs that are not externs in ${toolchain}; remove them:\n  ${data.stale.join("\n  ")}`,
+    );
+    process.exitCode = 1;
+  }
+} else if (dataIndex === -1) {
   printSummary(data);
 } else {
   writeData(process.argv[dataIndex + 1], data);
