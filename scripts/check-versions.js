@@ -1,11 +1,15 @@
 // Fails unless every part of LeanScript has the same version: the compiler, the Lake package, the
 // runtime, and the npm packages. The runtime only runs programs compiled by the same version.
 //
+// Also fails unless the version of Lean that the runtime reports is the toolchain's.
+//
 // Usage: node scripts/check-versions.js
 
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { version as runtimeVersion } from "@leanscript/runtime";
+import { leanVersion } from "../packages/runtime/src/misc.js";
 
 const root = join(import.meta.dirname, "..");
 const read = (...path) => readFileSync(join(root, ...path), "utf8");
@@ -40,5 +44,19 @@ if (distinct.size !== 1) {
   for (const [path, version] of Object.entries(versions)) {
     console.error(`  ${path}: ${version}`);
   }
+  process.exitCode = 1;
+}
+
+const toolchain = read("lean-toolchain").trim();
+const { major, minor, patch, isRelease, specialDesc, githash } = leanVersion;
+const reported = `leanprover/lean4:v${major}.${minor}.${patch}${isRelease ? "" : `-${specialDesc}`}`;
+const toolchainGithash = execFileSync("lean", ["--githash"], {
+  cwd: root,
+  encoding: "utf8",
+}).trim();
+if (reported !== toolchain || githash !== toolchainGithash) {
+  console.error(
+    `The runtime reports Lean ${reported} (${githash}), but the toolchain is ${toolchain} (${toolchainGithash}); update \`leanVersion\` in packages/runtime/src/misc.js`,
+  );
   process.exitCode = 1;
 }

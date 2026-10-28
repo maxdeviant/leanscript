@@ -217,7 +217,7 @@ function stringExtract(s, b, e) {
   return extractValid(s, b, e);
 }
 
-function stringEq(s, t) {
+export function stringEq(s, t) {
   if (s.size !== t.size) {
     return false;
   }

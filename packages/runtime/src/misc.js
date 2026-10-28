@@ -1,7 +1,23 @@
-// `Bool` conversions, `Thunk`, and debugging and unsafe primitives.
+// `Bool` conversions, `Thunk`, `Name` equality, maximal sharing, the Lean version, and debugging and
+// unsafe primitives.
 
-import { apply, dec, inc, isExclusive, Thunk } from "./core.js";
+import { apply, Ctor, dec, inc, isExclusive, markPersistent, Thunk } from "./core.js";
+import { hashBytes, mixHash } from "./hash.js";
+import { LeanString, mkString, stringEq } from "./string.js";
 import { sleep, writeStderr } from "#platform/host.js";
+
+/**
+ * The version of Lean that compiles programs for the runtime, which `Lean.version` and
+ * `Lean.githash` report, as they do in native programs compiled by it.
+ */
+export const leanVersion = {
+  major: 4,
+  minor: 35,
+  patch: 0,
+  isRelease: true,
+  specialDesc: "",
+  githash: "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+};
 
 /** Returns stable, distinct numbers standing in for object addresses. */
 const addresses = new WeakMap();
@@ -21,6 +37,66 @@ function address(x) {
 
 const bigBool = (b) => BigInt(b);
 
+/** Returns whether the borrowed names `a` and `b` are equal, like `lean_name_eq`. */
+function nameEq(a, b) {
+  while (a !== b) {
+    // `str` and `num` cache their hash at offset 16, which rejects most unequal names at once.
+    if (typeof a !== "object" || typeof b !== "object" || a.tag !== b.tag || a.s[16] !== b.s[16]) {
+      return false;
+    }
+    if (a.tag === 1 ? !stringEq(a.f[1], b.f[1]) : a.f[1] !== b.f[1]) {
+      return false;
+    }
+    a = a.f[0];
+    b = b.f[0];
+  }
+  return true;
+}
+
+/**
+ * Returns whether `a` and `b` have the same contents without looking inside their fields, like
+ * `lean_sharecommon_eq`: they are constructors with the same tag and identical fields, or equal
+ * strings. Other objects are only equal to themselves.
+ */
+function shallowEq(a, b) {
+  if (a === b) {
+    return true;
+  }
+  if (a instanceof LeanString && b instanceof LeanString) {
+    return stringEq(a, b);
+  }
+  if (!(a instanceof Ctor && b instanceof Ctor) || a.tag !== b.tag || a.f.length !== b.f.length) {
+    return false;
+  }
+  const as = Object.entries(a.s ?? {});
+  return (
+    a.f.every((x, i) => x === b.f[i]) &&
+    as.length === Object.keys(b.s ?? {}).length &&
+    as.every(([offset, x]) => Object.is(x, b.s[offset]))
+  );
+}
+
+/** Returns a hash of `a` that is the same for any objects that `shallowEq` considers equal. */
+function shallowHash(a) {
+  if (a instanceof LeanString) {
+    return hashBytes(a.bytes, a.size, 11n);
+  }
+  if (!(a instanceof Ctor)) {
+    return BigInt(address(a));
+  }
+  const fieldHash = (x) =>
+    typeof x === "object"
+      ? BigInt(address(x))
+      : typeof x === "bigint"
+        ? x
+        : BigInt(Number.isInteger(x) ? x : 0);
+  const scalars = Object.entries(a.s ?? {}).sort(([i], [j]) => i - j);
+  return [...a.f, ...scalars.map(([, x]) => x)].reduce(
+    (h, x) => mixHash(h, fieldHash(x)),
+    BigInt(a.tag),
+  );
+}
+
 export const externs = {
   "Bool.toUInt8": (b) => b,
   "Bool.toUInt16": (b) => b,
@@ -36,6 +112,17 @@ export const externs = {
   // Evaluating both arguments is the point of these, which the caller has already done.
   strictAnd: (a, b) => a & b,
   strictOr: (a, b) => a | b,
+
+  "Lean.Name.beq": (a, b) => (nameEq(a, b) ? 1 : 0),
+
+  "_private.Init.Meta.Defs.0.Lean.version.getMajor": (_unit) => leanVersion.major,
+  "_private.Init.Meta.Defs.0.Lean.version.getMinor": (_unit) => leanVersion.minor,
+  "_private.Init.Meta.Defs.0.Lean.version.getPatch": (_unit) => leanVersion.patch,
+  "Lean.version.getIsRelease": (_unit) => (leanVersion.isRelease ? 1 : 0),
+  "Lean.version.getSpecialDesc": (_unit) => mkString(leanVersion.specialDesc),
+  "Lean.getGithash": (_unit) => mkString(leanVersion.githash),
+  "Lean.Internal.isStage0": (_unit) => 0,
+  "Lean.Internal.hasLLVMBackend": (_unit) => 0,
 
   "Thunk.mk": (_α, fn) => new Thunk(fn, undefined),
   "Thunk.pure": (_α, a) => new Thunk(null, a),
@@ -80,6 +167,26 @@ export const externs = {
     return r;
   },
   ptrAddrUnsafe: (_α, a) => address(a),
+
+  // Reference counts are never updated concurrently, so nothing needs marking.
+  "Runtime.markMultiThreaded": (_α, a, _w) => a,
+  "Runtime.markPersistent": (_α, a, _w) => markPersistent(a),
+  // The C runtime leaks `a`, to skip the work of freeing it. Here the garbage collector reclaims it
+  // either way, so freeing it costs little, and keeps the leak checks meaningful.
+  "Runtime.forget": (_α, a, _w) => {
+    dec(a);
+    return 0;
+  },
+  "Runtime.hold": (_α, _a, _w) => 0,
+
+  // Sharing subterms changes no value, so returning values unchanged is a valid implementation.
+  "ShareCommon.shareCommon'": (_α, a) => {
+    inc(a);
+    return a;
+  },
+  "ShareCommon.State.shareCommon": (_α, _σ, s, a) => new Ctor(0, [a, s], null),
+  "ShareCommon.Object.eq": (a, b) => (shallowEq(a, b) ? 1 : 0),
+  "ShareCommon.Object.hash": (a) => shallowHash(a),
   sorryAx: (_α, _synthetic) => {
     throw new Error("LeanScript: executed 'sorry'");
   },

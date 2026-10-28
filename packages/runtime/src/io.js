@@ -188,6 +188,9 @@ export function attempt(fname, f) {
 /** The largest number of bytes `crypto.getRandomValues` fills in one call. */
 const MAX_RANDOM_BYTES = 65536;
 
+/** The heartbeat counter of `IO.getNumHeartbeats`, which nothing increments. */
+let heartbeats = 0;
+
 // `BaseIO` results are not wrapped in `EST.Out`.
 export const externs = {
   "IO.initializing": (_w) => (isInitializing() ? 1 : 0),
@@ -204,7 +207,25 @@ export const externs = {
     }
     return ioOk(new LeanByteArray(bytes, n));
   },
+  "IO.getNumHeartbeats": (_w) => heartbeats,
+  "IO.setNumHeartbeats": (count, _w) => {
+    heartbeats = count;
+    return 0;
+  },
+  // All Lean code runs on a single thread.
+  "IO.getTID": (_w) => 1n,
+  "Std.Time.Timestamp.now": (_w) => {
+    const ms = Date.now();
+    const seconds = Math.floor(ms / 1000);
+    // A `Timestamp` is its `Duration` since the epoch, in whole seconds and nanoseconds.
+    return ioOk(new Ctor(0, [seconds, (ms - seconds * 1000) * 1000000], null));
+  },
   "System.Platform.getIsWindows": (_unit) => 0,
   "System.Platform.getIsOSX": (_unit) => 0,
+  "System.Platform.getIsLinux": (_unit) => 0,
   "System.Platform.getIsEmscripten": (_unit) => 0,
+  // There is no target triple for JS, and Lean reports a missing one as empty.
+  "System.Platform.getTarget": (_unit) => mkString(""),
+  "System.Platform.Internal.getHardwareConcurrency": (_unit) =>
+    globalThis.navigator?.hardwareConcurrency ?? 0,
 };

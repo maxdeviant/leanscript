@@ -112,6 +112,9 @@ export function exitProcess(code) {
 
 export const processId = () => process.pid;
 
+/** Returns the absolute path of the Node executable that runs the program. */
+export const executablePath = () => process.execPath;
+
 const sleepCell = new Int32Array(new SharedArrayBuffer(4));
 
 /** Blocks the thread for `ms` milliseconds. */

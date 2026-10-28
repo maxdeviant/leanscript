@@ -220,22 +220,22 @@ IO.Process.spawn	Init.System.IO
 IO.Promise.new	Init.System.Promise	node,browser
 IO.Promise.resolve	Init.System.Promise	node,browser
 IO.Promise.result?	Init.System.Promise	node,browser
-IO.appPath	Init.System.IO	
+IO.appPath	Init.System.IO	node
 IO.cancel	Init.System.IO	node,browser
 IO.checkCanceled	Init.System.IO	node,browser
 IO.currentDir	Init.System.IO	node
 IO.getEnv	Init.System.IO	node,browser
-IO.getNumHeartbeats	Init.System.IO	
+IO.getNumHeartbeats	Init.System.IO	node,browser
 IO.getRandomBytes	Init.System.IO	node,browser
 IO.getStderr	Init.System.IO	node,browser
 IO.getStdin	Init.System.IO	node
 IO.getStdout	Init.System.IO	node,browser
-IO.getTID	Init.System.IO	
+IO.getTID	Init.System.IO	node,browser
 IO.getTaskState	Init.System.IO	node,browser
 IO.initializing	Init.System.IO	node,browser
 IO.monoMsNow	Init.System.IO	node,browser
 IO.monoNanosNow	Init.System.IO	node,browser
-IO.setNumHeartbeats	Init.System.IO	
+IO.setNumHeartbeats	Init.System.IO	node,browser
 IO.setStderr	Init.System.IO	node,browser
 IO.setStdin	Init.System.IO	node
 IO.setStdout	Init.System.IO	node,browser
@@ -410,8 +410,8 @@ Lean.Expr.mkAppData	Lean.Expr
 Lean.Expr.mkData	Lean.Expr	
 Lean.Expr.quickLt	Lean.Expr	
 Lean.Expr.replaceImpl	Lean.Util.ReplaceExpr	
-Lean.Internal.hasLLVMBackend	Init.Meta.Defs	
-Lean.Internal.isStage0	Init.Meta.Defs	
+Lean.Internal.hasLLVMBackend	Init.Meta.Defs	node,browser
+Lean.Internal.isStage0	Init.Meta.Defs	node,browser
 Lean.Kernel.Environment.addDeclCore	Lean.Environment	
 Lean.Kernel.Environment.addDeclWithoutChecking	Lean.Environment	
 Lean.Kernel.check	Lean.Environment	
@@ -501,10 +501,10 @@ Lean.LLVM.voidType	Lean.Compiler.IR.LLVMBindings
 Lean.LLVM.writeBitcodeToFile	Lean.Compiler.IR.LLVMBindings	
 Lean.Level.beq	Lean.Level	
 Lean.Level.mkData	Lean.Level	
-Lean.Name.beq	Init.Prelude	
+Lean.Name.beq	Init.Prelude	node,browser
 Lean.closureMaxArgsFn	Lean.Runtime	
 Lean.displayCumulativeProfilingTimes	Lean.Util.Profile	
-Lean.getGithash	Init.Meta.Defs	
+Lean.getGithash	Init.Meta.Defs	node,browser
 Lean.getMaxCtorFields	Lean.Runtime	
 Lean.getMaxCtorScalarsSize	Lean.Runtime	
 Lean.getMaxCtorTag	Lean.Runtime	
@@ -517,8 +517,8 @@ Lean.mkCasesOnImp	Lean.Meta.Constructions.CasesOn
 Lean.openSSLVersionFn	Lean.Runtime	
 Lean.profileit	Lean.Util.Profile	
 Lean.runInit	Lean.Compiler.InitAttr	
-Lean.version.getIsRelease	Init.Meta.Defs	
-Lean.version.getSpecialDesc	Init.Meta.Defs	
+Lean.version.getIsRelease	Init.Meta.Defs	node,browser
+Lean.version.getSpecialDesc	Init.Meta.Defs	node,browser
 Nat.add	Init.Prelude	node,browser
 Nat.beq	Init.Prelude	node,browser
 Nat.ble	Init.Prelude	node,browser
@@ -540,20 +540,20 @@ Nat.shiftLeft	Init.Data.Nat.Bitwise.Basic	node,browser
 Nat.shiftRight	Init.Data.Nat.Bitwise.Basic	node,browser
 Nat.sub	Init.Prelude	node,browser
 Nat.xor	Init.Data.Nat.Bitwise.Basic	node,browser
-Runtime.forget	Init.System.IO	
-Runtime.hold	Init.System.IO	
-Runtime.markMultiThreaded	Init.System.IO	
-Runtime.markPersistent	Init.System.IO	
+Runtime.forget	Init.System.IO	node,browser
+Runtime.hold	Init.System.IO	node,browser
+Runtime.markMultiThreaded	Init.System.IO	node,browser
+Runtime.markPersistent	Init.System.IO	node,browser
 ST.Prim.Ref.get	Init.System.ST	node,browser
 ST.Prim.Ref.ptrEq	Init.System.ST	node,browser
 ST.Prim.Ref.put	Init.System.ST	node,browser
 ST.Prim.Ref.swap	Init.System.ST	node,browser
 ST.Prim.Ref.take	Init.System.ST	node,browser
 ST.Prim.mkRef	Init.System.ST	node,browser
-ShareCommon.Object.eq	Init.ShareCommon	
-ShareCommon.Object.hash	Init.ShareCommon	
-ShareCommon.State.shareCommon	Init.ShareCommon	
-ShareCommon.shareCommon'	Init.ShareCommon	
+ShareCommon.Object.eq	Init.ShareCommon	node,browser
+ShareCommon.Object.hash	Init.ShareCommon	node,browser
+ShareCommon.State.shareCommon	Init.ShareCommon	node,browser
+ShareCommon.shareCommon'	Init.ShareCommon	node,browser
 Std.BaseMutex.lock	Std.Sync.Mutex	
 Std.BaseMutex.new	Std.Sync.Mutex	
 Std.BaseMutex.tryLock	Std.Sync.Mutex	
@@ -652,7 +652,7 @@ Std.Net.IPv6Addr.toString	Std.Net.Addr
 Std.Net.interfaceAddresses	Std.Net.Addr	
 Std.Time.Database.Windows.getLocalTimeZoneIdentifierAt	Std.Time.Zoned.Database.Windows	
 Std.Time.Database.Windows.getNextTransition	Std.Time.Zoned.Database.Windows	
-Std.Time.Timestamp.now	Std.Time.DateTime.Timestamp	
+Std.Time.Timestamp.now	Std.Time.DateTime.Timestamp	node,browser
 String.Internal.append	Init.Data.String.Bootstrap	node,browser
 String.Internal.atEnd	Init.Data.String.Bootstrap	node,browser
 String.Internal.extract	Init.Data.String.Bootstrap	node,browser
@@ -710,13 +710,13 @@ String.utf8ByteSize	Init.Prelude	node,browser
 System.FilePath.metadata	Init.System.IO	node
 System.FilePath.readDir	Init.System.IO	node
 System.FilePath.symlinkMetadata	Init.System.IO	node
-System.Platform.Internal.getHardwareConcurrency	Init.System.Platform	
+System.Platform.Internal.getHardwareConcurrency	Init.System.Platform	node,browser
 System.Platform.getIsEmscripten	Init.System.Platform	node,browser
-System.Platform.getIsLinux	Init.System.Platform	
+System.Platform.getIsLinux	Init.System.Platform	node,browser
 System.Platform.getIsOSX	Init.System.Platform	node,browser
 System.Platform.getIsWindows	Init.System.Platform	node,browser
 System.Platform.getNumBits	Init.Prelude	node,browser
-System.Platform.getTarget	Init.System.Platform	
+System.Platform.getTarget	Init.System.Platform	node,browser
 Task.bind	Init.Core	node,browser
 Task.get	Init.Core	node,browser
 Task.map	Init.Core	node,browser
@@ -863,9 +863,9 @@ USize.toUInt64	Init.Data.UInt.Basic	node,browser
 USize.toUInt8	Init.Data.UInt.Basic	node,browser
 USize.xor	Init.Data.UInt.Basic	node,browser
 Void.mk	Init.System.ST	node,browser
-_private.Init.Meta.Defs.0.Lean.version.getMajor	Init.Meta.Defs	
-_private.Init.Meta.Defs.0.Lean.version.getMinor	Init.Meta.Defs	
-_private.Init.Meta.Defs.0.Lean.version.getPatch	Init.Meta.Defs	
+_private.Init.Meta.Defs.0.Lean.version.getMajor	Init.Meta.Defs	node,browser
+_private.Init.Meta.Defs.0.Lean.version.getMinor	Init.Meta.Defs	node,browser
+_private.Init.Meta.Defs.0.Lean.version.getPatch	Init.Meta.Defs	node,browser
 _private.Init.System.Promise.0.IO.Option.getOrBlock!	Init.System.Promise	node,browser
 _private.Lean.Compiler.FFI.0.Lean.Compiler.FFI.getBuiltinInternalLinkerFlags	Lean.Compiler.FFI	
 _private.Lean.Compiler.FFI.0.Lean.Compiler.FFI.getBuiltinLinkerFlags	Lean.Compiler.FFI	
