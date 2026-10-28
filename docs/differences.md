@@ -108,6 +108,8 @@ deeply recursive programs overflow at a depth of thousands, where native Lean ma
 
 Possible fix for browsers: none yet that doesn't change how every function is compiled.
 
+See [recursion depth](recursion-depth.md) for measurements, and the costs of running on a worker.
+
 ## Platform
 
 ### The platform is neither Windows, macOS, nor Linux
