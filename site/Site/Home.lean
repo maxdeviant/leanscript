@@ -51,14 +51,16 @@ def sectionHeading (label : String) (text : String) : Html :=
     h2 [cls "font-mono text-2xl font-bold tracking-tight"] [text]
   ]
 
-/-- A block of `source` in `language`, with the name of its file above it, if it has one. -/
+/-- A block of `source` in `language`, with the name of its file on a tab above it, if it has one. -/
 def codeBlock (source : String) (language := "lean") (fileName : Option String := none) : Html :=
-  div [cls "overflow-hidden rounded-sm border-l-4 border-highlight bg-code text-on-code"] [
-    match fileName with
-    | some name => p [cls "border-b border-on-code/10 px-5 py-2 font-mono text-xs text-on-code/60"] [name]
-    | none => .fragment [],
-    pre [cls "overflow-x-auto p-5 font-mono text-sm leading-relaxed"] [sourceCode language source]
-  ]
+  let preCls := "overflow-x-auto rounded-sm bg-code p-5 font-mono text-sm leading-relaxed text-on-code"
+  match fileName with
+  | some name =>
+    div [] [
+      p [cls "w-fit rounded-t-sm bg-highlight px-3 py-1 font-mono text-xs font-semibold text-on-highlight"] [name],
+      pre [cls s!"{preCls} rounded-tl-none"] [sourceCode language source]
+    ]
+  | none => pre [cls preCls] [sourceCode language source]
 
 /-- A numbered step of a guide, with the code for it. -/
 def step (number : String) (heading : String) (fileName : String) (language : String) (source : String) :
