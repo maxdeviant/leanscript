@@ -77,6 +77,7 @@ def h3 (attrs : List Attr := []) (children : List Html := []) : Html := .element
 def p (attrs : List Attr := []) (children : List Html := []) : Html := .element "p" attrs children
 def a (attrs : List Attr := []) (children : List Html := []) : Html := .element "a" attrs children
 def ul (attrs : List Attr := []) (children : List Html := []) : Html := .element "ul" attrs children
+def ol (attrs : List Attr := []) (children : List Html := []) : Html := .element "ol" attrs children
 def li (attrs : List Attr := []) (children : List Html := []) : Html := .element "li" attrs children
 def pre (attrs : List Attr := []) (children : List Html := []) : Html := .element "pre" attrs children
 def code (attrs : List Attr := []) (children : List Html := []) : Html := .element "code" attrs children

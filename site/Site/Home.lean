@@ -4,9 +4,46 @@ namespace Site
 
 open Ssg Html
 
-def placeholderCode : String := "-- Lorem ipsum dolor sit amet.
+/-- The version of LeanScript that the getting started steps use. -/
+def leanscriptVersion : String := "0.1.0"
+
+def workerExample : String :=
+  (include_str "../../examples/worker/Worker.lean").trimAsciiEnd.toString
+
+def lakefileStep : String := s!"[[require]]
+name = \"leanscript\"
+git = \"https://github.com/maxdeviant/leanscript\"
+rev = \"v{leanscriptVersion}\""
+
+def installStep : String := s!"pnpm add @leanscript/vite-plugin@{leanscriptVersion}
+pnpm add -D vite"
+
+def viteConfigStep : String := "import { defineConfig } from \"vite\";
+import leanscript from \"@leanscript/vite-plugin\";
+
+export default defineConfig({
+  plugins: [leanscript()],
+});"
+
+def indexHtmlStep : String := "<!doctype html>
+<html lang=\"en\">
+  <head>
+    <meta charset=\"utf-8\" />
+    <title>My app</title>
+  </head>
+  <body>
+    <div id=\"app\"></div>
+    <script type=\"module\" src=\"./Main.lean\"></script>
+  </body>
+</html>"
+
+def mainStep : String := "import Js
+
+open Js.Dom
+
 def main : IO Unit := do
-  IO.println \"Lorem ipsum\""
+  let some app ← (← document).getElementById \"app\" | return
+  app.setTextContent \"Hello from Lean!\""
 
 /-- A section's heading, with a small label above it. -/
 def sectionHeading (label : String) (text : String) : Html :=
@@ -15,9 +52,21 @@ def sectionHeading (label : String) (text : String) : Html :=
     h2 [cls "font-mono text-2xl font-bold tracking-tight"] [text]
   ]
 
-def codeBlock (source : String) : Html :=
-  pre [cls "overflow-x-auto rounded-sm border-l-4 border-highlight bg-code p-5 font-mono text-sm leading-relaxed text-on-code"] [
-    code [] [source]
+/-- A block of `source` in `language`, with the name of its file above it, if it has one. -/
+def codeBlock (source : String) (language := "lean") (fileName : Option String := none) : Html :=
+  div [cls "overflow-hidden rounded-sm border-l-4 border-highlight bg-code text-on-code"] [
+    match fileName with
+    | some name => p [cls "border-b border-on-code/10 px-5 py-2 font-mono text-xs text-on-code/60"] [name]
+    | none => .fragment [],
+    pre [cls "overflow-x-auto p-5 font-mono text-sm leading-relaxed"] [sourceCode language source]
+  ]
+
+/-- A numbered step of a guide, with the code for it. -/
+def step (number : String) (heading : String) (fileName : String) (language : String) (source : String) :
+    Html :=
+  li [] [
+    h3 [cls "mb-3 font-mono font-semibold"] [span [cls "mr-3 text-muted"] [number], heading],
+    codeBlock source language fileName
   ]
 
 def feature (number : String) (heading : String) (description : String) : Html :=
@@ -84,7 +133,7 @@ def home : Html :=
     ],
     «section» [cls "pb-20"] [
       sectionHeading "Lorem" "Ipsum dolor sit amet",
-      codeBlock placeholderCode
+      codeBlock workerExample (fileName := "Worker.lean")
     ],
     «section» [("id", "getting-started"), cls "pb-20"] [
       sectionHeading "Dolor" "Consectetur adipiscing",
@@ -92,8 +141,14 @@ def home : Html :=
         "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque ",
         "laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis."
       ],
-      codeBlock placeholderCode,
-      p [cls "mt-6 max-w-2xl leading-relaxed text-muted"] [
+      ol [cls "grid gap-8"] [
+        step "1" "Require LeanScript in your Lake package" "lakefile.toml" "toml" lakefileStep,
+        step "2" "Install the Vite plugin" "Terminal" "bash" installStep,
+        step "3" "Add the plugin to your Vite config" "vite.config.js" "javascript" viteConfigStep,
+        step "4" "Load a Lean file from your page" "index.html" "html" indexHtmlStep,
+        step "5" "Write some Lean" "Main.lean" "lean" mainStep
+      ],
+      p [cls "mt-8 max-w-2xl leading-relaxed text-muted"] [
         "Nemo enim ipsam voluptatem quia ",
         a [href repoUrl, cls "font-medium text-ink underline decoration-highlight decoration-2 underline-offset-4 hover:text-accent"] [
           "voluptas sit aspernatur"
