@@ -114,20 +114,24 @@ function fixedWidthExterns(t) {
     decLt: (a, b) => bool(value(a) < value(b)),
     decLe: (a, b) => bool(value(a) <= value(b)),
     ofNat: t.ofInteger,
-    ofNatLT: (n, _h) => t.ofInteger(n),
-    ofBitVec: t.ofInteger,
-    toBitVec: (a) => normalize(BigInt(a)),
     toFloat: (a) => Number(value(a)),
     toFloat32: (a) => Math.fround(Number(value(a))),
   };
   if (signed) {
     Object.assign(ext, { ofInt: t.ofInteger, toInt: t.toInteger, abs: t.abs });
   } else {
-    Object.assign(ext, { toNat: t.toInteger, log2: t.log2 });
+    Object.assign(ext, {
+      ofNatLT: (n, _h) => t.ofInteger(n),
+      ofBitVec: t.ofInteger,
+      toBitVec: (a) => normalize(BigInt(a)),
+      toNat: t.toInteger,
+      log2: t.log2,
+    });
   }
-  // Conversions between widths sign-extend from a signed type and zero-extend from an unsigned one.
+  // Only conversions between types of the same signedness are externs. They sign-extend from a
+  // signed type and zero-extend from an unsigned one.
   for (const target of types) {
-    if (target !== t) {
+    if (target !== t && target.signed === signed) {
       ext[`to${target.name}`] = (a) => target.ofInteger(t.toInteger(a));
     }
   }

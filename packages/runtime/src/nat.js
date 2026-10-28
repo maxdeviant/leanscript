@@ -230,7 +230,6 @@ export const externs = {
   "Nat.decLt": (a, b) => (a < b ? 1 : 0),
   "Nat.decLe": (a, b) => (a <= b ? 1 : 0),
   "Nat.beq": (a, b) => (a === b ? 1 : 0),
-  "Nat.blt": (a, b) => (a < b ? 1 : 0),
   "Nat.ble": (a, b) => (a <= b ? 1 : 0),
   "Nat.pred": (a) => natSub(a, 1),
   "Nat.divExact": (a, b, _h) => natDiv(a, b),

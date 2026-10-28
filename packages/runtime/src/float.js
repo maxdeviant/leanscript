@@ -256,8 +256,6 @@ function floatExterns(name, round, ofBits, toBits) {
     toInt32: toSigned(32),
     toInt64,
     toISize: toSigned(32),
-    toFloat: (a) => a,
-    toFloat32: Math.fround,
   };
   return Object.fromEntries(Object.entries(ext).map(([op, fn]) => [`${name}.${op}`, fn]));
 }
@@ -265,4 +263,6 @@ function floatExterns(name, round, ofBits, toBits) {
 export const externs = {
   ...floatExterns("Float", (a) => a, floatOfBits, floatToBits),
   ...floatExterns("Float32", Math.fround, float32OfBits, float32ToBits),
+  "Float.toFloat32": Math.fround,
+  "Float32.toFloat": (a) => a,
 };
