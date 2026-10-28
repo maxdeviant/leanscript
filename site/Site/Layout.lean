@@ -98,6 +98,7 @@ def layout (pageTitle : String) (description : String) (content : List Html) : H
         header [cls "flex items-center justify-between border-b border-rule py-5"] [
           logo,
           nav [cls "flex items-center gap-4 font-mono text-sm text-muted"] [
+            a [href "/coverage/", cls "hover:text-accent"] ["Coverage"],
             a [href repoUrl, cls "hover:text-accent"] ["GitHub"],
             themeSwitcher
           ]

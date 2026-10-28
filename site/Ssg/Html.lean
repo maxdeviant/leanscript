@@ -85,6 +85,17 @@ def strong (attrs : List Attr := []) (children : List Html := []) : Html := .ele
 def em (attrs : List Attr := []) (children : List Html := []) : Html := .element "em" attrs children
 def img (attrs : List Attr := []) : Html := .element "img" attrs []
 def button (attrs : List Attr := []) (children : List Html := []) : Html := .element "button" attrs children
+def i (attrs : List Attr := []) (children : List Html := []) : Html := .element "i" attrs children
+def input (attrs : List Attr := []) : Html := .element "input" attrs []
+
+def table (attrs : List Attr := []) (children : List Html := []) : Html := .element "table" attrs children
+def thead (attrs : List Attr := []) (children : List Html := []) : Html := .element "thead" attrs children
+def tbody (attrs : List Attr := []) (children : List Html := []) : Html := .element "tbody" attrs children
+def tr (attrs : List Attr := []) (children : List Html := []) : Html := .element "tr" attrs children
+def th (attrs : List Attr := []) (children : List Html := []) : Html := .element "th" attrs children
+def td (attrs : List Attr := []) (children : List Html := []) : Html := .element "td" attrs children
+def details (attrs : List Attr := []) (children : List Html := []) : Html := .element "details" attrs children
+def summary (attrs : List Attr := []) (children : List Html := []) : Html := .element "summary" attrs children
 
 end Html
 

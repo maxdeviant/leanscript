@@ -120,7 +120,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 }
 
 const regenerate = debounce(50, generate);
-for (const dir of ["Site", "Ssg", "static"]) {
+for (const dir of ["Site", "Ssg", "data", "static"]) {
   // `static/` is optional.
   if (existsSync(join(root, dir))) {
     watch(join(root, dir), { recursive: true }, regenerate);
