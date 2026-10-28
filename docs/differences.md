@@ -135,15 +135,6 @@ in the process doesn't. `osHomedir` reads `$HOME` itself so that it sees them, a
 
 Possible fix: whatever starts child processes, once it exists, must pass `process.env` to them.
 
-### `Std.Time.Timestamp.now` has millisecond precision
-
-**Status:** Open.
-
-It uses `Date.now()`. Native Lean has nanosecond precision.
-
-Possible fix: on Node, combine `process.hrtime.bigint()` with an offset from `Date.now()` measured
-once at startup.
-
 ## Browsers
 
 The browser target refuses to compile a program that uses externs that are unavailable there,

@@ -42,6 +42,9 @@ def system : IO Unit := do
   let now ← Std.Time.Timestamp.now
   let later ← Std.Time.Timestamp.now
   IO.println s!"{decide (now.toSecondsSinceUnixEpoch.val > 1700000000)} {decide (now.val ≤ later.val)} {decide (0 ≤ now.val.nano.val ∧ now.val.nano.val < 1000000000)}"
+  -- With only millisecond precision, every sample would be a whole number of milliseconds.
+  let samples ← (List.range 5).mapM fun _ => Std.Time.Timestamp.now
+  IO.println s!"sub-millisecond: {samples.any (·.val.nano.val % 1000000 != 0)}"
 
 unsafe def main : IO Unit := do
   version

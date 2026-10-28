@@ -205,6 +205,40 @@ export function randomByteArray(n) {
   return new LeanByteArray(bytes, n);
 }
 
+/** The wall-clock time minus `monotonicNanos()`, in nanoseconds, or `undefined` until measured. */
+let wallClockOffset;
+
+/**
+ * How far `wallClockNanos` may be from `Date.now()`, in nanoseconds, before it measures its offset
+ * again, as when the system clock has been changed. `Date.now()` is truncated to milliseconds, so
+ * it lags the true time by up to one.
+ */
+const MAX_CLOCK_DRIFT = 2000000n;
+
+/**
+ * Returns the time since the Unix epoch in nanoseconds, as a `BigInt`.
+ *
+ * `Date.now()` only has millisecond precision, so this counts from the monotonic clock instead,
+ * offset to the wall-clock time from `performance.timeOrigin`, which has microsecond precision.
+ * The monotonic clock doesn't follow changes to the system clock, so when the two drift apart, the
+ * offset is measured again from `Date.now()`, to within half a millisecond.
+ */
+function wallClockNanos() {
+  if (wallClockOffset === undefined) {
+    const mono = monotonicNanos();
+    const wall = performance.timeOrigin + performance.now();
+    wallClockOffset = BigInt(Math.round(wall * 1e6)) - mono;
+  }
+  const now = monotonicNanos() + wallClockOffset;
+  const dateNanos = BigInt(Date.now()) * 1000000n + 500000n;
+  const drift = now - dateNanos;
+  if (drift > MAX_CLOCK_DRIFT || drift < -MAX_CLOCK_DRIFT) {
+    wallClockOffset -= drift;
+    return dateNanos;
+  }
+  return now;
+}
+
 /** The heartbeat counter of `IO.getNumHeartbeats`, which nothing increments. */
 let heartbeats = 0;
 
@@ -226,10 +260,10 @@ export const externs = {
   // All Lean code runs on a single thread.
   "IO.getTID": (_w) => 1n,
   "Std.Time.Timestamp.now": (_w) => {
-    const ms = Date.now();
-    const seconds = Math.floor(ms / 1000);
-    // A `Timestamp` is its `Duration` since the epoch, in whole seconds and nanoseconds.
-    return ioOk(new Ctor(0, [seconds, (ms - seconds * 1000) * 1000000], null));
+    const ns = wallClockNanos();
+    // A `Timestamp` is its `Duration` since the epoch, in whole seconds and nanoseconds, which the C
+    // runtime computes with truncating division.
+    return ioOk(new Ctor(0, [normalize(ns / 1000000000n), normalize(ns % 1000000000n)], null));
   },
   "System.Platform.getIsWindows": (_unit) => 0,
   "System.Platform.getIsOSX": (_unit) => 0,
