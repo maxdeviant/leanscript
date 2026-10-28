@@ -17,3 +17,4 @@ This document captures code conventions for this project. It is intended to help
 - **Never** use title case in headings and titles. Always use sentence case.
 - Always use the Oxford comma.
 - Use American English spelling everywhere.
+- When a change introduces, removes, or changes a difference between LeanScript and native Lean, update `docs/differences.md`.
