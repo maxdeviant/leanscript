@@ -47,6 +47,29 @@
   --color-on-code: #ece5d8;
 }
 
+/*
+ * Colors for the elements that Arborium highlights code with, each named for what it marks, such as
+ * `a-k` for keywords. Code blocks are dark in both themes, so there's one set of colors.
+ */
+:is(a-k, a-kc, a-kd, a-ke, a-kf, a-ki, a-km, a-ko, a-kp, a-kr, a-kt, a-ky, a-cn, a-dr, a-ex, a-in, a-pp, a-rp, a-sc) {
+  color: var(--color-highlight);
+}
+:is(a-s, a-ss, a-se, a-ch, a-cs, a-rx, a-n, a-cb) {
+  color: #b5cf8e;
+}
+:is(a-t, a-tb, a-tq, a-tf, a-tg, a-co) {
+  color: #8aa9f0;
+}
+:is(a-at, a-m) {
+  color: #e0bb7c;
+}
+:is(a-o, a-p, a-pb, a-pd, a-ps, a-td) {
+  color: #b3a998;
+}
+:is(a-c, a-cd) {
+  color: #8c8273;
+}
+
 /* Diagonal stripes of marigold and ink, like caution tape. */
 @utility caution-stripes {
   background: repeating-linear-gradient(

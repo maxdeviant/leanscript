@@ -1,4 +1,4 @@
-import Ssg.Html
+import Ssg.Highlight
 
 namespace Ssg
 
@@ -34,13 +34,24 @@ def writeFileAll (path : FilePath) (content : String) : IO Unit := do
     IO.FS.createDirAll parent
   IO.FS.writeFile path content
 
+/-- Highlights the blocks from `Html.sourceCode` in `pages` with `highlighter`, in one call to it. -/
+def highlightPages (highlighter : Highlighter) (pages : List Page) : IO (List Page) := do
+  let highlighted ← highlighter (pages.foldl (· ++ ·.html.codeBlocks) #[])
+  let replace := pages.mapM fun page => return { page with html := ← page.html.replaceCodeBlocks highlighted }
+  return replace.run' 0
+
 /--
 Builds a site into `outDir`. Writes each of `pages` and `files`, and copies the files in `staticDir`,
 if it exists. If `clean` is true, removes the contents of `outDir` first; otherwise, leaves the files
-that the site doesn't overwrite.
+that the site doesn't overwrite. If there's a `highlighter`, the pages' blocks from
+`Html.sourceCode` are highlighted with it.
 -/
 def build (outDir : FilePath) (pages : List Page) (files : List File := [])
-    (staticDir : FilePath := "static") (clean := true) : IO Unit := do
+    (staticDir : FilePath := "static") (clean := true) (highlighter : Option Highlighter := none) :
+    IO Unit := do
+  let pages ← match highlighter with
+    | some highlighter => highlightPages highlighter pages
+    | none => pure pages
   if clean && (← outDir.pathExists) then
     IO.FS.removeDirAll outDir
   IO.FS.createDirAll outDir

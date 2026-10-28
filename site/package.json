@@ -7,6 +7,12 @@
     "build": "lake exe site && tailwindcss -i styles.css -o dist/style.css --minify"
   },
   "devDependencies": {
+    "@arborium/arborium": "^2.18.2",
+    "@arborium/bash": "^2.18.2",
+    "@arborium/html": "^2.18.2",
+    "@arborium/javascript": "^2.18.2",
+    "@arborium/lean": "^2.18.2",
+    "@arborium/toml": "^2.18.2",
     "@tailwindcss/cli": "^4.3.3",
     "tailwindcss": "^4.3.3"
   }

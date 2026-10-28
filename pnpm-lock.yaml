@@ -55,6 +55,24 @@ importers:
 
   site:
     devDependencies:
+      '@arborium/arborium':
+        specifier: ^2.18.2
+        version: 2.18.2
+      '@arborium/bash':
+        specifier: ^2.18.2
+        version: 2.18.2
+      '@arborium/html':
+        specifier: ^2.18.2
+        version: 2.18.2
+      '@arborium/javascript':
+        specifier: ^2.18.2
+        version: 2.18.2
+      '@arborium/lean':
+        specifier: ^2.18.2
+        version: 2.18.2
+      '@arborium/toml':
+        specifier: ^2.18.2
+        version: 2.18.2
       '@tailwindcss/cli':
         specifier: ^4.3.3
         version: 4.3.3
@@ -63,6 +81,29 @@ importers:
         version: 4.3.3
 
 packages:
+
+  '@arborium/arborium@2.18.2':
+    resolution: {integrity: sha512-Kgbbb28jfcucpTLaWOYrz4miVNYgE1HL7w3Bpvc/ylk05wduzXwMoPDwfUZqX+PHNhcWPL9KYkK69MIr2a1CvQ==}
+
+  '@arborium/bash@2.18.2':
+    resolution: {integrity: sha512-bwJVQTlRNZzdGg69ot6USqvX7pJO304KGuXERzhQwNRAS8Nf21VXsHKVoShXWz6gpAX3+hndoAA/YuwITPvMCQ==}
+    engines: {node: '>=18'}
+
+  '@arborium/html@2.18.2':
+    resolution: {integrity: sha512-DI39HZ3kkeiD8B+xqpPMkalTeJxMOfM5KYPqrX1jvG2DQ6DBjKmICdaPVz/Wz3kwd6mknKYToPKEs+D41ZeMpQ==}
+    engines: {node: '>=18'}
+
+  '@arborium/javascript@2.18.2':
+    resolution: {integrity: sha512-qJc0nWbzP3UXSe7SFap+9MHGh41gK/ehQtoGPOkFgIhEkrlVez924dLYZhRnDM5Zz4mqjQ2ugaA3CWUkMy7JgQ==}
+    engines: {node: '>=18'}
+
+  '@arborium/lean@2.18.2':
+    resolution: {integrity: sha512-qROl42H6wyPW19YLKp8jm20myhTsgTdCSJAWIjgQsfvGVw0Tf0EGopfABWQKjcO+d/iDD3g9+USO1SHlJ+46Lw==}
+    engines: {node: '>=18'}
+
+  '@arborium/toml@2.18.2':
+    resolution: {integrity: sha512-j4z79So0FVc9qsmSEU4gzb1LimKDuA20HHYJtfV4jfMJcjDXKwgx4HWW3gF0SRY6UVqlYJslC5ckioG/4xWs1A==}
+    engines: {node: '>=18'}
 
   '@asamuzakjp/css-color@7.1.9':
     resolution: {integrity: sha512-vZ6JQVq8Ivgz6b/IBlAf90wZviXdluY13cQOPO+nJHbmXwGrPl2GcpqUY7a55/8ZVdfONXpCFMpRijOBCHNlcQ==}
@@ -1439,6 +1480,18 @@ packages:
     resolution: {integrity: sha512-rLfVLB4FgQneDr0dv1oddCVZmKjcJ6yX6mS4pU82Mq/Dt9a3cLZQ62pDBL4AUO+uVrCvtWz3ZFUL2HFAFJ/BXQ==}
 
 snapshots:
+
+  '@arborium/arborium@2.18.2': {}
+
+  '@arborium/bash@2.18.2': {}
+
+  '@arborium/html@2.18.2': {}
+
+  '@arborium/javascript@2.18.2': {}
+
+  '@arborium/lean@2.18.2': {}
+
+  '@arborium/toml@2.18.2': {}
 
   '@asamuzakjp/css-color@7.1.9':
     dependencies:
