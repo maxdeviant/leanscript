@@ -206,17 +206,17 @@ IO.FS.removeDir	Init.System.IO	node
 IO.FS.removeFile	Init.System.IO	node
 IO.FS.rename	Init.System.IO	node
 IO.Prim.setAccessRights	Init.System.IO	node
-IO.Process.Child.kill	Init.System.IO	
-IO.Process.Child.pid	Init.System.IO	
-IO.Process.Child.takeStdin	Init.System.IO	
-IO.Process.Child.tryWait	Init.System.IO	
-IO.Process.Child.wait	Init.System.IO	
+IO.Process.Child.kill	Init.System.IO	node
+IO.Process.Child.pid	Init.System.IO	node
+IO.Process.Child.takeStdin	Init.System.IO	node
+IO.Process.Child.tryWait	Init.System.IO	node
+IO.Process.Child.wait	Init.System.IO	node
 IO.Process.exit	Init.System.IO	node
 IO.Process.forceExit	Init.System.IO	node
 IO.Process.getCurrentDir	Init.System.IO	node
 IO.Process.getPID	Init.System.IO	node
 IO.Process.setCurrentDir	Init.System.IO	node
-IO.Process.spawn	Init.System.IO	
+IO.Process.spawn	Init.System.IO	node
 IO.Promise.new	Init.System.Promise	node,browser
 IO.Promise.resolve	Init.System.Promise	node,browser
 IO.Promise.result?	Init.System.Promise	node,browser

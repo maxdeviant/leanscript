@@ -127,13 +127,40 @@ not the compiled program, and the process title starts out as Node's.
 
 ### Environment changes stay inside the program
 
-**Status:** Open.
+**Status:** Accepted.
 
 On Node, Lean code runs on a worker, whose `process.env` is a copy of the process's environment.
-Lean code and Node's JS APIs see the changes that `osSetenv` and `osUnsetenv` make, but native code
-in the process doesn't. `osHomedir` reads `$HOME` itself so that it sees them, as native Lean does.
+Lean code, Node's JS APIs, and child processes see the changes that `osSetenv` and `osUnsetenv`
+make, but native code in the process doesn't. `osHomedir` reads `$HOME` itself so that it sees
+them, as native Lean does.
 
-Possible fix: whatever starts child processes, once it exists, must pass `process.env` to them.
+### Child processes need a worker
+
+**Status:** Accepted.
+
+Waiting for a child process, or for its output, blocks, which only a worker can do while the main
+thread's event loop runs the child. So a program's `main` can spawn processes, but a library whose
+functions are called on the main thread can't: `IO.Process.spawn` throws there.
+
+### Child output is read eagerly
+
+**Status:** Accepted.
+
+The main thread reads a child's output as soon as the child writes it, and holds it until the
+program reads it. So a child never blocks on a full pipe, where a native one blocks until the
+program reads from it. This is what keeps `IO.Process.output` working, as it reads the child's
+standard output to the end before its standard error, where native Lean reads both at once.
+
+### Child processes that fail to start have no process ID
+
+**Status:** Accepted.
+
+Natively, a child that can't change to its working directory or execute its command is a real
+process, which reports the failure on its standard error and exits with code 255. LeanScript reports
+the same, but the child's `pid` is 0, and it has already exited by the time `spawn` returns.
+
+Two native bugs are not reproduced: such a child also writes out a copy of the program's buffered
+standard output, and on macOS, a child spawned with `inheritEnv := false` may crash.
 
 ## Browsers
 

@@ -6,7 +6,14 @@ import * as os from "node:os";
 import { join } from "node:path";
 import { isatty } from "node:tty";
 import { getSystemErrorMessage } from "node:util";
-import { isMainThread, parentPort, Worker, workerData } from "node:worker_threads";
+import {
+  isMainThread,
+  MessageChannel,
+  receiveMessageOnPort,
+  Worker,
+  workerData,
+} from "node:worker_threads";
+import * as children from "./children.js";
 
 /**
  * The stack size of the thread that runs Lean code. JS frames are much larger than native ones, so
@@ -24,26 +31,17 @@ const STACK_SIZE_MB = 1024;
  */
 export function runWithLargeStack(moduleUrl, run) {
   if (isMainThread) {
-    const reply = new Int32Array(new SharedArrayBuffer(8));
+    const ready = new Int32Array(new SharedArrayBuffer(4));
+    const { port1, port2 } = new MessageChannel();
     const worker = new Worker(new URL(moduleUrl), {
       argv: process.argv.slice(2),
       resourceLimits: { stackSizeMb: STACK_SIZE_MB },
-      workerData: { reply },
+      workerData: { channel: { ready, port: port2 } },
+      transferList: [port2],
     });
-    worker.on("message", (msg) => {
-      if (msg.type === "chdir") {
-        let errno = 0;
-        try {
-          process.chdir(msg.path);
-        } catch (err) {
-          // The path is a string, so the only other error is a path containing a null byte.
-          errno = os.constants.errno[err.code] ?? os.constants.errno.EINVAL;
-        }
-        Atomics.store(reply, 1, errno);
-        Atomics.store(reply, 0, 1);
-        Atomics.notify(reply, 0);
-      }
-    });
+    port1.on("message", (msg) => serve(port1, ready, msg));
+    // The worker keeps the program running, and requests only arrive while it does.
+    port1.unref();
     worker.on("error", (err) => {
       throw err;
     });
@@ -53,6 +51,31 @@ export function runWithLargeStack(moduleUrl, run) {
     return;
   }
   run();
+}
+
+/** The requests that the worker makes of the main thread, which only the main thread can serve. */
+const requestHandlers = {
+  chdir: (path) => process.chdir(path),
+  ...children,
+};
+
+/**
+ * Serves the request `msg` from the worker, which waits for the reply on `port`, signaled by
+ * `ready`, unless the request has `noReply` set.
+ */
+async function serve(port, ready, { type, args, noReply }) {
+  let reply;
+  try {
+    reply = { value: await requestHandlers[type](...args) };
+  } catch (err) {
+    reply = { error: { code: err.code, message: err.message } };
+  }
+  if (noReply) {
+    return;
+  }
+  port.postMessage(reply);
+  Atomics.store(ready, 0, 1);
+  Atomics.notify(ready, 0);
 }
 
 /**
@@ -292,32 +315,73 @@ export const makeTempDir = () => fs.mkdtempSync(join(os.tmpdir(), TEMP_PREFIX));
 export const currentDir = () => process.cwd();
 
 /**
- * The shared reply cell for requests from the worker to the main thread: a flag set when the reply
- * is ready, and an errno, which is 0 on success.
+ * The channel for requests to the main thread, if this is the worker that runs Lean code: the port
+ * that requests are posted to and replies arrive on, and a flag set when a reply is ready.
  */
-const reply = isMainThread ? undefined : workerData?.reply;
+const channel = isMainThread ? undefined : workerData?.channel;
 
-const errnoNames = Object.fromEntries(
-  Object.entries(os.constants.errno).map(([name, errno]) => [errno, name]),
-);
+/**
+ * Makes the request `type` of the main thread, with the arguments `args`, and blocks until it
+ * replies. Returns the reply, or throws the error it reports, as a system error if it is one.
+ */
+function request(type, ...args) {
+  if (channel === undefined) {
+    throw new Error(`LeanScript: ${type} is only supported when Lean code runs on a worker`);
+  }
+  Atomics.store(channel.ready, 0, 0);
+  channel.port.postMessage({ type, args });
+  Atomics.wait(channel.ready, 0, 0);
+  const { value, error } = receiveMessageOnPort(channel.port).message;
+  if (error !== undefined) {
+    throw Object.assign(new Error(error.message), { code: error.code });
+  }
+  return value;
+}
+
+/** Makes the request `type` of the main thread, with the arguments `args`, without waiting. */
+function post(type, ...args) {
+  channel.port.postMessage({ type, args, noReply: true });
+}
 
 /** Changes the current directory of the process. */
 export function changeDir(path) {
-  if (reply === undefined) {
+  if (channel === undefined) {
     process.chdir(path);
     return;
   }
   // Workers can't change the current directory, so ask the main thread to, and block until it has.
   // The directory belongs to the whole process, so the change is visible here too.
-  Atomics.store(reply, 0, 0);
-  parentPort.postMessage({ type: "chdir", path });
-  Atomics.wait(reply, 0, 0);
-  const errno = reply[1];
-  if (errno !== 0) {
-    const name = errnoNames[errno];
-    throw Object.assign(new Error(`${name}: chdir '${path}'`), { code: name });
-  }
+  request("chdir", path);
 }
+
+/**
+ * Starts a child process, as `spawnChild` in `children.js` describes, and returns its ID, which
+ * identifies it to the functions below, and its process ID.
+ */
+export const startChild = (cmd, args, cwd, env, stdio, setsid) =>
+  request("spawnChild", cmd, args, cwd, env, stdio, setsid);
+
+/** Blocks until the child `id` exits, and returns its exit code. */
+export const awaitChild = (id) => request("waitChild", id);
+
+/** Returns the exit code of the child `id`, or `null` if it is still running. */
+export const pollChild = (id) => request("tryWaitChild", id);
+
+/** Kills the child `id`, whose process ID is `pid`, or its process group if `setsid` is true. */
+export const terminateChild = (id, pid, setsid) => request("killChild", id, pid, setsid);
+
+/**
+ * Reads up to `length` bytes of the output of the child `id` on the stream `fd` (1 or 2), blocking
+ * until there is at least one. Returns them as a `Uint8Array`, which is empty at the end of the
+ * output.
+ */
+export const readFromChild = (id, fd, length) => request("readChild", id, fd, length);
+
+/** Writes `bytes` to the standard input of the child `id`, blocking until the pipe takes them. */
+export const writeToChild = (id, bytes) => request("writeChild", id, bytes);
+
+/** Closes the program's end of the pipe to the stream `fd` of the child `id`. */
+export const closeChildPipe = (id, fd) => post("closeChildPipe", id, fd);
 
 /** Returns the names of the entries of the directory at `path` as UTF-8, in directory order. */
 export function readDirNames(path) {

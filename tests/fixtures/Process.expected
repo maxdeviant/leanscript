@@ -1,0 +1,29 @@
+output: exit 3, stdout "out\n", stderr "err\n"
+input: exit 0, stdout "piped input\n", stderr ""
+run: "a b c\"d\n"
+run failing: process 'false' exited with code 1
+stderr:
+
+missing command: exit 255, stdout "", stderr "could not execute external process 'leanscript-missing-command'\n"
+missing cwd: exit 255, stdout "", stderr "could not change directory to missing\n"
+cwd: true
+large output: 200000 300000
+env: exit 0, stdout "1|unset|unset|path\n", stderr ""
+changed env: exit 0, stdout "set\n", stderr ""
+inherited
+inherited: exit 0
+null: exit 0
+first: "got one\n"
+second: "got two\n"
+rest: "got three\n"
+exit: 0
+pid matches: true
+running: none
+killed: 137
+wait again: no such thing (error code: 10, no such process)
+try wait again: no such thing (error code: 10, no such process)
+kill again: no such thing (error code: 3, no such process)
+terminated: 143
+polled: (some 7)
+kill exited: no such thing (error code: 3, no such process)
+killed group: 137

@@ -1,0 +1,14 @@
+error: the program uses externs that are not available on target 'browser':
+  main → stdio → IO.FS.Handle.flush
+  main → stdio → IO.FS.Handle.getLine
+  main → running → IO.Process.output → IO.FS.Handle.putStr
+  main → stdio → IO.FS.Handle.readToEnd → IO.FS.Handle.readBinToEnd → IO.FS.Handle.readBinToEndInto.loop → IO.FS.Handle.read
+  main → running → IO.FS.createDir
+  main → lifecycle → IO.Process.Child.kill
+  main → stdio → IO.Process.Child.pid
+  main → stdio → IO.Process.Child.takeStdin
+  main → lifecycle → IO.Process.Child.tryWait
+  main → stdio → IO.Process.Child.wait
+  main → stdio → IO.Process.spawn
+  main → environment → Std.Internal.UV.System.osSetenv
+Compile with `--allow-unavailable` to make them throw when called instead.

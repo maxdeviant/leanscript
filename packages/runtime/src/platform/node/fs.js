@@ -133,9 +133,14 @@ export class Handle {
     this.pending = EMPTY;
   }
 
+  /** Writes all of `bytes` to the file. */
+  writeFile(bytes) {
+    writeBytes(this.fd, bytes, this.pos);
+  }
+
   write(bytes) {
     this.discardPending();
-    writeBytes(this.fd, bytes, this.pos);
+    this.writeFile(bytes);
     if (this.pos !== null) {
       this.pos += bytes.length;
     }
@@ -151,7 +156,11 @@ export class Handle {
   /** Truncates the file at the current position. */
   truncate() {
     this.discardPending();
-    truncateFile(this.fd, this.pos ?? 0);
+    this.truncateFile(this.pos ?? 0);
+  }
+
+  truncateFile(length) {
+    truncateFile(this.fd, length);
   }
 }
 

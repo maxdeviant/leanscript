@@ -204,11 +204,17 @@ IO.FS.removeDir
 IO.FS.removeFile
 IO.FS.rename
 IO.Prim.setAccessRights
+IO.Process.Child.kill
+IO.Process.Child.pid
+IO.Process.Child.takeStdin
+IO.Process.Child.tryWait
+IO.Process.Child.wait
 IO.Process.exit
 IO.Process.forceExit
 IO.Process.getCurrentDir
 IO.Process.getPID
 IO.Process.setCurrentDir
+IO.Process.spawn
 IO.Promise.new
 IO.Promise.resolve
 IO.Promise.result?
