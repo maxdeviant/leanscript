@@ -41,9 +41,10 @@ def svgText (x y : Nat) (attrs : List Attr) (content : String) (anchor := "start
 
 /-- Text in IBM Plex Mono. -/
 def monoText (x y : Nat) (size : Nat) (weight : Nat) (fill : String) (content : String)
-    (anchor := "start") : Html :=
+    (anchor := "start") (italic := false) : Html :=
   svgText x y [("font-family", "IBM Plex Mono"), ("font-size", toString size),
-    ("font-weight", toString weight), ("fill", fill)] content (anchor := anchor)
+    ("font-weight", toString weight), ("font-style", if italic then "italic" else "normal"),
+    ("fill", fill)] content (anchor := anchor)
 
 /-- Lines of text in IBM Plex Sans, which SVG doesn't wrap. -/
 def sansLines (x y : Nat) (size : Nat) (lineHeight : Nat) (fill : String) (lines : List String) : Html :=

@@ -63,6 +63,7 @@ const fontFiles = [
   "@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff",
   "@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-600-normal.woff",
   "@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-700-normal.woff",
+  "@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-700-italic.woff",
 ];
 // resvg only loads fonts from files in Node, so the decoded fonts are written to a directory that's
 // removed afterward.
