@@ -49,6 +49,14 @@ def statusLabel (e : Extern) : String :=
     let labels := runtimeTargets.filter (e.targets.contains ·.id) |>.map (·.label)
     s!"{", ".intercalate labels} only"
 
+/--
+The URL of `e` in Lean's API documentation. The documentation has no entries for private
+declarations, so the URL of one is the page of its module.
+-/
+def docUrl (e : Extern) : String :=
+  let page := s!"https://lean-lang.org/doc/api/{"/".intercalate (e.module.splitOn ".")}.html"
+  if e.name.startsWith "_private." then page else s!"{page}#{e.name}"
+
 end Extern
 
 /-- The coverage data that `scripts/stdlib-coverage.js` writes. -/
@@ -93,10 +101,10 @@ def percent (n total : Nat) : String :=
 def statusColor : String → String
   | "all" => "bg-covered"
   | "some" => "bg-highlight"
-  | _ => "bg-rule"
+  | _ => "bg-missing"
 
 def bar (n total : Nat) : Html :=
-  div [cls "h-2 overflow-hidden rounded-full bg-rule", ("role", "img"), ("aria-label", s!"{percent n total}%")] [
+  div [cls "h-2 overflow-hidden rounded-full bg-missing", ("role", "img"), ("aria-label", s!"{percent n total}%")] [
     div [cls "h-full bg-covered", ("style", s!"width: {percent n total}%")] []
   ]
 
@@ -127,10 +135,23 @@ def summaryTable (externs : Array Extern) : Html :=
     ]
   ]
 
-/-- A square for `e`, colored by its status, which the filter matches by `data-name`. -/
+/--
+A square for `e`, colored by its status, which links to its documentation. The filter matches it by
+`data-name`, and the tooltip shows `data-label` and `data-status`.
+-/
 def cell (e : Extern) : Html :=
-  i [cls s!"size-3 rounded-[2px] {statusColor e.status}", ("title", s!"{e.userName}: {e.statusLabel}"),
-    ("data-name", e.userName.toLower)] []
+  a [href e.docUrl,
+    cls s!"size-3 rounded-[2px] {statusColor e.status} focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
+    ("aria-label", s!"{e.userName}: {e.statusLabel}"), ("data-name", e.userName.toLower),
+    ("data-label", e.userName), ("data-status", e.statusLabel)] []
+
+/-- The tooltip for the squares, which the page's script positions and fills in. -/
+def tooltip : Html :=
+  div [("id", "coverage-tooltip"), ("role", "tooltip"), ("hidden", ""),
+    cls "pointer-events-none fixed z-10 max-w-80 rounded-sm bg-ink px-2.5 py-1.5 text-paper shadow-lg"] [
+    p [cls "font-mono text-xs font-semibold break-all", ("data-tooltip-name", "")] [],
+    p [cls "text-xs opacity-75", ("data-tooltip-status", "")] []
+  ]
 
 def legend : Html :=
   div [cls "flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted"] (
@@ -164,7 +185,7 @@ def namespaceBlock (ns : String) (externs : Array Extern) : Html :=
         summary [cls "cursor-pointer font-mono text-xs text-accent"] [s!"{missing.size} not on every target"],
         ul [cls "mt-2 columns-2xs gap-6"] (missing.toList.map fun e =>
           li [cls "break-inside-avoid py-px break-all"] [
-            code [cls "font-mono text-xs"] [e.userName],
+            a [href e.docUrl, cls "hover:text-accent"] [code [cls "font-mono text-xs"] [e.userName]],
             " ",
             span [cls "text-xs text-muted"] [e.statusLabel]
           ])
@@ -213,6 +234,51 @@ filter.addEventListener(\"input\", () => {
 });
 "
 
+/--
+Shows the tooltip above the square that's hovered or focused, or below it if there's no room above,
+and keeps it within the viewport.
+-/
+def tooltipScript : String := r#"
+const tooltip = document.getElementById("coverage-tooltip");
+const tooltipName = tooltip.querySelector("[data-tooltip-name]");
+const tooltipStatus = tooltip.querySelector("[data-tooltip-status]");
+const gap = 6;
+const margin = 8;
+function showTooltip(cell) {
+  tooltipName.textContent = cell.dataset.label;
+  tooltipStatus.textContent = cell.dataset.status;
+  tooltip.hidden = false;
+  const rect = cell.getBoundingClientRect();
+  const { offsetWidth: width, offsetHeight: height } = tooltip;
+  const left = Math.min(
+    Math.max(rect.left + rect.width / 2 - width / 2, margin),
+    innerWidth - width - margin,
+  );
+  const above = rect.top - height - gap;
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${above < margin ? rect.bottom + gap : above}px`;
+}
+const hideTooltip = () => {
+  tooltip.hidden = true;
+};
+for (const type of ["pointerover", "focusin"]) {
+  document.addEventListener(type, (event) => {
+    const cell = event.target.closest("[data-label]");
+    if (cell) {
+      showTooltip(cell);
+    }
+  });
+}
+for (const type of ["pointerout", "focusout"]) {
+  document.addEventListener(type, (event) => {
+    if (event.target.closest("[data-label]")) {
+      hideTooltip();
+    }
+  });
+}
+addEventListener("scroll", hideTooltip, { passive: true });
+"#
+
 def coveragePage : Html :=
   layout "Standard library coverage · LeanScript"
     "How much of Lean's standard library the LeanScript runtime implements, on each target." ([
@@ -238,7 +304,9 @@ def coveragePage : Html :=
       ]
     ] ++ libraries.map (librarySection · coverage.externs) ++ [
       staleSection coverage,
-      script [] [.raw filterScript]
+      tooltip,
+      script [] [.raw filterScript],
+      script [] [.raw tooltipScript]
     ])
 
 end Site

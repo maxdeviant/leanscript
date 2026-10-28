@@ -45,8 +45,9 @@
   --color-on-highlight: #1d1a16;
   --color-code: light-dark(#1d1a16, #0c0b09);
   --color-on-code: #ece5d8;
-  /* For what the runtime implements, on the coverage page. */
+  /* For what the runtime implements, and doesn't, on the coverage page. */
   --color-covered: light-dark(#3f7d52, #6fbf86);
+  --color-missing: light-dark(#ddd3c2, #4a4339);
 }
 
 /*
