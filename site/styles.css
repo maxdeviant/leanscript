@@ -1,0 +1,80 @@
+/* The classes are in the Lean sources of the pages, so Tailwind scans those rather than the output. */
+@import "tailwindcss" source(none);
+@source "./Site";
+
+/*
+ * The page follows the system's color scheme, unless the theme switcher has set `data-theme` on the
+ * root element to "light" or "dark".
+ */
+@custom-variant dark {
+  &:where([data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
+
+:root {
+  color-scheme: light dark;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* Each color is a pair of its light and dark values, which `light-dark` picks between. */
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-paper: light-dark(#f5f0e6, #15130f);
+  --color-ink: light-dark(#1d1a16, #ece5d8);
+  --color-muted: light-dark(#6e655a, #a1968a);
+  --color-rule: light-dark(#ddd3c2, #2e2a24);
+  --color-accent: light-dark(#2952a3, #8aa9f0);
+  /*
+   * The brand's marigold, which stays the same in dark mode, along with the text on it. `Site.mark`
+   * uses the same colors, for the logo and the favicon.
+   */
+  --color-highlight: #f5a524;
+  --color-on-highlight: #1d1a16;
+  --color-code: light-dark(#1d1a16, #0c0b09);
+  --color-on-code: #ece5d8;
+}
+
+/*
+ * Colors for the elements that Arborium highlights code with, each named for what it marks, such as
+ * `a-k` for keywords. Code blocks are dark in both themes, so there's one set of colors.
+ */
+:is(a-k, a-kc, a-kd, a-ke, a-kf, a-ki, a-km, a-ko, a-kp, a-kr, a-kt, a-ky, a-cn, a-dr, a-ex, a-in, a-pp, a-rp, a-sc) {
+  color: var(--color-highlight);
+}
+:is(a-s, a-ss, a-se, a-ch, a-cs, a-rx, a-n, a-cb) {
+  color: #b5cf8e;
+}
+:is(a-t, a-tb, a-tq, a-tf, a-tg, a-co) {
+  color: #8aa9f0;
+}
+:is(a-at, a-m) {
+  color: #e0bb7c;
+}
+:is(a-o, a-p, a-pb, a-pd, a-ps, a-td) {
+  color: #b3a998;
+}
+:is(a-c, a-cd) {
+  color: #8c8273;
+}
+
+/* Diagonal stripes of marigold and ink, like caution tape. */
+@utility caution-stripes {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--color-highlight) 0 10px,
+    var(--color-on-highlight) 10px 20px
+  );
+}
