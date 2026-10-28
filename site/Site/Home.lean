@@ -15,8 +15,7 @@ name = \"leanscript\"
 git = \"https://github.com/maxdeviant/leanscript\"
 rev = \"v{leanscriptVersion}\""
 
-def installStep : String := s!"pnpm add @leanscript/vite-plugin@{leanscriptVersion}
-pnpm add -D vite"
+def installStep : String := s!"pnpm add -D @leanscript/vite-plugin@{leanscriptVersion} vite"
 
 def viteConfigStep : String := "import { defineConfig } from \"vite\";
 import leanscript from \"@leanscript/vite-plugin\";
@@ -100,7 +99,7 @@ def comingSoon (number : String) : Html :=
   ]
 
 def home : Html :=
-  layout "LeanScript" "Lorem ipsum dolor sit amet, consectetur adipiscing elit." [
+  layout "LeanScript" "LeanScript compiles Lean code into JavaScript that runs in the browser, Node.js, Cloudflare Workers, or anywhere else you can run JavaScript." [
     «section» [cls "py-20 sm:py-28"] [
       h1 [cls "mb-8 max-w-3xl font-mono text-4xl leading-tight font-bold tracking-tight sm:text-6xl"] [
         span [cls "bg-highlight px-2 text-on-highlight" ] ["Lean"],
@@ -132,28 +131,34 @@ def home : Html :=
       ]
     ],
     «section» [cls "pb-20"] [
-      sectionHeading "Lorem" "Ipsum dolor sit amet",
+      sectionHeading "Example 01" "Lean in Cloudflare Workers",
+      p [cls "mb-6 max-w-2xl leading-relaxed text-muted"] [
+        "Deploy your Lean code to Cloudflare's global edge network with ",
+        a [href "https://www.cloudflare.com/products/workers/", cls "font-medium text-ink underline decoration-highlight decoration-2 underline-offset-4 hover:text-accent"] [
+          "Cloudflare Workers"
+        ],
+        "."
+      ],
       codeBlock workerExample (fileName := "Worker.lean")
     ],
     «section» [("id", "getting-started"), cls "pb-20"] [
-      sectionHeading "Dolor" "Consectetur adipiscing",
+      sectionHeading "Getting started" "Set up LeanScript in your project",
       p [cls "mb-6 max-w-2xl leading-relaxed text-muted"] [
-        "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque ",
-        "laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis."
+        "LeanScript fits in to your existing Lean project and JavaScript package manager.",
       ],
       ol [cls "grid gap-8"] [
         step "1" "Require LeanScript in your Lake package" "lakefile.toml" "toml" lakefileStep,
         step "2" "Install the Vite plugin" "Terminal" "bash" installStep,
         step "3" "Add the plugin to your Vite config" "vite.config.js" "javascript" viteConfigStep,
-        step "4" "Load a Lean file from your page" "index.html" "html" indexHtmlStep,
+        step "4" "Load a Lean file on your page" "index.html" "html" indexHtmlStep,
         step "5" "Write some Lean" "Main.lean" "lean" mainStep
       ],
       p [cls "mt-8 max-w-2xl leading-relaxed text-muted"] [
-        "Nemo enim ipsam voluptatem quia ",
-        a [href repoUrl, cls "font-medium text-ink underline decoration-highlight decoration-2 underline-offset-4 hover:text-accent"] [
-          "voluptas sit aspernatur"
+        "Check out the ",
+        a [href "https://github.com/maxdeviant/leanscript-template-web", cls "font-mono font-medium text-ink underline decoration-highlight decoration-2 underline-offset-4 hover:text-accent"] [
+          "leanscript-template-web"
         ],
-        " aut odit aut fugit."
+        " repository for a full example."
       ]
     ]
   ]
