@@ -7,6 +7,7 @@ import { parseIPv4, parseIPv6 } from "../../net.js";
 import { mkStream, stdStreamExterns } from "../../stream.js";
 import { mkString } from "../../string.js";
 import { externs as fsExterns, Handle } from "./fs.js";
+import { externs as systemExterns } from "./system.js";
 import { executablePath, exitProcess, interfaceAddresses, processId } from "./host.js";
 
 const stdStream = (fd) => mkStream(markPersistent(new Handle(fd, false)));
@@ -32,6 +33,7 @@ const interfaceAddress = (name, a) =>
 
 export const externs = {
   ...fsExterns,
+  ...systemExterns,
   ...stdStreamExterns("Stdin", stdStream(0)),
   ...stdStreamExterns("Stdout", stdStream(1)),
   ...stdStreamExterns("Stderr", stdStream(2)),

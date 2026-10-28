@@ -1,0 +1,30 @@
+error: the program uses externs that are not available on target 'browser':
+  main → directories → IO.FS.createDir
+  main → process → IO.Process.getPID
+  main → directories → IO.currentDir
+  main → machine → Std.Internal.UV.System.availableMemory
+  main → directories → Std.Internal.UV.System.chdir
+  main → machine → Std.Internal.UV.System.constrainedMemory
+  main → machine → Std.Internal.UV.System.cpuInfo
+  main → directories → Std.Internal.UV.System.cwd
+  main → process → Std.Internal.UV.System.exePath
+  main → machine → Std.Internal.UV.System.freeMemory
+  main → process → Std.Internal.UV.System.getProcessTitle
+  main → process → Std.Internal.UV.System.getrusage
+  main → environment → Std.Internal.UV.System.osEnviron
+  main → machine → Std.Internal.UV.System.osGetHostname
+  main → machine → Std.Internal.UV.System.osGetPasswd
+  main → process → Std.Internal.UV.System.osGetPid
+  main → process → Std.Internal.UV.System.osGetPpid
+  main → process → Std.Internal.UV.System.osGetPriority
+  main → environment → Std.Internal.UV.System.osGetenv
+  main → environment → Std.Internal.UV.System.osHomedir
+  main → process → Std.Internal.UV.System.osSetPriority._boxed → Std.Internal.UV.System.osSetPriority
+  main → environment → Std.Internal.UV.System.osSetenv
+  main → directories → Std.Internal.UV.System.osTmpdir
+  main → machine → Std.Internal.UV.System.osUname
+  main → environment → Std.Internal.UV.System.osUnsetenv
+  main → process → Std.Internal.UV.System.setProcessTitle
+  main → machine → Std.Internal.UV.System.totalMemory
+  main → machine → Std.Internal.UV.System.uptime
+Compile with `--allow-unavailable` to make them throw when called instead.

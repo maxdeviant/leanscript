@@ -2,7 +2,7 @@
 
 import { randomBytes } from "node:crypto";
 import * as fs from "node:fs";
-import { networkInterfaces, constants as osConstants, tmpdir } from "node:os";
+import * as os from "node:os";
 import { join } from "node:path";
 import { isatty } from "node:tty";
 import { getSystemErrorMessage } from "node:util";
@@ -37,7 +37,7 @@ export function runWithLargeStack(moduleUrl, run) {
           process.chdir(msg.path);
         } catch (err) {
           // The path is a string, so the only other error is a path containing a null byte.
-          errno = osConstants.errno[err.code] ?? osConstants.errno.EINVAL;
+          errno = os.constants.errno[err.code] ?? os.constants.errno.EINVAL;
         }
         Atomics.store(reply, 1, errno);
         Atomics.store(reply, 0, 1);
@@ -122,7 +122,77 @@ export const executablePath = () => process.execPath;
  * `os.networkInterfaces()`.
  */
 export const interfaceAddresses = () =>
-  Object.entries(networkInterfaces()).flatMap(([name, addrs]) => addrs.map((a) => [name, a]));
+  Object.entries(os.networkInterfaces()).flatMap(([name, addrs]) => addrs.map((a) => [name, a]));
+
+export const parentProcessId = () => process.ppid;
+
+export const processTitle = () => process.title;
+
+export function setProcessTitle(title) {
+  process.title = title;
+}
+
+/** Returns the scheduling priority of the process `pid`, from -20 (highest) to 19 (lowest). */
+export const processPriority = (pid) => os.getPriority(pid);
+
+export const setProcessPriority = (pid, priority) => os.setPriority(pid, priority);
+
+/**
+ * Returns the resource usage of the process, in the form of `process.resourceUsage()`: times are
+ * in microseconds, and the maximum resident set size is in kilobytes.
+ */
+export const resourceUsage = () => process.resourceUsage();
+
+/** Returns the environment variables, as `[name, value]` pairs. */
+export const environment = () => Object.entries(process.env);
+
+export function setEnv(name, value) {
+  process.env[name] = value;
+}
+
+export function unsetEnv(name) {
+  delete process.env[name];
+}
+
+/**
+ * Returns the current user's home directory: `$HOME` if it is set, as in libuv, and otherwise the
+ * one in the user database. `$HOME` is read from `process.env`, as `os.homedir` reads the process's
+ * real environment, which a worker's `process.env` is only a copy of.
+ */
+export const homeDir = () => process.env.HOME ?? os.homedir();
+
+export const tempDir = () => os.tmpdir();
+
+/** Returns the current user, in the form of `os.userInfo()`. */
+export const userInfo = () => os.userInfo();
+
+export const hostname = () => os.hostname();
+
+/** Returns the time since the system booted, in seconds. */
+export const systemUptime = () => os.uptime();
+
+/** Returns the operating system's name, release, version, and machine type, as `uname` does. */
+export const systemName = () => ({
+  sysname: os.type(),
+  release: os.release(),
+  version: os.version(),
+  machine: os.machine(),
+});
+
+/** Returns the CPUs, in the form of `os.cpus()`. */
+export const cpuInfo = () => os.cpus();
+
+/** Returns the amount of free memory, in bytes. */
+export const freeMemory = () => os.freemem();
+
+/** Returns the total amount of memory, in bytes. */
+export const totalMemory = () => os.totalmem();
+
+/** Returns the memory limit imposed on the process by the operating system, in bytes, or 0. */
+export const constrainedMemory = () => process.constrainedMemory();
+
+/** Returns the amount of memory that the process can still allocate, in bytes. */
+export const availableMemory = () => process.availableMemory();
 
 const sleepCell = new Int32Array(new SharedArrayBuffer(4));
 
@@ -139,11 +209,13 @@ export const monotonicNanos = () => process.hrtime.bigint();
  * of the functions below, or `undefined` if it is some other kind of error.
  */
 export function systemError(err) {
-  const errno = osConstants.errno[err?.code];
+  // Some APIs, such as those in `node:os`, wrap the system error in an `ERR_SYSTEM_ERROR`.
+  const name = err?.code === "ERR_SYSTEM_ERROR" ? err.info?.code : err?.code;
+  const errno = os.constants.errno[name];
   if (errno === undefined) {
     return undefined;
   }
-  return { name: err.code, errno, message: getSystemErrorMessage(-errno) };
+  return { name, errno, message: getSystemErrorMessage(-errno) };
 }
 
 /** Opens the file at `path` with the `fopen`-style `flags`, and returns its file descriptor. */
@@ -201,7 +273,7 @@ const TEMP_NAME_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012
 export function makeTempFile() {
   for (;;) {
     const name = Array.from(randomBytes(6), (b) => TEMP_NAME_CHARS[b % TEMP_NAME_CHARS.length]);
-    const path = join(tmpdir(), TEMP_PREFIX + name.join(""));
+    const path = join(os.tmpdir(), TEMP_PREFIX + name.join(""));
     try {
       // Like `mkstemp`, creating the file exclusively means that no other file can be opened in
       // its place, and a name that is already taken is retried.
@@ -215,7 +287,7 @@ export function makeTempFile() {
 }
 
 /** Creates a new directory in the temporary directory that only the current user can access. */
-export const makeTempDir = () => fs.mkdtempSync(join(tmpdir(), TEMP_PREFIX));
+export const makeTempDir = () => fs.mkdtempSync(join(os.tmpdir(), TEMP_PREFIX));
 
 export const currentDir = () => process.cwd();
 
@@ -226,7 +298,7 @@ export const currentDir = () => process.cwd();
 const reply = isMainThread ? undefined : workerData?.reply;
 
 const errnoNames = Object.fromEntries(
-  Object.entries(osConstants.errno).map(([name, errno]) => [errno, name]),
+  Object.entries(os.constants.errno).map(([name, errno]) => [errno, name]),
 );
 
 /** Changes the current directory of the process. */

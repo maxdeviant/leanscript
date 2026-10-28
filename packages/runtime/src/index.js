@@ -33,6 +33,7 @@ import { externs as natExterns } from "./nat.js";
 import { externs as netExterns } from "./net.js";
 import { externs as refExterns } from "./ref.js";
 import { externs as stringExterns, mkString } from "./string.js";
+import { externs as systemExterns } from "./system.js";
 import { externs as taskExterns } from "./task.js";
 import { externs as timerExterns } from "./timer.js";
 import { externs as platformExterns } from "#platform/externs.js";
@@ -106,6 +107,7 @@ export const externs = {
   ...netExterns,
   ...platformExterns,
   ...refExterns,
+  ...systemExterns,
   ...taskExterns,
   ...timerExterns,
   panicCore: (_α, defaultValue, msg) => {

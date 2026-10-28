@@ -1,0 +1,48 @@
+pid matches: true
+has parent: true
+has executable: true
+has title: true
+title after set: "lean-system-test"
+title with NUL: invalid argument (error code: 22, string contains NUL bytes)
+  file: a\0b
+priority matches own: true
+set priority: ok
+set priority out of range: invalid argument (error code: 22, invalid argument)
+priority of missing process: no such thing (error code: 3, no such process)
+has max RSS: true
+unset: none
+set: (some hello)
+IO.getEnv agrees: (some hello)
+in environ: true
+unset again: none
+unset missing: ok
+get with NUL: none
+set empty name: invalid argument (error code: 22, invalid argument)
+set name with =: invalid argument (error code: 22, invalid argument)
+set name with NUL: invalid argument (error code: 22, string contains NUL bytes)
+  file: a\0b
+set value with NUL: invalid argument (error code: 22, string contains NUL bytes)
+  file: x\0y
+unset empty name: invalid argument (error code: 22, invalid argument)
+unset name with NUL: invalid argument (error code: 22, string contains NUL bytes)
+  file: a\0b
+home follows HOME: true
+cwd matches: true
+after chdir: true
+chdir to missing: no such file or directory (error code: 2)
+  file: missing
+chdir with NUL: invalid argument (error code: 22, string contains NUL bytes)
+  file: a\0b
+has home: true
+has tmpdir: true
+tmpdir has no trailing slash: true
+has hostname: true
+has uptime: true
+has uname: true
+has user: true
+has CPUs: true
+memory: true
+hrtime is monotonic: true
+random 0: 0 bytes
+random 16: 16 bytes
+random 100000: 100000 bytes

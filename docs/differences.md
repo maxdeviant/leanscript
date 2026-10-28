@@ -118,11 +118,22 @@ Possible fix for browsers: none yet that doesn't change how every function is co
 empty, as the compiled program is the same on every platform. Native programs report the platform
 they were compiled for.
 
-### `IO.appPath` is the path of Node
+### The executable and the process title are Node's
 
 **Status:** Accepted.
 
-It returns the Node executable that runs the program, not the compiled program.
+`IO.appPath` and `Std.Internal.UV.System.exePath` return the Node executable that runs the program,
+not the compiled program, and the process title starts out as Node's.
+
+### Environment changes stay inside the program
+
+**Status:** Open.
+
+On Node, Lean code runs on a worker, whose `process.env` is a copy of the process's environment.
+Lean code and Node's JS APIs see the changes that `osSetenv` and `osUnsetenv` make, but native code
+in the process doesn't. `osHomedir` reads `$HOME` itself so that it sees them, as native Lean does.
+
+Possible fix: whatever starts child processes, once it exists, must pass `process.env` to them.
 
 ### `Std.Time.Timestamp.now` has millisecond precision
 

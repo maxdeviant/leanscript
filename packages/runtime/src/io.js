@@ -145,6 +145,14 @@ export function decodeIoError(err, fname) {
   if (sys === undefined) {
     throw err;
   }
+  return mkIoError(sys, fname);
+}
+
+/**
+ * Returns the `IO.Error` for the system error `sys`, which has the `name`, `errno`, and `message`
+ * that `systemError` returns. `fname` is the borrowed name of the file involved, or `undefined`.
+ */
+export function mkIoError(sys, fname) {
   const kind = errorKindOf.get(sys.name) ?? "otherError";
   const tag = errorTags[kind];
   const details = mkString(errorMessages[sys.name] ?? sys.message);
@@ -188,6 +196,15 @@ export function attempt(fname, f) {
 /** The largest number of bytes `crypto.getRandomValues` fills in one call. */
 const MAX_RANDOM_BYTES = 65536;
 
+/** Returns a `ByteArray` of `n` cryptographically secure random bytes. */
+export function randomByteArray(n) {
+  const bytes = new Uint8Array(n);
+  for (let i = 0; i < n; i += MAX_RANDOM_BYTES) {
+    crypto.getRandomValues(bytes.subarray(i, i + MAX_RANDOM_BYTES));
+  }
+  return new LeanByteArray(bytes, n);
+}
+
 /** The heartbeat counter of `IO.getNumHeartbeats`, which nothing increments. */
 let heartbeats = 0;
 
@@ -200,13 +217,7 @@ export const externs = {
   },
   "IO.monoMsNow": (_w) => normalize(monotonicNanos() / 1000000n),
   "IO.monoNanosNow": (_w) => normalize(monotonicNanos()),
-  "IO.getRandomBytes": (n, _w) => {
-    const bytes = new Uint8Array(n);
-    for (let i = 0; i < n; i += MAX_RANDOM_BYTES) {
-      crypto.getRandomValues(bytes.subarray(i, i + MAX_RANDOM_BYTES));
-    }
-    return ioOk(new LeanByteArray(bytes, n));
-  },
+  "IO.getRandomBytes": (n, _w) => ioOk(randomByteArray(n)),
   "IO.getNumHeartbeats": (_w) => heartbeats,
   "IO.setNumHeartbeats": (count, _w) => {
     heartbeats = count;

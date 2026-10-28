@@ -581,34 +581,34 @@ Std.Internal.UV.Signal.cancel	Std.Internal.UV.Signal
 Std.Internal.UV.Signal.mk	Std.Internal.UV.Signal	
 Std.Internal.UV.Signal.next	Std.Internal.UV.Signal	
 Std.Internal.UV.Signal.stop	Std.Internal.UV.Signal	
-Std.Internal.UV.System.availableMemory	Std.Internal.UV.System	
-Std.Internal.UV.System.chdir	Std.Internal.UV.System	
-Std.Internal.UV.System.constrainedMemory	Std.Internal.UV.System	
-Std.Internal.UV.System.cpuInfo	Std.Internal.UV.System	
-Std.Internal.UV.System.cwd	Std.Internal.UV.System	
-Std.Internal.UV.System.exePath	Std.Internal.UV.System	
-Std.Internal.UV.System.freeMemory	Std.Internal.UV.System	
-Std.Internal.UV.System.getProcessTitle	Std.Internal.UV.System	
-Std.Internal.UV.System.getrusage	Std.Internal.UV.System	
-Std.Internal.UV.System.hrtime	Std.Internal.UV.System	
-Std.Internal.UV.System.osEnviron	Std.Internal.UV.System	
+Std.Internal.UV.System.availableMemory	Std.Internal.UV.System	node
+Std.Internal.UV.System.chdir	Std.Internal.UV.System	node
+Std.Internal.UV.System.constrainedMemory	Std.Internal.UV.System	node
+Std.Internal.UV.System.cpuInfo	Std.Internal.UV.System	node
+Std.Internal.UV.System.cwd	Std.Internal.UV.System	node
+Std.Internal.UV.System.exePath	Std.Internal.UV.System	node
+Std.Internal.UV.System.freeMemory	Std.Internal.UV.System	node
+Std.Internal.UV.System.getProcessTitle	Std.Internal.UV.System	node
+Std.Internal.UV.System.getrusage	Std.Internal.UV.System	node
+Std.Internal.UV.System.hrtime	Std.Internal.UV.System	node,browser
+Std.Internal.UV.System.osEnviron	Std.Internal.UV.System	node
 Std.Internal.UV.System.osGetGroup	Std.Internal.UV.System	
-Std.Internal.UV.System.osGetHostname	Std.Internal.UV.System	
-Std.Internal.UV.System.osGetPasswd	Std.Internal.UV.System	
-Std.Internal.UV.System.osGetPid	Std.Internal.UV.System	
-Std.Internal.UV.System.osGetPpid	Std.Internal.UV.System	
-Std.Internal.UV.System.osGetPriority	Std.Internal.UV.System	
-Std.Internal.UV.System.osGetenv	Std.Internal.UV.System	
-Std.Internal.UV.System.osHomedir	Std.Internal.UV.System	
-Std.Internal.UV.System.osSetPriority	Std.Internal.UV.System	
-Std.Internal.UV.System.osSetenv	Std.Internal.UV.System	
-Std.Internal.UV.System.osTmpdir	Std.Internal.UV.System	
-Std.Internal.UV.System.osUname	Std.Internal.UV.System	
-Std.Internal.UV.System.osUnsetenv	Std.Internal.UV.System	
-Std.Internal.UV.System.random	Std.Internal.UV.System	
-Std.Internal.UV.System.setProcessTitle	Std.Internal.UV.System	
-Std.Internal.UV.System.totalMemory	Std.Internal.UV.System	
-Std.Internal.UV.System.uptime	Std.Internal.UV.System	
+Std.Internal.UV.System.osGetHostname	Std.Internal.UV.System	node
+Std.Internal.UV.System.osGetPasswd	Std.Internal.UV.System	node
+Std.Internal.UV.System.osGetPid	Std.Internal.UV.System	node
+Std.Internal.UV.System.osGetPpid	Std.Internal.UV.System	node
+Std.Internal.UV.System.osGetPriority	Std.Internal.UV.System	node
+Std.Internal.UV.System.osGetenv	Std.Internal.UV.System	node
+Std.Internal.UV.System.osHomedir	Std.Internal.UV.System	node
+Std.Internal.UV.System.osSetPriority	Std.Internal.UV.System	node
+Std.Internal.UV.System.osSetenv	Std.Internal.UV.System	node
+Std.Internal.UV.System.osTmpdir	Std.Internal.UV.System	node
+Std.Internal.UV.System.osUname	Std.Internal.UV.System	node
+Std.Internal.UV.System.osUnsetenv	Std.Internal.UV.System	node
+Std.Internal.UV.System.random	Std.Internal.UV.System	node,browser
+Std.Internal.UV.System.setProcessTitle	Std.Internal.UV.System	node
+Std.Internal.UV.System.totalMemory	Std.Internal.UV.System	node
+Std.Internal.UV.System.uptime	Std.Internal.UV.System	node
 Std.Internal.UV.TCP.Socket.accept	Std.Internal.UV.TCP	
 Std.Internal.UV.TCP.Socket.bind	Std.Internal.UV.TCP	
 Std.Internal.UV.TCP.Socket.cancelAccept	Std.Internal.UV.TCP	

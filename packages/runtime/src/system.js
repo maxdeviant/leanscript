@@ -1,0 +1,17 @@
+// The `Std.Internal.UV.System` operations that every platform supports.
+
+import { Ctor } from "./core.js";
+import { ioOk, randomByteArray } from "./io.js";
+import { IOPromise, resolvePromise } from "./task.js";
+import { monotonicNanos } from "#platform/host.js";
+
+export const externs = {
+  "Std.Internal.UV.System.hrtime": (_w) => ioOk(BigInt.asUintN(64, monotonicNanos())),
+  // The C runtime fills the bytes on libuv's thread pool, so the promise may resolve at any time
+  // after it is returned, including right away.
+  "Std.Internal.UV.System.random": (size, _w) => {
+    const promise = new IOPromise();
+    resolvePromise(promise, new Ctor(1, [randomByteArray(Number(size))], null));
+    return ioOk(promise);
+  },
+};
