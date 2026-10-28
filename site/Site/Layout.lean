@@ -93,7 +93,9 @@ def layout (pageTitle : String) (description : String) (content : List Html) : H
         ],
         main [cls "flex-1"] content,
         footer [cls "border-t border-rule py-8 font-mono text-xs text-muted"] [
-          "Lorem ipsum dolor sit amet."
+          "I got nerd-sniped by ",
+          a [href "https://bsky.app/profile/tonofcrates.bsky.social/post/3my3zodphxk2k", cls "hover:text-accent"] ["Will Crichton"],
+          "."
         ]
       ],
       script [] [.raw setUpThemeSwitcher]

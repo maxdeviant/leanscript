@@ -46,3 +46,12 @@
   --color-code: light-dark(#1d1a16, #0c0b09);
   --color-on-code: #ece5d8;
 }
+
+/* Diagonal stripes of marigold and ink, like caution tape. */
+@utility caution-stripes {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--color-highlight) 0 10px,
+    var(--color-on-highlight) 10px 20px
+  );
+}

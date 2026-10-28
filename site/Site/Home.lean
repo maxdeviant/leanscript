@@ -27,6 +27,29 @@ def feature (number : String) (heading : String) (description : String) : Html :
     p [cls "text-sm leading-relaxed text-muted"] [description]
   ]
 
+/--
+A feature whose copy is still to be written. Bars stand in for its heading and description, under a
+"Coming soon" banner.
+-/
+def comingSoon (number : String) : Html :=
+  li [cls "relative border-t-2 border-ink pt-4"] [
+    p [cls "mb-3 font-mono text-xs text-muted"] [number],
+    div [cls "opacity-60", ("aria-hidden", "true")] [
+      div [cls "mb-4 h-4 w-2/5 rounded-sm bg-rule"] [],
+      div [cls "space-y-2.5"] [
+        div [cls "h-2.5 rounded-sm bg-rule"] [],
+        div [cls "h-2.5 rounded-sm bg-rule"] [],
+        div [cls "h-2.5 w-11/12 rounded-sm bg-rule"] [],
+        div [cls "h-2.5 w-3/5 rounded-sm bg-rule"] []
+      ]
+    ],
+    div [cls "absolute inset-x-[-0.75rem] top-1/2 -translate-y-1/4 -rotate-3 caution-stripes py-1.5 text-center shadow-sm"] [
+      span [cls "bg-highlight px-3 py-0.5 font-mono text-xs font-bold tracking-widest text-on-highlight uppercase"] [
+        "Coming soon"
+      ]
+    ]
+  ]
+
 def home : Html :=
   layout "LeanScript" "Lorem ipsum dolor sit amet, consectetur adipiscing elit." [
     «section» [cls "py-20 sm:py-28"] [
@@ -46,16 +69,17 @@ def home : Html :=
           "Get started"
         ],
         a [href repoUrl, cls "rounded-sm border border-ink px-5 py-2.5 font-semibold hover:border-accent hover:text-accent"] [
-          "GitHub"
+          "View on GitHub"
         ]
       ]
     ],
     «section» [cls "pb-20"] [
       ul [cls "grid gap-x-8 gap-y-10 sm:grid-cols-2"] [
-        feature "01" "Lorem ipsum" "Dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor.",
-        feature "02" "Consectetur" "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.",
-        feature "03" "Adipiscing elit" "Duis aute irure dolor in reprehenderit in voluptate velit esse.",
-        feature "04" "Tempor" "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia."
+        feature "01" "All the power of Lean"
+          "LeanScript picks up where the Lean compiler leaves off, so your code is checked and optimized just as it is for a native build. Dependent types, proofs, and macros all work, and proofs are erased before any JavaScript is emitted.",
+        comingSoon "02",
+        comingSoon "03",
+        comingSoon "04",
       ]
     ],
     «section» [cls "pb-20"] [
