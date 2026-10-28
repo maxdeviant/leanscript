@@ -171,20 +171,20 @@ Float32.toUInt32	Init.Data.Float.Float32	node,browser
 Float32.toUInt64	Init.Data.Float.Float32	node,browser
 Float32.toUInt8	Init.Data.Float.Float32	node,browser
 Float32.toUSize	Init.Data.Float.Float32	node,browser
-FloatArray.data	Init.Data.FloatArray.Basic	
-FloatArray.emptyWithCapacity	Init.Data.FloatArray.Basic	
-FloatArray.get	Init.Data.FloatArray.Basic	
-FloatArray.get!	Init.Data.FloatArray.Basic	
-FloatArray.markLinear	Init.Data.FloatArray.Basic	
-FloatArray.mk	Init.Data.FloatArray.Basic	
-FloatArray.propagateMark	Init.Data.FloatArray.Basic	
-FloatArray.push	Init.Data.FloatArray.Basic	
-FloatArray.set	Init.Data.FloatArray.Basic	
-FloatArray.set!	Init.Data.FloatArray.Basic	
-FloatArray.size	Init.Data.FloatArray.Basic	
-FloatArray.uget	Init.Data.FloatArray.Basic	
-FloatArray.uset	Init.Data.FloatArray.Basic	
-FloatArray.usize	Init.Data.FloatArray.Basic	
+FloatArray.data	Init.Data.FloatArray.Basic	node,browser
+FloatArray.emptyWithCapacity	Init.Data.FloatArray.Basic	node,browser
+FloatArray.get	Init.Data.FloatArray.Basic	node,browser
+FloatArray.get!	Init.Data.FloatArray.Basic	node,browser
+FloatArray.markLinear	Init.Data.FloatArray.Basic	node,browser
+FloatArray.mk	Init.Data.FloatArray.Basic	node,browser
+FloatArray.propagateMark	Init.Data.FloatArray.Basic	node,browser
+FloatArray.push	Init.Data.FloatArray.Basic	node,browser
+FloatArray.set	Init.Data.FloatArray.Basic	node,browser
+FloatArray.set!	Init.Data.FloatArray.Basic	node,browser
+FloatArray.size	Init.Data.FloatArray.Basic	node,browser
+FloatArray.uget	Init.Data.FloatArray.Basic	node,browser
+FloatArray.uset	Init.Data.FloatArray.Basic	node,browser
+FloatArray.usize	Init.Data.FloatArray.Basic	node,browser
 IO.FS.Handle.flush	Init.System.IO	node
 IO.FS.Handle.getLine	Init.System.IO	node
 IO.FS.Handle.isTty	Init.System.IO	node

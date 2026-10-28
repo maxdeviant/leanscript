@@ -33,6 +33,21 @@ def byteArrays : IO Unit := do
   IO.println s!"{u.toList} {String.fromUTF8? u} {String.fromUTF8? (u.set! 1 0xff)} {(String.fromUTF8? (ByteArray.mk #[0xc0, 0x80]))}"
   IO.println s!"{u.data.size} {(ByteArray.mk #[1, 2, 3]).data} {(u.toUInt64LE!)} {ByteArray.empty.isEmpty}"
 
+def floatArrays : IO Unit := do
+  let mut a ← hide (FloatArray.emptyWithCapacity 4)
+  for i in [0:20] do
+    a := a.push (i.toFloat / 4)
+  let shared := a
+  let a' := a.set! 3 (-1.5) |>.set! 100 7
+  IO.println s!"{a.toList} {a'.toList} {shared.toList == a.toList} {a.size} {a[5]!} {a.get! 50} {a.get? 2} {a.usize}"
+  let mut b := a'
+  for i in [0:b.size] do
+    b := b.set! i (b[i]! * 2)
+  IO.println s!"{b.toList} {a == a} {a == a'} {(FloatArray.mk #[1.5, 0/0, 1/0]).data} {FloatArray.empty.isEmpty}"
+  IO.println s!"{b.foldl (· + ·) 0} {[1.0, 2.0].toFloatArray.toList}"
+  if h : 1 < a'.size then
+    IO.println s!"{a'[1]'h} {(a'.set 1 9 h).toList} {(a'.uset 1 8 (by simpa using h)).toList} {a'.toList}"
+
 def thunks : IO Unit := do
   let t := Thunk.mk fun _ => dbgTraceIfShared "thunk" ((List.range 10).foldl (· + ·) 0)
   IO.println s!"{t.get} {t.get} {(Thunk.pure 5).get} {(t.map (· * 2)).get}"
@@ -52,5 +67,6 @@ def misc : IO Unit := do
 def main : IO Unit := do
   strings
   byteArrays
+  floatArrays
   thunks
   misc
