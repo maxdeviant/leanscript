@@ -6,6 +6,9 @@ def usage : String :=
 def highlighter : Ssg.Highlighter :=
   Ssg.highlightWith "node" #["highlight.mjs"]
 
+def rasterizer : Ssg.Rasterizer :=
+  Ssg.rasterizeWith "node" #["rasterize.mjs"]
+
 /-- The stylesheet that Tailwind builds, which the site serves under a name with its fingerprint. -/
 def stylesheetSource : System.FilePath := "build/style.css"
 
@@ -16,7 +19,7 @@ def build (clean : Bool) : IO Unit := do
   let stylesheet := s!"style.{Ssg.fingerprint css}.css"
   let ctx : Site.Context := { stylesheet := s!"/{stylesheet}" }
   Ssg.build "dist" (Site.pages ctx) ({ path := stylesheet, content := css } :: Site.files) (clean := clean)
-    (highlighter := highlighter)
+    (highlighter := highlighter) (images := Site.images) (rasterizer := rasterizer)
 
 def main (args : List String) : IO UInt32 := do
   match args with

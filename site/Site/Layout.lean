@@ -1,10 +1,13 @@
-import Site.Logo
+import Site.Card
 
 namespace Site
 
 open Ssg Html
 
 def repoUrl : String := "https://github.com/maxdeviant/leanscript"
+
+/-- The URL of the site, for the links that have to be absolute, without a trailing slash. -/
+def siteUrl : String := "https://leanscript.org"
 
 def fontsUrl : String :=
   "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
@@ -82,14 +85,28 @@ structure Context where
   /-- The URL of the stylesheet, which changes whenever its content does. -/
   stylesheet : String
 
-/-- Wraps `content` in the markup that every page shares. -/
-def layout (ctx : Context) (pageTitle : String) (description : String) (content : List Html) : Html :=
+/--
+Wraps `content` in the markup that every page shares. `path` is the page's URL, relative to the
+site, such as `/coverage/`, and `card` is the image that represents it when it's shared.
+-/
+def layout (ctx : Context) (pageTitle : String) (description : String) (path : String) (card : Card)
+    (content : List Html) : Html :=
   html [("lang", "en")] [
     head [] [
       «meta» [("charset", "utf-8")],
       «meta» [("name", "viewport"), ("content", "width=device-width, initial-scale=1")],
       «meta» [("name", "description"), ("content", description)],
       title [] [pageTitle],
+      «meta» [("property", "og:type"), ("content", "website")],
+      «meta» [("property", "og:site_name"), ("content", "LeanScript")],
+      «meta» [("property", "og:title"), ("content", pageTitle)],
+      «meta» [("property", "og:description"), ("content", description)],
+      «meta» [("property", "og:url"), ("content", siteUrl ++ path)],
+      «meta» [("property", "og:image"), ("content", s!"{siteUrl}/{card.image.path}")],
+      «meta» [("property", "og:image:width"), ("content", toString Card.width)],
+      «meta» [("property", "og:image:height"), ("content", toString Card.height)],
+      «meta» [("property", "og:image:alt"), ("content", card.alt)],
+      «meta» [("name", "twitter:card"), ("content", "summary_large_image")],
       script [] [.raw applySavedTheme],
       link [("rel", "icon"), ("href", "/favicon.svg"), ("type", "image/svg+xml")],
       link [("rel", "preconnect"), ("href", "https://fonts.googleapis.com")],

@@ -100,8 +100,25 @@ def comingSoon (number : String) : Html :=
     ]
   ]
 
+/-- The home page's card, with the headline from the top of the page. -/
+def homeCard : Card where
+  name := "home"
+  alt := "LeanScript: Lean into JavaScript"
+  svg := cardFrame (footerStart := "leanscript.org") [
+    -- IBM Plex Mono's characters are 0.6 em wide, so "Lean" is 192 wide at this size, and the
+    -- rest of the headline starts a character after its highlight. SVG drops the leading space.
+    svgRect 80 212 224 100 highlight,
+    monoText 96 288 80 700 onHighlight "Lean",
+    monoText 352 288 80 700 ink "into JavaScript",
+    sansLines 80 380 30 46 muted [
+      "LeanScript compiles Lean code into JavaScript.",
+      "Run your code in the browser, Node.js, Cloudflare Workers,",
+      "or anywhere else you can run JavaScript."
+    ]
+  ]
+
 def home (ctx : Context) : Html :=
-  layout ctx "LeanScript" "LeanScript compiles Lean code into JavaScript that runs in the browser, Node.js, Cloudflare Workers, or anywhere else you can run JavaScript." [
+  layout ctx "LeanScript" "LeanScript compiles Lean code into JavaScript that runs in the browser, Node.js, Cloudflare Workers, or anywhere else you can run JavaScript." "/" homeCard [
     «section» [cls "py-20 sm:py-28"] [
       h1 [cls "mb-8 max-w-3xl font-mono text-4xl leading-tight font-bold tracking-tight sm:text-6xl"] [
         span [cls "bg-highlight px-2 text-on-highlight" ] ["Lean"],

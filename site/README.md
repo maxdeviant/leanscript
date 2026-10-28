@@ -7,6 +7,7 @@ The source of [leanscript.org](https://leanscript.org), a static site that is ge
 - `styles.css` is the entry point for [Tailwind](https://tailwindcss.com), which scans the Lean files in `Site/` for the classes that the pages use. Tailwind builds it into `build/style.css` before the site is generated, and the site serves it as `style.<fingerprint>.css`, so that browsers never use an outdated copy from their cache.
 - `data/runtime-coverage.tsv` is the data for the coverage page, which `scripts/runtime-coverage.js` writes. Regenerating it takes a few seconds, so the site doesn't on each build. After the runtime or the toolchain changes, build the compiler with `lake build` in the repository root, and then run `node scripts/runtime-coverage.js --data site/data/runtime-coverage.tsv` there.
 - `highlight.mjs` highlights the code blocks from `Html.sourceCode` with [Arborium](https://arborium.bearcove.eu) when the site is built, so pages ship with their code already highlighted. Highlighting another language needs its grammar package, such as `@arborium/rust`.
+- Each page has a card, the image that represents it when it's shared, such as on social media. `Site.Card` draws the cards as SVGs, and `rasterize.mjs` renders them as PNGs with [resvg](https://github.com/linebender/resvg) when the site is built, with the fonts from Fontsource. The cards are served under names with their fingerprints, like the stylesheet, since social media sites cache them.
 
 ## Building
 
@@ -25,4 +26,4 @@ pnpm dev
 
 This serves the site at http://localhost:3000 (set `PORT` to change the port), and rebuilds it when its sources change. Open pages reload after each rebuild.
 
-The dev server doesn't clear `dist/` between rebuilds, so a page that you remove, or an earlier version of the stylesheet, stays there until you restart it or run `pnpm build`.
+The dev server doesn't clear `dist/` between rebuilds, so a page that you remove, or an earlier version of the stylesheet or a card, stays there until you restart it or run `pnpm build`.

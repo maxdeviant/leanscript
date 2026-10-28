@@ -13,7 +13,10 @@ def pages (ctx : Context) : List Page := [
   { path := "coverage/index.html", html := coveragePage ctx }
 ]
 
-/-- The files of the site other than its pages. -/
+/-- The cards of the pages, as images. -/
+def images : List Image := [homeCard.image, coverageCard.image]
+
+/-- The files of the site other than its pages and images. -/
 def files : List File := [
   { path := "favicon.svg", content := (mark).render ++ "\n" }
 ]

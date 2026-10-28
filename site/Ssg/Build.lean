@@ -1,4 +1,5 @@
 import Ssg.Highlight
+import Ssg.Rasterize
 
 namespace Ssg
 
@@ -52,11 +53,14 @@ def highlightPages (highlighter : Highlighter) (pages : List Page) : IO (List Pa
 Builds a site into `outDir`. Writes each of `pages` and `files`, and copies the files in `staticDir`,
 if it exists. If `clean` is true, removes the contents of `outDir` first; otherwise, leaves the files
 that the site doesn't overwrite. If there's a `highlighter`, the pages' blocks from
-`Html.sourceCode` are highlighted with it.
+`Html.sourceCode` are highlighted with it. The `images` are written with `rasterizer`, which they
+need.
 -/
 def build (outDir : FilePath) (pages : List Page) (files : List File := [])
-    (staticDir : FilePath := "static") (clean := true) (highlighter : Option Highlighter := none) :
-    IO Unit := do
+    (staticDir : FilePath := "static") (clean := true) (highlighter : Option Highlighter := none)
+    (images : List Image := []) (rasterizer : Option Rasterizer := none) : IO Unit := do
+  if !images.isEmpty && rasterizer.isNone then
+    throw <| IO.userError "can't write images without a rasterizer"
   let pages ← match highlighter with
     | some highlighter => highlightPages highlighter pages
     | none => pure pages
@@ -69,6 +73,8 @@ def build (outDir : FilePath) (pages : List Page) (files : List File := [])
     writeFileAll (outDir / page.path) page.html.renderDocument
   for file in files do
     writeFileAll (outDir / file.path) file.content
+  if let some rasterizer := rasterizer then
+    rasterizer (images.toArray.map fun image => (outDir / image.path, image.svg.render))
   IO.println s!"Wrote {pages.length} {if pages.length == 1 then "page" else "pages"} to {outDir}"
 
 end Ssg

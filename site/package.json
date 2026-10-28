@@ -13,6 +13,9 @@
     "@arborium/javascript": "^2.18.2",
     "@arborium/lean": "^2.18.2",
     "@arborium/toml": "^2.18.2",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/cli": "^4.3.3",
     "tailwindcss": "^4.3.3",
     "wrangler": "^4.153.0"

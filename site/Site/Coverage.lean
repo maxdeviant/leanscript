@@ -271,9 +271,36 @@ for (const type of ["pointerout", "focusout"]) {
 addEventListener("scroll", hideTooltip, { passive: true });
 "#
 
+/-- A row of the coverage card, with how many of the externs `target` implements. -/
+def cardRow (y : Nat) (target : Target) : Html :=
+  let total := coverage.externs.size
+  let n := count coverage.externs target
+  let barWidth := 600
+  .fragment [
+    monoText 80 (y + 16) 32 600 ink target.label,
+    svgRect 280 (y - 6) barWidth 28 "#4a4339" [("rx", "14")],
+    svgRect 280 (y - 6) (n * barWidth / total) 28 "#6fbf86" [("rx", "14")],
+    monoText (Card.width - 80) (y + 18) 44 700 ink s!"{percent n total}%" (anchor := "end")
+  ]
+
+/-- The coverage page's card, with how much of the runtime each target implements. -/
+def coverageCard : Card where
+  name := "coverage"
+  alt := s!"LeanScript runtime coverage: " ++ ", ".intercalate (runtimeTargets.map fun target =>
+    s!"{target.label} {percent (count coverage.externs target) coverage.externs.size}%")
+  svg := cardFrame (footerStart := "leanscript.org/coverage")
+      (footerEnd := s!"{coverage.toolchain} · {coverage.generated}") [
+    monoText 80 258 72 700 ink "Runtime coverage",
+    sansLines 80 312 28 42 muted [
+      s!"Which of the {coverage.externs.size} externs in Lean's core libraries the runtime implements"
+    ],
+    .fragment (runtimeTargets.mapIdx fun i target => cardRow (392 + i * 68) target)
+  ]
+
 def coveragePage (ctx : Context) : Html :=
   layout ctx "Runtime coverage · LeanScript"
-    "Which of the externs in Lean's core libraries the LeanScript runtime implements, on each target." ([
+    "Which of the externs in Lean's core libraries the LeanScript runtime implements, on each target."
+    "/coverage/" coverageCard ([
       «section» [cls "pt-16 pb-10"] [
         h1 [cls "mb-3 font-mono text-3xl font-bold tracking-tight sm:text-4xl"] ["Runtime coverage"],
         p [cls "mb-6 font-mono text-xs text-muted"] [s!"{coverage.toolchain} · generated {coverage.generated}"],
