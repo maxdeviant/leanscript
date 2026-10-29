@@ -1,6 +1,6 @@
 # Benchmarks
 
-`pnpm bench` compiles each program in `programs/` natively, for Node, and for the browser, and
+`pnpm bench` builds the compiler, then compiles each program in `programs/` natively, for Node, and for the browser, and
 reports the median time of each on native Lean, Node, and Chrome, with how much slower each JS
 target is than native. It also checks that each JS target prints what the native program prints.
 See the comment at the top of `run.js` for what each time measures, and for its options.

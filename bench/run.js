@@ -2,6 +2,8 @@
 // on each target, reporting the median of several runs and how much slower each JS target is than
 // native.
 //
+// The compiler is built with `lake build` first, so that the JS it emits matches the runtime.
+//
 // Each program runs with the arguments in the adjacent `.args` file (one per line), from the programs
 // directory. Before it is timed on a target, each program is run once untimed, as a warmup, and its
 // output is checked against the native program's, so that a benchmark can't get faster by being
@@ -52,6 +54,7 @@ const baseline = options.compare && JSON.parse(readFileSync(options.compare, "ut
 const env = { ...process.env };
 delete env.LEANSCRIPT_DEBUG_RC;
 
+build("lake", ["build"]);
 mkdirSync(nativeDir, { recursive: true });
 
 const browser = options.targets.includes("chrome") ? await startBrowser() : undefined;
