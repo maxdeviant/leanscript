@@ -95,6 +95,26 @@ Running on a worker is invisible to most programs, but not at the JS boundary:
 Browsers have no way to set a worker's stack size, so there programs run with whatever stack the
 browser gives them, as described in [the list of differences](differences.md#recursion-depth-is-lower).
 
+## Deep recursion can be much slower than shallow recursion
+
+A large stack lets a program recurse a million times deep, but V8 can make doing so far slower than
+the same work at a shallow depth. The `const_fold` benchmark in `bench/` shows it. Its `constFolding`
+recurses about two million times deep, down the right spine of an expression, and on Node takes
+about 6.7 seconds, where native Lean takes 0.16 (measured on Linux with Node 24.21).
+
+On the way down, none of the calls to `constFolding` has returned yet, so the code after its second
+recursive call has never run. When V8 optimizes the function partway down, it has no type feedback
+for that code, so it compiles a deoptimization there instead. The deepest call is the first to reach
+it, which deoptimizes the function and throws away its optimized code. Each of the two million
+frames above it that runs that code is then deoptimized as it returns, one at a time, which takes
+about 4 of the 6.7 seconds. Running the program with only V8's unoptimizing tiers, with
+`--no-maglev --no-turbofan`, avoids the deoptimizations, and takes 2.6 seconds.
+
+The compiler can't avoid this: V8 deoptimizes at any call it has no feedback for, including one to
+another function, so moving the code after the call elsewhere doesn't help. It takes recursion
+millions deep whose code after the recursive call only first runs at the bottom. A recursive sum of
+a list of three million elements doesn't trigger it.
+
 ## How other languages that compile to JS deal with it
 
 None of these languages enlarge the stack. Most turn a function's tail calls to itself into loops,
