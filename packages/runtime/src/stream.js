@@ -1,6 +1,6 @@
 // `IO.FS.Stream`s, and the standard streams.
 
-import { Ctor, dec, inc, markPersistent, pap } from "./core.js";
+import { dec, inc, markPersistent, mkCtor, pap } from "./core.js";
 import { attempt } from "./io.js";
 import { mkString } from "./string.js";
 
@@ -17,7 +17,7 @@ export const decodeLossy = (bytes) => mkString(decoder.decode(bytes));
  * closure, which takes ownership of its arguments.
  */
 export function mkStream(h) {
-  const stream = new Ctor(
+  const stream = mkCtor(
     0,
     [
       // flush : IO Unit

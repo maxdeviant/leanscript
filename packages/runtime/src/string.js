@@ -6,7 +6,7 @@
 // Each extern follows the ownership conventions of its C counterpart: an exclusive string is
 // updated in place, and a shared one is copied first.
 
-import { arrayToList, Ctor, dec, RC, track } from "./core.js";
+import { arrayToList, Ctor1, dec, RC, track } from "./core.js";
 import { mkByteArray } from "./bytearray.js";
 import { hashBytes } from "./hash.js";
 import { natAdd, natSub } from "./nat.js";
@@ -285,7 +285,7 @@ function stringIsValidPos(s, i) {
 
 /** Returns `Option Char`: the char at `i` if it is a valid position before the end. */
 function stringGetOpt(s, i) {
-  return isCharBoundary(s, i) ? new Ctor(1, [decodeCharAt(s.bytes, i)], null) : 0;
+  return isCharBoundary(s, i) ? new Ctor1(1, decodeCharAt(s.bytes, i)) : 0;
 }
 
 /** Compares the byte ranges `a[aStart, aEnd)` and `b[bStart, bEnd)` lexicographically. */
@@ -316,8 +316,8 @@ const bool = (b) => (b ? 1 : 0);
 
 function ofList(list) {
   let s = mkString("");
-  for (let l = list; l !== 0; l = l.f[1]) {
-    s = stringPush(s, l.f[0]);
+  for (let l = list; l !== 0; l = l.f1) {
+    s = stringPush(s, l.f0);
   }
   dec(list);
   return s;
@@ -367,12 +367,12 @@ export const externs = {
   "String.prev": stringPrev,
   "String.atEnd": (s, i) => bool(i >= s.size),
   "String.Slice.hash": (slice) => {
-    const [s, start, end] = slice.f;
+    const { f0: s, f1: start, f2: end } = slice;
     return hashBytes(s.bytes.subarray(start, end), end - start, 11n);
   },
   "String.Slice.instDecidableLt": (x, y) => {
-    const [s, sStart, sEnd] = x.f;
-    const [t, tStart, tEnd] = y.f;
+    const { f0: s, f1: sStart, f2: sEnd } = x;
+    const { f0: t, f1: tStart, f2: tEnd } = y;
     return bool(compareBytes(s.bytes, sStart, sEnd, t.bytes, tStart, tEnd) < 0);
   },
   "String.hash": (s) => hashBytes(s.bytes, s.size, 11n),

@@ -20,6 +20,7 @@
 
 import { debugOption, writeStderr } from "#platform/host.js";
 
+// Compiled programs inline the common cases of `inc` and `dec`, which rely on this being negative.
 const FREED = -1;
 
 /** The key of an object's reference count. */
@@ -34,19 +35,176 @@ export function track(x) {
   return x;
 }
 
+/**
+ * A constructor object, such as `Option.some x` or a structure.
+ *
+ * Its object fields are stored in properties, as `f0`, `f1`, and so on, rather than in an array,
+ * which would be a second allocation for every object. There is a subclass for each number of
+ * object fields, `Ctor0` to `Ctor8`, so that V8 gives every object with the same number of fields
+ * the same shape, and compiled programs define their own for more. Each subclass implements
+ * `pushFields(xs)`, which pushes the object fields onto the array `xs`, in order.
+ *
+ * Scalar fields are stored as `s<offset>`, where `offset` is the field's byte offset in the C
+ * runtime's layout, and are set after the object is constructed.
+ */
 export class Ctor {
-  /**
-   * @param {number} tag
-   * @param {unknown[]} f The object fields.
-   * @param {Record<number, unknown> | null} s The scalar fields, keyed by byte offset.
-   */
-  constructor(tag, f, s) {
+  /** @param {number} tag */
+  constructor(tag) {
     this[RC] = 1;
     this.tag = tag;
-    this.f = f;
-    this.s = s;
     live?.add(this);
   }
+}
+
+export class Ctor0 extends Ctor {
+  pushFields(_xs) {}
+}
+
+export class Ctor1 extends Ctor {
+  constructor(tag, f0) {
+    super(tag);
+    this.f0 = f0;
+  }
+
+  pushFields(xs) {
+    xs.push(this.f0);
+  }
+}
+
+export class Ctor2 extends Ctor {
+  constructor(tag, f0, f1) {
+    super(tag);
+    this.f0 = f0;
+    this.f1 = f1;
+  }
+
+  pushFields(xs) {
+    xs.push(this.f0, this.f1);
+  }
+}
+
+export class Ctor3 extends Ctor {
+  constructor(tag, f0, f1, f2) {
+    super(tag);
+    this.f0 = f0;
+    this.f1 = f1;
+    this.f2 = f2;
+  }
+
+  pushFields(xs) {
+    xs.push(this.f0, this.f1, this.f2);
+  }
+}
+
+export class Ctor4 extends Ctor {
+  constructor(tag, f0, f1, f2, f3) {
+    super(tag);
+    this.f0 = f0;
+    this.f1 = f1;
+    this.f2 = f2;
+    this.f3 = f3;
+  }
+
+  pushFields(xs) {
+    xs.push(this.f0, this.f1, this.f2, this.f3);
+  }
+}
+
+export class Ctor5 extends Ctor {
+  constructor(tag, f0, f1, f2, f3, f4) {
+    super(tag);
+    this.f0 = f0;
+    this.f1 = f1;
+    this.f2 = f2;
+    this.f3 = f3;
+    this.f4 = f4;
+  }
+
+  pushFields(xs) {
+    xs.push(this.f0, this.f1, this.f2, this.f3, this.f4);
+  }
+}
+
+export class Ctor6 extends Ctor {
+  constructor(tag, f0, f1, f2, f3, f4, f5) {
+    super(tag);
+    this.f0 = f0;
+    this.f1 = f1;
+    this.f2 = f2;
+    this.f3 = f3;
+    this.f4 = f4;
+    this.f5 = f5;
+  }
+
+  pushFields(xs) {
+    xs.push(this.f0, this.f1, this.f2, this.f3, this.f4, this.f5);
+  }
+}
+
+export class Ctor7 extends Ctor {
+  constructor(tag, f0, f1, f2, f3, f4, f5, f6) {
+    super(tag);
+    this.f0 = f0;
+    this.f1 = f1;
+    this.f2 = f2;
+    this.f3 = f3;
+    this.f4 = f4;
+    this.f5 = f5;
+    this.f6 = f6;
+  }
+
+  pushFields(xs) {
+    xs.push(this.f0, this.f1, this.f2, this.f3, this.f4, this.f5, this.f6);
+  }
+}
+
+export class Ctor8 extends Ctor {
+  constructor(tag, f0, f1, f2, f3, f4, f5, f6, f7) {
+    super(tag);
+    this.f0 = f0;
+    this.f1 = f1;
+    this.f2 = f2;
+    this.f3 = f3;
+    this.f4 = f4;
+    this.f5 = f5;
+    this.f6 = f6;
+    this.f7 = f7;
+  }
+
+  pushFields(xs) {
+    xs.push(this.f0, this.f1, this.f2, this.f3, this.f4, this.f5, this.f6, this.f7);
+  }
+}
+
+const ctorClasses = [Ctor0, Ctor1, Ctor2, Ctor3, Ctor4, Ctor5, Ctor6, Ctor7, Ctor8];
+
+/**
+ * Returns a new constructor object with the tag `tag`, the object fields `fields`, of which there
+ * may be at most 8, and the scalar fields `scalars`, keyed by byte offset. It owns the fields.
+ */
+export function mkCtor(tag, fields, scalars = null) {
+  const x = new ctorClasses[fields.length](tag, ...fields);
+  if (scalars !== null) {
+    for (const [offset, value] of Object.entries(scalars)) {
+      x[`s${offset}`] = value;
+    }
+  }
+  return x;
+}
+
+/** Returns the object fields of the constructor object `x`, in order. */
+export function ctorFields(x) {
+  const xs = [];
+  x.pushFields(xs);
+  return xs;
+}
+
+/** Returns the scalar fields of the constructor object `x`, as `[offset, value]` pairs by offset. */
+export function scalarFields(x) {
+  return Object.keys(x)
+    .filter((key) => /^s\d+$/.test(key))
+    .map((key) => [Number(key.slice(1)), x[key]])
+    .sort(([i], [j]) => i - j);
 }
 
 export class Closure {
@@ -127,7 +285,7 @@ function release(x) {
 
 function describe(x) {
   if (x instanceof Ctor) {
-    return `constructor ${x.tag} with ${x.f.length} fields`;
+    return `constructor ${x.tag} with ${ctorFields(x).length} fields`;
   }
   if (x instanceof Closure) {
     return `closure of ${x.fn.name} with ${x.args.length}/${x.arity} arguments`;
@@ -181,7 +339,7 @@ export function checkLeaks() {
 /** Returns the reference counted children of `x`, which must be an object. */
 function children(x) {
   if (x instanceof Ctor) {
-    return x.f;
+    return ctorFields(x);
   }
   if (x instanceof Closure) {
     return x.args;
@@ -245,28 +403,38 @@ export function dec(x) {
  * are decremented.
  */
 function free(x) {
-  const todo = [x];
-  while (todo.length > 0) {
-    const o = todo.pop();
+  // The references that freeing has given up and not yet decremented, which may be to scalars.
+  // Constructors push their fields here directly, so that freeing one allocates nothing.
+  const refs = [];
+  let o = x;
+  while (o !== undefined) {
     o.finalize?.();
-    const cs = children(o);
-    if (cs !== undefined) {
-      for (let i = 0; i < cs.length; i++) {
-        const c = cs[i];
-        if (typeof c !== "object" || c === null) {
-          continue;
-        }
-        const rc = c[RC];
-        if (rc > 1) {
-          c[RC] = rc - 1;
-        } else if (rc === 1) {
-          todo.push(c);
-        } else if (rc === FREED) {
-          useAfterFree("dec", c);
+    if (o instanceof Ctor) {
+      o.pushFields(refs);
+    } else {
+      const cs = children(o);
+      if (cs !== undefined) {
+        for (let i = 0; i < cs.length; i++) {
+          refs.push(cs[i]);
         }
       }
     }
     release(o);
+    o = undefined;
+    while (o === undefined && refs.length > 0) {
+      const c = refs.pop();
+      if (typeof c !== "object" || c === null) {
+        continue;
+      }
+      const rc = c[RC];
+      if (rc > 1) {
+        c[RC] = rc - 1;
+      } else if (rc === 1) {
+        o = c;
+      } else if (rc === FREED) {
+        useAfterFree("dec", c);
+      }
+    }
   }
 }
 
@@ -294,8 +462,9 @@ export function isShared(x) {
  */
 export function reset(x, n) {
   if (x[RC] === 1) {
+    const fields = ctorFields(x);
     for (let i = 0; i < n; i++) {
-      dec(x.f[i]);
+      dec(fields[i]);
     }
     return x;
   }
@@ -428,7 +597,7 @@ export function apply(f, args) {
 export function arrayToList(xs) {
   let list = 0;
   for (let i = xs.length - 1; i >= 0; i--) {
-    list = new Ctor(1, [xs[i], list], null);
+    list = new Ctor2(1, xs[i], list);
   }
   return list;
 }
@@ -440,8 +609,8 @@ export function arrayToList(xs) {
 export function listToArray(list) {
   const xs = [];
   while (list !== 0) {
-    xs.push(list.f[0]);
-    list = list.f[1];
+    xs.push(list.f0);
+    list = list.f1;
   }
   return xs;
 }

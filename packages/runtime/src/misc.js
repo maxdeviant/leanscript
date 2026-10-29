@@ -1,7 +1,18 @@
 // `Bool` conversions, `Thunk`, `Name` equality, maximal sharing, the Lean version, and debugging and
 // unsafe primitives.
 
-import { apply, Ctor, dec, inc, isExclusive, markPersistent, Thunk } from "./core.js";
+import {
+  apply,
+  Ctor,
+  ctorFields,
+  dec,
+  inc,
+  isExclusive,
+  markPersistent,
+  mkCtor,
+  scalarFields,
+  Thunk,
+} from "./core.js";
 import { hashBytes, mixHash } from "./hash.js";
 import { LeanString, mkString, stringEq } from "./string.js";
 import { sleep, writeStderr } from "#platform/host.js";
@@ -41,14 +52,14 @@ const bigBool = (b) => BigInt(b);
 function nameEq(a, b) {
   while (a !== b) {
     // `str` and `num` cache their hash at offset 16, which rejects most unequal names at once.
-    if (typeof a !== "object" || typeof b !== "object" || a.tag !== b.tag || a.s[16] !== b.s[16]) {
+    if (typeof a !== "object" || typeof b !== "object" || a.tag !== b.tag || a.s16 !== b.s16) {
       return false;
     }
-    if (a.tag === 1 ? !stringEq(a.f[1], b.f[1]) : a.f[1] !== b.f[1]) {
+    if (a.tag === 1 ? !stringEq(a.f1, b.f1) : a.f1 !== b.f1) {
       return false;
     }
-    a = a.f[0];
-    b = b.f[0];
+    a = a.f0;
+    b = b.f0;
   }
   return true;
 }
@@ -65,14 +76,16 @@ function shallowEq(a, b) {
   if (a instanceof LeanString && b instanceof LeanString) {
     return stringEq(a, b);
   }
-  if (!(a instanceof Ctor && b instanceof Ctor) || a.tag !== b.tag || a.f.length !== b.f.length) {
+  if (!(a instanceof Ctor && b instanceof Ctor) || a.tag !== b.tag) {
     return false;
   }
-  const as = Object.entries(a.s ?? {});
+  const [af, bf] = [ctorFields(a), ctorFields(b)];
+  const [as, bs] = [scalarFields(a), scalarFields(b)];
   return (
-    a.f.every((x, i) => x === b.f[i]) &&
-    as.length === Object.keys(b.s ?? {}).length &&
-    as.every(([offset, x]) => Object.is(x, b.s[offset]))
+    af.length === bf.length &&
+    af.every((x, i) => x === bf[i]) &&
+    as.length === bs.length &&
+    as.every(([offset, x], i) => offset === bs[i][0] && Object.is(x, bs[i][1]))
   );
 }
 
@@ -90,8 +103,7 @@ function shallowHash(a) {
       : typeof x === "bigint"
         ? x
         : BigInt(Number.isInteger(x) ? x : 0);
-  const scalars = Object.entries(a.s ?? {}).sort(([i], [j]) => i - j);
-  return [...a.f, ...scalars.map(([, x]) => x)].reduce(
+  return [...ctorFields(a), ...scalarFields(a).map(([, x]) => x)].reduce(
     (h, x) => mixHash(h, fieldHash(x)),
     BigInt(a.tag),
   );
@@ -184,7 +196,7 @@ export const externs = {
     inc(a);
     return a;
   },
-  "ShareCommon.State.shareCommon": (_α, _σ, s, a) => new Ctor(0, [a, s], null),
+  "ShareCommon.State.shareCommon": (_α, _σ, s, a) => mkCtor(0, [a, s], null),
   "ShareCommon.Object.eq": (a, b) => (shallowEq(a, b) ? 1 : 0),
   "ShareCommon.Object.hash": (a) => shallowHash(a),
   sorryAx: (_α, _synthetic) => {

@@ -18,7 +18,7 @@
 import {
   apply,
   CHILDREN,
-  Ctor,
+  Ctor1,
   dec,
   del,
   inc,
@@ -79,7 +79,7 @@ export function resolvePromise(promise, value) {
   if (isResolved(promise)) {
     dec(value);
   } else {
-    finish(promise.task, new Ctor(1, [value], null));
+    finish(promise.task, new Ctor1(1, value));
   }
 }
 
@@ -179,8 +179,8 @@ export function taskOfJsPromise(p) {
     dec(t);
   };
   Promise.resolve(p).then(
-    (v) => settle(new Ctor(1, [v], null)),
-    (e) => settle(new Ctor(0, [userError(String(e))], null)),
+    (v) => settle(new Ctor1(1, v)),
+    (e) => settle(new Ctor1(0, userError(String(e)))),
   );
   return t;
 }
@@ -193,7 +193,7 @@ export function taskOfJsPromise(p) {
 export function jsPromiseOfTask(t) {
   const { promise, resolve, reject } = Promise.withResolvers();
   const settle = (result) => {
-    const value = result.f[0];
+    const value = result.f0;
     if (result.tag === 1) {
       resolve(value);
     } else {
@@ -239,8 +239,8 @@ export const externs = {
   },
   "IO.wait": (_α, t, _w) => take(t),
   "IO.waitAny": (_α, tasks, _h, _w) => {
-    for (let l = tasks; l !== 0; l = l.f[1]) {
-      const t = l.f[0];
+    for (let l = tasks; l !== 0; l = l.f1) {
+      const t = l.f0;
       if (t.waiters === null) {
         inc(t.value);
         return t.value;
@@ -283,7 +283,7 @@ export const externs = {
       );
       throw BLOCKED;
     }
-    const value = o.f[0];
+    const value = o.f0;
     if (o[RC] === 1) {
       del(o);
     } else {

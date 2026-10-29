@@ -4,7 +4,7 @@
 // Addresses are parsed and printed exactly as libuv's `uv_inet_pton` and `uv_inet_ntop` do, as the C
 // runtime uses them.
 
-import { Ctor } from "./core.js";
+import { mkCtor } from "./core.js";
 import { mkArray } from "./array.js";
 import { mkString } from "./string.js";
 
@@ -191,7 +191,7 @@ export function formatIPv6(segments) {
   return s;
 }
 
-const option = (x) => (x === null ? 0 : new Ctor(1, [mkArray(x)], null));
+const option = (x) => (x === null ? 0 : mkCtor(1, [mkArray(x)], null));
 
 export const externs = {
   "Std.Net.IPv4Addr.ofString": (s) => option(parseIPv4(s.toString())),

@@ -3,7 +3,7 @@
 // Each extern follows the C runtime's `process.cpp` on POSIX, including the errors it reports. The
 // main thread runs the children, as `children.js` describes.
 
-import { Ctor, dec, inc } from "../../core.js";
+import { Ctor1, Ctor2, Ctor3, dec, inc } from "../../core.js";
 import { attempt } from "../../io.js";
 import { Handle } from "./fs.js";
 import {
@@ -86,71 +86,77 @@ const isInvalidEnvName = (name) => name === "" || name.includes("=");
 function childEnv(inherit, changes) {
   const env = inherit ? { ...process.env } : {};
   for (const change of changes) {
-    const name = cString(change.f[0]);
+    const name = cString(change.f0);
     // The child calls `setenv` or `unsetenv` for each change, ignoring any that fail.
     if (isInvalidEnvName(name)) {
       continue;
     }
-    const value = change.f[1];
+    const value = change.f1;
     if (value === 0) {
       delete env[name];
     } else {
-      env[name] = cString(value.f[0]);
+      env[name] = cString(value.f0);
     }
   }
   return env;
 }
 
 /** Returns the `IO.Process.Child` with the given pipes and the child's process information. */
-const mkChild = (stdin, stdout, stderr, scalars) => new Ctor(0, [stdin, stdout, stderr], scalars);
+const mkChild = (stdin, stdout, stderr, pid, setsid, id) => {
+  const child = new Ctor3(0, stdin, stdout, stderr);
+  child[PID] = pid;
+  child[SETSID] = setsid;
+  child[ID] = id;
+  return child;
+};
 
 /**
  * The scalar fields of an `IO.Process.Child` hold its process ID and whether it was started in a
  * new session, as in the C runtime, and its ID in `children.js`.
  */
-const PID = 24;
-const SETSID = 28;
-const ID = 32;
+const PID = "s24";
+const SETSID = "s28";
+const ID = "s32";
 
 export const externs = {
   "IO.Process.spawn": (args, _w) => {
-    const [stdioConfig, cmd, argv, cwd, env] = args.f;
-    const stdio = [0, 1, 2].map((i) => stdioConfig.s[i]);
-    const setsid = args.s[41] === 1;
+    const { f0: stdioConfig, f1: cmd, f2: argv, f3: cwd, f4: env } = args;
+    const stdio = [stdioConfig.s0, stdioConfig.s1, stdioConfig.s2];
+    const setsid = args.s41 === 1;
     const result = attempt(undefined, () => {
       const { id, pid } = startChild(
         cString(cmd),
         argv.map(cString),
-        cwd === 0 ? undefined : cString(cwd.f[0]),
-        childEnv(args.s[40] === 1, env),
+        cwd === 0 ? undefined : cString(cwd.f0),
+        childEnv(args.s40 === 1, env),
         stdio,
         setsid,
       );
       const pipes = stdio.map((mode, fd) => (mode === PIPED ? new ChildPipe(id, fd) : 0));
-      return mkChild(...pipes, { [PID]: pid, [SETSID]: setsid ? 1 : 0, [ID]: id });
+      return mkChild(...pipes, pid, setsid ? 1 : 0, id);
     });
     dec(args);
     return result;
   },
-  "IO.Process.Child.wait": (_cfg, child, _w) => attempt(undefined, () => awaitChild(child.s[ID])),
+  "IO.Process.Child.wait": (_cfg, child, _w) => attempt(undefined, () => awaitChild(child[ID])),
   "IO.Process.Child.tryWait": (_cfg, child, _w) =>
     attempt(undefined, () => {
-      const exitCode = pollChild(child.s[ID]);
-      return exitCode === null ? 0 : new Ctor(1, [exitCode], null);
+      const exitCode = pollChild(child[ID]);
+      return exitCode === null ? 0 : new Ctor1(1, exitCode);
     }),
   "IO.Process.Child.kill": (_cfg, child, _w) =>
-    attempt(undefined, () => terminateChild(child.s[ID], child.s[PID], child.s[SETSID] === 1)),
+    attempt(undefined, () => terminateChild(child[ID], child[PID], child[SETSID] === 1)),
   "IO.Process.Child.takeStdin": (_cfg, child, _w) => {
-    const [stdin, stdout, stderr] = child.f;
+    const { f0: stdin, f1: stdout, f2: stderr } = child;
     inc(stdin);
     inc(stdout);
     inc(stderr);
-    const rest = mkChild(0, stdout, stderr, { ...child.s });
+    const rest = mkChild(0, stdout, stderr, child[PID], child[SETSID], child[ID]);
     dec(child);
-    return attempt(undefined, () => new Ctor(0, [stdin, rest], null));
+    return attempt(undefined, () => new Ctor2(0, stdin, rest));
   },
   "IO.Process.Child.pid": (_cfg, child) => {
-    const pid = child.s[PID];
+    const pid = child[PID];
     dec(child);
     return pid;
   },

@@ -51,6 +51,15 @@ export {
   apply,
   checkLeaks,
   Ctor,
+  Ctor0,
+  Ctor1,
+  Ctor2,
+  Ctor3,
+  Ctor4,
+  Ctor5,
+  Ctor6,
+  Ctor7,
+  Ctor8,
   dec,
   del,
   inc,
@@ -59,6 +68,7 @@ export {
   isShared,
   lazy,
   pap,
+  RC,
   reset,
   tag,
   unreachable,
@@ -198,7 +208,7 @@ function runProgram(inits, main, arity, errorToString) {
     } else {
       const r = arity === 2 ? main(arrayToList(commandLineArgs().map(mkString)), 0) : main(0);
       if (r.tag === 0) {
-        const value = r.f[0];
+        const value = r.f0;
         // `IO Unit` returns `()`, which is boxed as 0, and `IO UInt32` returns the exit code.
         setExitCode(typeof value === "number" ? value : 0);
         dec(r);
@@ -261,7 +271,7 @@ export function initModuleOnce(inits, errorToString) {
  */
 export function takeIoResult(r, errorToString) {
   const { tag } = r;
-  const value = r.f[0];
+  const value = r.f0;
   del(r);
   if (tag === 0) {
     return value;
@@ -284,7 +294,7 @@ function runInits(inits) {
       if (cell === undefined) {
         dec(r);
       } else {
-        cell.set(r.f[0]);
+        cell.set(r.f0);
         del(r);
       }
     }
@@ -296,7 +306,7 @@ function runInits(inits) {
 
 /** Reports the error in the failed `IO` result `r`, consuming it. */
 function reportError(r, errorToString) {
-  const error = r.f[0];
+  const error = r.f0;
   del(r);
   const msg = errorToString(error);
   writeStderr(`uncaught exception: ${msg}\n`);

@@ -1,14 +1,14 @@
 // Support for `JsValue`, which is any JS value, in the `Js` Lean library. Its externs are inline
 // JS that calls these functions.
 
-import { apply, Ctor, dec, del, markPersistent } from "./core.js";
+import { apply, Ctor1, dec, del, markPersistent } from "./core.js";
 import { mkArray } from "./array.js";
 import { ioError, ioOk, userError } from "./io.js";
 import { mkString } from "./string.js";
 
 /** Returns `some value`, or `none` if `value` is `undefined`. */
 function option(value) {
-  return value === undefined ? 0 : new Ctor(1, [value], null);
+  return value === undefined ? 0 : new Ctor1(1, value);
 }
 
 /** Returns the JS string `v` as a Lean `Option String`. */
@@ -35,7 +35,7 @@ export const jsToArray = (v) => option(Array.isArray(v) ? mkArray([...v]) : unde
 
 /** Returns a JS object with the properties in `entries`, a Lean `Array (String × JsValue)`. */
 export const jsObject = (entries) =>
-  Object.fromEntries(Array.from(entries, (p) => [p.f[0].toString(), p.f[1]]));
+  Object.fromEntries(Array.from(entries, (p) => [p.f0.toString(), p.f1]));
 
 /**
  * Calls `f` and returns its result as an `EST.Out`, converting anything it throws to an
@@ -61,7 +61,7 @@ export function jsFunction(f) {
   markPersistent(f);
   return (...args) => {
     const result = apply(f, [mkArray(args), 0]);
-    const value = result.f[0];
+    const value = result.f0;
     if (result.tag === 0) {
       const msg = value.toString();
       dec(result);

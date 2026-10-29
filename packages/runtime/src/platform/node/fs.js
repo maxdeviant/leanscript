@@ -1,6 +1,6 @@
 // File handles and file system operations.
 
-import { Ctor, dec, inc, RC, track } from "../../core.js";
+import { dec, inc, mkCtor, RC, track } from "../../core.js";
 import { mkArray } from "../../array.js";
 import { LeanByteArray } from "../../bytearray.js";
 import { attempt } from "../../io.js";
@@ -180,14 +180,14 @@ function systemTime(ns) {
     sec -= 1n;
     nsec += NANOS_PER_SECOND;
   }
-  return new Ctor(0, [normalize(sec)], { 8: Number(nsec) });
+  return mkCtor(0, [normalize(sec)], { 8: Number(nsec) });
 }
 
 /** Returns an `IO.FS.Metadata` for the file at the borrowed path `p`, as an `EST.Out`. */
 function metadata(p, follow) {
   return attempt(p, () => {
     const m = fileMetadata(p.toString(), follow);
-    return new Ctor(0, [systemTime(m.accessedNs), systemTime(m.modifiedNs)], {
+    return mkCtor(0, [systemTime(m.accessedNs), systemTime(m.modifiedNs)], {
       16: m.size,
       24: m.numLinks,
       32: fileTypes[m.type],
@@ -227,7 +227,7 @@ export const externs = {
   "IO.FS.createTempFile": (_w) =>
     attempt(undefined, () => {
       const { fd, path } = makeTempFile();
-      return new Ctor(0, [new Handle(fd, true), mkString(path)], null);
+      return mkCtor(0, [new Handle(fd, true), mkString(path)], null);
     }),
   "IO.FS.createTempDir": (_w) => attempt(undefined, () => mkString(makeTempDir())),
   "IO.Prim.setAccessRights": (p, mode, _w) => attempt(p, () => setMode(p.toString(), mode)),
@@ -239,7 +239,7 @@ export const externs = {
       mkArray(
         readDirNames(p.toString()).map((name) => {
           inc(p);
-          return new Ctor(0, [p, decodeLossy(name)], null);
+          return mkCtor(0, [p, decodeLossy(name)], null);
         }),
       ),
     ),

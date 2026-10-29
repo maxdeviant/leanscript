@@ -12,7 +12,10 @@ Value representation (see `packages/runtime/src/index.js` for the runtime side):
 - Scalars (`u8`, `u16`, `u32`, `usize`, `float`, `float32`) are JS numbers; `u64` is a `BigInt`.
 - Boxing and unboxing are the identity.
 - Constructors without fields are their tag as a JS number, mirroring `lean_box(cidx)` in C.
-  All other constructors are `$Ctor` instances.
+  All other constructors are instances of a subclass of `$rt.Ctor` for their number of object
+  fields, `$CtorN`, which store their object fields as `f0`, `f1`, and so on, and their scalar
+  fields as `s<offset>`, by byte offset. The runtime has classes for up to `maxRuntimeCtorSize`
+  fields, and the module defines those for more.
 - Strings are `LeanString`s, constructed from literals with `$rt.mkString`.
 - Nullary declarations become lazily initialized constants that are read by calling them. Their
   values are persistent.
@@ -21,6 +24,15 @@ Value representation (see `packages/runtime/src/index.js` for the runtime side):
 
 Heap objects are reference counted exactly as in the C runtime, which lets the IR update unshared
 objects in place.
+
+The common cases of `inc` and `dec`, which only change a count, are inlined rather than calling
+`$rt.inc` and `$rt.dec`. V8 records the shapes of the objects that a property access sees per
+function, not per call site, so in the runtime's functions the access to the count would see every
+class of object in the program, and be slow. Inline, each one sees only the few classes of the
+objects at that site. The runtime's functions handle the rest: freeing objects, and catching uses of
+freed ones, whose count is negative. The count is read into the function's one `$r` variable, as V8
+gives each block-scoped variable its own stack slot, which would make deeply recursive programs
+overflow sooner.
 -/
 
 namespace LeanScript
@@ -99,9 +111,20 @@ def natLitToJs (v : Nat) (ty : IRType) : String :=
   | .uint8 | .uint16 | .uint32 | .float | .float32 => s!"{v}"
   | _ => if v ≤ maxSafeInteger then s!"{v}" else s!"{v}n"
 
-/-- The key under which a scalar field at byte offset `sizeof(void*)*i + offset` is stored. -/
-def scalarKey (i : Nat) (offset : Nat) : Nat :=
-  8 * i + offset
+/-- The property that stores object field `i` of a constructor. -/
+def fieldName (i : Nat) : String :=
+  s!"f{i}"
+
+/-- The property that stores the scalar field at byte offset `sizeof(void*)*i + offset`. -/
+def scalarName (i : Nat) (offset : Nat) : String :=
+  s!"s{8 * i + offset}"
+
+/-- The most object fields that a constructor class of the runtime has. -/
+def maxRuntimeCtorSize : Nat := 8
+
+/-- The name of the class of constructors with `n` object fields. -/
+def ctorClassName (n : Nat) : String :=
+  s!"$Ctor{n}"
 
 def getDecl (name : Name) : EmitM Decl := do
   let some decl := (← read).decls[name]? | throw s!"unknown declaration '{name}'"
@@ -111,16 +134,54 @@ def ctorToJs (info : CtorInfo) (ys : Array Arg) : String :=
   if ys.isEmpty && info.isScalar then
     s!"{info.cidx}"
   else
-    let scalars := if info.usize > 0 || info.ssize > 0 then "{}" else "null"
-    s!"new $Ctor({info.cidx}, [{argsToJs ys}], {scalars})"
+    let args := if ys.isEmpty then "" else s!", {argsToJs ys}"
+    s!"new {ctorClassName ys.size}({info.cidx}{args})"
+
+/-- Adds the number of object fields of each constructor object that `b` constructs to `sizes`. -/
+partial def ctorSizes (b : FnBody) (sizes : Std.HashSet Nat) : Std.HashSet Nat :=
+  match b with
+  | .vdecl _ _ e b =>
+    let sizes := match e with
+      | .ctor info ys | .reuse _ info _ ys =>
+        if ys.isEmpty && info.isScalar then sizes else sizes.insert ys.size
+      | _ => sizes
+    ctorSizes b sizes
+  | .jdecl _ _ v b => ctorSizes b (ctorSizes v sizes)
+  | .case _ _ _ alts => alts.foldl (fun sizes alt => ctorSizes alt.body sizes) sizes
+  | .ret _ | .jmp .. | .unreachable => sizes
+  | b => ctorSizes b.body sizes
+
+/--
+Emits the class of constructors with `n` object fields, which is the runtime's if it has one. Each
+class implements the `pushFields` method that the runtime's do.
+-/
+def emitCtorClass (n : Nat) : EmitM Unit := do
+  let name := ctorClassName n
+  if n ≤ maxRuntimeCtorSize then
+    emitLn s!"const {name} = $rt.Ctor{n};"
+    return
+  let fields := (List.range n).map fieldName
+  emitLn s!"class {name} extends $rt.Ctor \{"
+  withIndent do
+    emitLn s!"constructor(tag, {", ".intercalate fields}) \{"
+    withIndent do
+      emitLn "super(tag);"
+      for f in fields do
+        emitLn s!"this.{f} = {f};"
+    emitLn "}"
+    emitLn ""
+    emitLn "pushFields(xs) {"
+    withIndent (emitLn s!"xs.push({", ".intercalate (fields.map (s!"this.{·}"))});")
+    emitLn "}"
+  emitLn "}"
 
 def exprToJs (ty : IRType) : IR.Expr → EmitM String
   | .ctor info ys => return ctorToJs info ys
   | .reset n x => return s!"$rt.reset({varName x}, {n})"
   | .reuse .. => throw "`reuse` must be emitted with `emitReuse`"
-  | .proj i x => return s!"{varName x}.f[{i}]"
-  | .uproj i x => return s!"{varName x}.s[{scalarKey i 0}]"
-  | .sproj n offset x => return s!"{varName x}.s[{scalarKey n offset}]"
+  | .proj i x => return s!"{varName x}.{fieldName i}"
+  | .uproj i x => return s!"{varName x}.{scalarName i 0}"
+  | .sproj n offset x => return s!"{varName x}.{scalarName n offset}"
   | .fap c ys => do
     if (← getDecl c).params.isEmpty then
       return s!"{toJsName c}()"
@@ -140,6 +201,15 @@ def isSelfTailCall (x : VarId) (e : IR.Expr) (b : FnBody) : EmitM Bool := do
   match e, b with
   | .fap c _, .ret (.var y) => return ctx.hasLoop && c == ctx.currFn && x == y
   | _, _ => return false
+
+/-- Returns whether `b` increments or decrements a reference count, and so uses `$r`. -/
+partial def usesRc : FnBody → Bool
+  | .inc _ _ _ persistent b | .dec _ _ _ persistent b => !persistent || usesRc b
+  | .vdecl _ _ _ b => usesRc b
+  | .jdecl _ _ v b => usesRc v || usesRc b
+  | .case _ _ _ alts => alts.any (usesRc ·.body)
+  | .ret _ | .jmp .. | .unreachable => false
+  | b => usesRc b.body
 
 partial def hasSelfTailCall (f : Name) : FnBody → Bool
   | .vdecl x _ (.fap c _) (.ret (.var y)) => c == f && x == y
@@ -177,11 +247,9 @@ def emitReuse (x y : VarId) (info : CtorInfo) (updtHeader : Bool) (ys : Array Ar
   withIndent do
     emitLn s!"{varName x} = {varName y};"
     for y in ys, i in [0:ys.size] do
-      emitLn s!"{varName x}.f[{i}] = {argToJs y};"
+      emitLn s!"{varName x}.{fieldName i} = {argToJs y};"
     if updtHeader then
       emitLn s!"{varName x}.tag = {info.cidx};"
-    if info.usize > 0 || info.ssize > 0 then
-      emitLn s!"{varName x}.s ??= \{};"
   emitLn "}"
 
 mutual
@@ -234,24 +302,27 @@ partial def emitFnBody : FnBody → EmitM Unit
     emitLn "}"
     emitFnBody v
   | .set x i y b => do
-    emitLn s!"{varName x}.f[{i}] = {argToJs y};"
+    emitLn s!"{varName x}.{fieldName i} = {argToJs y};"
     emitFnBody b
   | .setTag x cidx b => do
     emitLn s!"{varName x}.tag = {cidx};"
     emitFnBody b
   | .uset x i y b => do
-    emitLn s!"{varName x}.s[{scalarKey i 0}] = {varName y};"
+    emitLn s!"{varName x}.{scalarName i 0} = {varName y};"
     emitFnBody b
   | .sset x i offset y _ b => do
-    emitLn s!"{varName x}.s[{scalarKey i offset}] = {varName y};"
+    emitLn s!"{varName x}.{scalarName i offset} = {varName y};"
     emitFnBody b
   | .inc x n _ persistent b => do
     unless persistent do
-      emitLn (if n == 1 then s!"$rt.inc({varName x});" else s!"$rt.incN({varName x}, {n});")
+      let x := varName x
+      let slow := if n == 1 then s!"$rt.inc({x})" else s!"$rt.incN({x}, {n})"
+      emitLn s!"if (($r = {x}?.[$RC]) > 0) {x}[$RC] = $r + {n}; else if ($r < 0) {slow};"
     emitFnBody b
   | .dec x _ _ persistent b => do
     unless persistent do
-      emitLn s!"$rt.dec({varName x});"
+      let x := varName x
+      emitLn s!"if (($r = {x}?.[$RC]) > 1) {x}[$RC] = $r - 1; else if ($r === 1 || $r < 0) $rt.dec({x});"
     emitFnBody b
   | .del x b => do
     emitLn s!"$rt.del({varName x});"
@@ -298,13 +369,18 @@ def emitDecl (decl : Decl) : EmitM Unit := do
         emitLn s!"const {name} = $rt.initCell();"
       else
         emitLn s!"const {name} = $rt.lazy(() => \{"
-        withIndent (emitFnBody body)
+        withIndent do
+          if usesRc body then
+            emitLn "let $r;"
+          emitFnBody body
         emitLn "});"
     else
       let hasLoop := hasSelfTailCall f body
       emitLn s!"function {name}({", ".intercalate (xs.map (varName ·.x)).toList}) \{"
       withIndent do
         withReader ({ · with currFn := f, currParams := xs, hasLoop }) do
+          if usesRc body then
+            emitLn "let $r;"
           if hasLoop then
             emitLn "_start: while (true) {"
             withIndent (emitFnBody body)
@@ -523,7 +599,12 @@ def emitProgram (env : Environment) (opts : EmitOptions := {}) : Except String E
         emitLn s!"import \{ {quoteJs name} as {importName} } from {quoteJs specifier};"
     emitLn ""
     emitLn s!"$rt.checkVersion({quoteJs version});"
-    emitLn "const $Ctor = $rt.Ctor;"
+    emitLn "const $RC = $rt.RC;"
+    let sizes : Std.HashSet Nat := decls.foldl (init := {}) fun sizes d => match d with
+      | .fdecl _ _ _ body _ => ctorSizes body sizes
+      | .extern .. => sizes
+    for n in sizes.toArray.qsort (· < ·) do
+      emitCtorClass n
     let quoteNames (ns : Array Name) := ", ".intercalate (ns.map (quoteJs ·.toString)).toList
     if unavailable.isEmpty then
       emitLn s!"const $ext = $rt.resolveExterns([{quoteNames externs}]);"

@@ -1,6 +1,6 @@
 // The `Std.Internal.UV.System` operations that every platform supports.
 
-import { Ctor } from "./core.js";
+import { mkCtor } from "./core.js";
 import { ioOk, randomByteArray } from "./io.js";
 import { IOPromise, resolvePromise } from "./task.js";
 import { monotonicNanos } from "#platform/host.js";
@@ -11,7 +11,7 @@ export const externs = {
   // after it is returned, including right away.
   "Std.Internal.UV.System.random": (size, _w) => {
     const promise = new IOPromise();
-    resolvePromise(promise, new Ctor(1, [randomByteArray(Number(size))], null));
+    resolvePromise(promise, mkCtor(1, [randomByteArray(Number(size))], null));
     return ioOk(promise);
   },
 };

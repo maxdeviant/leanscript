@@ -1,6 +1,6 @@
 // `Float` and `Float32`, which are both JS numbers.
 
-import { Ctor } from "./core.js";
+import { mkCtor } from "./core.js";
 import { mkString } from "./string.js";
 
 const bits = new DataView(new ArrayBuffer(8));
@@ -245,7 +245,7 @@ function floatExterns(name, round, ofBits, toBits) {
     round: roundHalfAway,
     fma: (a, b, c) => round(fma(a, b, c)),
     scaleB: (a, n) => round(scalbn(a, clampExponent(n))),
-    frExp: (a) => new Ctor(0, frexp(a), null),
+    frExp: (a) => mkCtor(0, frexp(a), null),
     toUInt8: toUnsigned(0xff),
     toUInt16: toUnsigned(0xffff),
     toUInt32: toUnsigned(0xffffffff),

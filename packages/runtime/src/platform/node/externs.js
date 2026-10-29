@@ -1,6 +1,6 @@
 // The externs whose implementation depends on the platform, implemented with Node's APIs.
 
-import { Ctor, markPersistent } from "../../core.js";
+import { markPersistent, mkCtor } from "../../core.js";
 import { mkArray } from "../../array.js";
 import { attempt, ioOk } from "../../io.js";
 import { parseIPv4, parseIPv6 } from "../../net.js";
@@ -16,12 +16,12 @@ const stdStream = (fd) => mkStream(markPersistent(new Handle(fd, false)));
 /** Returns a `Std.Net.IPAddr` for the address `s` of the family `"IPv4"` or `"IPv6"`. */
 const ipAddr = (family, s) =>
   family === "IPv4"
-    ? new Ctor(0, [mkArray(parseIPv4(s))], null)
-    : new Ctor(1, [mkArray(parseIPv6(s))], null);
+    ? mkCtor(0, [mkArray(parseIPv4(s))], null)
+    : mkCtor(1, [mkArray(parseIPv6(s))], null);
 
 /** Returns a `Std.Net.InterfaceAddress` for an address of the interface `name`. */
 const interfaceAddress = (name, a) =>
-  new Ctor(
+  mkCtor(
     0,
     [
       mkString(name),

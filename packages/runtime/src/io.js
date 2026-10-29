@@ -1,6 +1,6 @@
 // `IO` results and errors, and `IO` actions that don't involve files.
 
-import { Ctor, inc, isInitializing } from "./core.js";
+import { Ctor1, inc, isInitializing, mkCtor } from "./core.js";
 import { LeanByteArray } from "./bytearray.js";
 import { normalize } from "./nat.js";
 import { getEnv, monotonicNanos, systemError } from "#platform/host.js";
@@ -8,18 +8,18 @@ import { mkString } from "./string.js";
 
 /** Returns a successful `EST.Out`. Its `Void σ` field is erased, so it has a single field. */
 export function ioOk(a) {
-  return new Ctor(0, [a], null);
+  return new Ctor1(0, a);
 }
 
 /** Returns a failed `EST.Out`. */
 export function ioError(e) {
-  return new Ctor(1, [e], null);
+  return new Ctor1(1, e);
 }
 
 /** Returns an `IO.userError` with the JS string `msg`. */
 export function userError(msg) {
   // `userError` is the last constructor of `IO.Error`, after `unexpectedEof`.
-  return new Ctor(18, [mkString(msg)], null);
+  return new Ctor1(18, mkString(msg));
 }
 
 /**
@@ -159,7 +159,7 @@ export function mkIoError(sys, fname) {
   switch (kind) {
     case "interrupted":
     case "noFileOrDirectory":
-      return new Ctor(tag, [fname === undefined ? mkString("") : fname, details], {
+      return mkCtor(tag, [fname === undefined ? mkString("") : fname, details], {
         16: sys.errno,
       });
     case "alreadyExists":
@@ -168,11 +168,11 @@ export function mkIoError(sys, fname) {
     case "resourceExhausted":
     case "inappropriateType":
     case "noSuchThing":
-      return new Ctor(tag, [fname === undefined ? 0 : new Ctor(1, [fname], null), details], {
+      return mkCtor(tag, [fname === undefined ? 0 : mkCtor(1, [fname], null), details], {
         16: sys.errno,
       });
     default:
-      return new Ctor(tag, [details], { 8: sys.errno });
+      return mkCtor(tag, [details], { 8: sys.errno });
   }
 }
 
@@ -247,7 +247,7 @@ export const externs = {
   "IO.initializing": (_w) => (isInitializing() ? 1 : 0),
   "IO.getEnv": (name, _w) => {
     const value = getEnv(name.toString());
-    return value === undefined ? 0 : new Ctor(1, [mkString(value)], null);
+    return value === undefined ? 0 : mkCtor(1, [mkString(value)], null);
   },
   "IO.monoMsNow": (_w) => normalize(monotonicNanos() / 1000000n),
   "IO.monoNanosNow": (_w) => normalize(monotonicNanos()),
@@ -263,7 +263,7 @@ export const externs = {
     const ns = wallClockNanos();
     // A `Timestamp` is its `Duration` since the epoch, in whole seconds and nanoseconds, which the C
     // runtime computes with truncating division.
-    return ioOk(new Ctor(0, [normalize(ns / 1000000000n), normalize(ns % 1000000000n)], null));
+    return ioOk(mkCtor(0, [normalize(ns / 1000000000n), normalize(ns % 1000000000n)], null));
   },
   "System.Platform.getIsWindows": (_unit) => 0,
   "System.Platform.getIsOSX": (_unit) => 0,
