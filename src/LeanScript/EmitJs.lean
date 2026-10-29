@@ -36,7 +36,9 @@ overflow sooner.
 
 Most arithmetic, bitwise, and comparison operations on fixed-width integers are inlined as JS
 expressions too. A `UInt64` is a `BigInt`, and V8 only computes chains of `BigInt` operations
-without allocating a `BigInt` for each result when it sees them in one function.
+without allocating a `BigInt` for each result when it sees them in one function. So are the
+operations on `Nat`s whose arguments and results are safe integers, which then don't call the
+runtime.
 -/
 
 namespace LeanScript
@@ -161,6 +163,38 @@ def fixedWidthOpToJs? (op : Name) (args : Array String) : Option String := do
   | "decLe" => guard !signed; return s!"{a} <= {b} ? 1 : 0"
   | _ => none
 
+/--
+Returns a JS expression that applies the `Nat` extern `op` to `args`, if `op` is one whose common
+case compiles to a short expression. The expression calls `impl`, the extern's implementation, when
+an argument or the result isn't a safe integer.
+-/
+def natOpToJs? (op : Name) (args : Array String) (impl : String) : Option String := do
+  let .str (.str .anonymous "Nat") fn := op | none
+  let #[a, b] := args | none
+  let small := s!"typeof {a} === \"number\" && typeof {b} === \"number\""
+  let call := s!"{impl}({a}, {b})"
+  match fn with
+  -- The result of `+` or `*` is rounded when it isn't a safe integer, but never down to one.
+  | "add" => return s!"{small} && {a} + {b} <= {maxSafeInteger} ? {a} + {b} : {call}"
+  | "mul" => return s!"{small} && {a} * {b} <= {maxSafeInteger} ? {a} * {b} : {call}"
+  | "sub" => return s!"{small} ? ({a} < {b} ? 0 : {a} - {b}) : {call}"
+  -- Unlike `Math.floor(a / b)`, this is exact for every safe integer.
+  | "div" => return s!"{small} && {b} !== 0 ? ({a} - {a} % {b}) / {b} : {call}"
+  | "mod" => return s!"{small} && {b} !== 0 ? {a} % {b} : {call}"
+  -- Every `Nat` is normalized, so these work across the two representations.
+  | "decEq" | "beq" => return s!"{a} === {b} ? 1 : 0"
+  | "decLt" => return s!"{a} < {b} ? 1 : 0"
+  | "decLe" | "ble" => return s!"{a} <= {b} ? 1 : 0"
+  | _ => none
+
+/-- Returns a JS expression that applies the `Array` extern `op` to `args`, if it's a trivial one. -/
+def arrayOpToJs? (op : Name) (args : Array String) : Option String :=
+  match op, args with
+  | ``Array.size, #[_, a] | ``Array.usize, #[_, a] => some s!"{a}.length"
+  | ``Array.ugetBorrowed, #[_, a, i, _] | ``Array.getInternalBorrowed, #[_, a, i, _] =>
+    some s!"{a}[{i}]"
+  | _, _ => none
+
 /-- The property that stores object field `i` of a constructor. -/
 def fieldName (i : Nat) : String :=
   s!"f{i}"
@@ -233,7 +267,9 @@ def exprToJs (ty : IRType) : IR.Expr → EmitM String
   | .uproj i x => return s!"{varName x}.{scalarName i 0}"
   | .sproj n offset x => return s!"{varName x}.{scalarName n offset}"
   | .fap c ys => do
-    if let some js := fixedWidthOpToJs? c (ys.map argToJs) then
+    let args := ys.map argToJs
+    if let some js := fixedWidthOpToJs? c args <|> natOpToJs? c args (toJsName c)
+        <|> arrayOpToJs? c args then
       return js
     if (← getDecl c).params.isEmpty then
       return s!"{toJsName c}()"
