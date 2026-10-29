@@ -48,8 +48,28 @@ function countScalars(s) {
   return length;
 }
 
+/** The length up to which `mkString` tries to encode an ASCII string itself. */
+const SHORT_STRING_LENGTH = 64;
+
 /** Converts a JS string to a Lean `String`. */
 export function mkString(s) {
+  // `TextEncoder` costs a lot per call, which dominates for short strings, such as numbers.
+  if (s.length <= SHORT_STRING_LENGTH) {
+    const bytes = new Uint8Array(s.length);
+    let i = 0;
+    for (; i < s.length; i++) {
+      const c = s.charCodeAt(i);
+      if (c >= 0x80) {
+        break;
+      }
+      bytes[i] = c;
+    }
+    if (i === s.length) {
+      const str = new LeanString(bytes, s.length, s.length);
+      str.js = s;
+      return str;
+    }
+  }
   const bytes = encoder.encode(s);
   const str = new LeanString(bytes, bytes.length, countScalars(s));
   str.js = s;
