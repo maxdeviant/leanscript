@@ -52,6 +52,37 @@ function smallType(name, width, signed) {
   };
 }
 
+// A `BigInt` stored in `words` can be read back as its 32-bit halves from `halves`, and the other
+// way around. V8 does this without allocating, unlike `>>` and `Number` on a `BigInt`.
+const words = new BigUint64Array(1);
+const halves = new Uint32Array(words.buffer);
+const LO = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1 ? 0 : 1;
+const HI = 1 - LO;
+
+/** Returns the low 32 bits of the `BigInt` `a`. */
+function low32(a) {
+  words[0] = a;
+  return halves[LO];
+}
+
+/** Shifts the unsigned 64-bit `a` right by `s`, which is less than 64. */
+function shiftRight64(a, s) {
+  if (s === 0) {
+    return a;
+  }
+  words[0] = a;
+  const h = halves[HI];
+  const l = halves[LO];
+  if (s < 32) {
+    halves[LO] = (l >>> s) | (h << (32 - s));
+    halves[HI] = h >>> s;
+  } else {
+    halves[LO] = h >>> (s - 32);
+    halves[HI] = 0;
+  }
+  return words[0];
+}
+
 function bigType(name, signed) {
   const wrap = (n) => BigInt.asUintN(64, n);
   const toSigned = (a) => BigInt.asIntN(64, a);
@@ -72,11 +103,11 @@ function bigType(name, signed) {
     lor: (a, b) => a | b,
     xor: (a, b) => a ^ b,
     complement: (a) => wrap(~a),
-    shiftLeft: (a, s) => wrap(a << s),
-    shiftRight: signed ? (a, s) => wrap(toSigned(a) >> s) : (a, s) => a >> s,
+    shiftLeft: (a, s) => wrap(a << BigInt(s)),
+    shiftRight: signed ? (a, s) => wrap(toSigned(a) >> BigInt(s)) : shiftRight64,
     log2: (a) => (a === 0n ? 0n : BigInt(a.toString(2).length - 1)),
     abs: (a) => wrap(toSigned(a) < 0n ? -toSigned(a) : a),
-    shiftAmount: (b) => b & 63n,
+    shiftAmount: (b) => low32(b) & 63,
   };
 }
 
@@ -135,7 +166,7 @@ function fixedWidthExterns(t) {
       // Truncating keeps only the low bits, which are the same for the signed and unsigned types.
       ext[`to${target.name}`] =
         t.zero === 0n && target.zero === 0
-          ? (a) => target.wrap(Number(a & 0xffffffffn))
+          ? (a) => target.wrap(low32(a))
           : (a) => target.ofInteger(t.toInteger(a));
     }
   }

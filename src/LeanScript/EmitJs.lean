@@ -133,13 +133,7 @@ results only depend on those bits are the same for both.
 def fixedWidthOpToJs? (op : Name) (args : Array String) : Option String := do
   let .str (.str .anonymous tyName) fn := op | none
   let (_, width, signed) ← fixedWidthTypes.find? (·.1 == tyName)
-  let #[a, b] := args
-    | -- Only truncations take one argument.
-      let #[a] := args | none
-      let target := fn.dropPrefix? "to" |>.map (·.toString)
-      let (_, targetWidth, targetSigned) ← fixedWidthTypes.find? (some ·.1 == target)
-      guard (width == 64 && targetWidth < 64 && signed == targetSigned)
-      return s!"Number(BigInt.asUintN({targetWidth}, {a}))"
+  let #[a, b] := args | none
   -- V8 computes `BigInt.asUintN(64, …)` of some operations on 64-bit integers, without allocating
   -- a `BigInt` for each intermediate result.
   let wrap (e : String) :=
@@ -155,9 +149,8 @@ def fixedWidthOpToJs? (op : Name) (args : Array String) : Option String := do
   | "lor" => return wrap s!"{a} | {b}"
   | "xor" => return wrap s!"{a} ^ {b}"
   | "shiftLeft" => return wrap s!"{a} << {shiftAmount}"
-  | "shiftRight" =>
-    guard !signed
-    return if width == 64 then wrap s!"{a} >> {shiftAmount}" else s!"{a} >>> {shiftAmount}"
+  -- V8 allocates for `>>` on a `BigInt`, which the runtime avoids.
+  | "shiftRight" => guard (!signed && width < 64); return s!"{a} >>> {shiftAmount}"
   | "decEq" => return s!"{a} === {b} ? 1 : 0"
   | "decLt" => guard !signed; return s!"{a} < {b} ? 1 : 0"
   | "decLe" => guard !signed; return s!"{a} <= {b} ? 1 : 0"
