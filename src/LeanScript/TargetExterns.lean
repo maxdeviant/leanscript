@@ -57,6 +57,7 @@ ByteArray.uget
 ByteArray.uset
 ByteArray.usize
 ByteArray.validateUTF8
+ByteSlice.beq
 Char.ofNatAux
 Float.abs
 Float.acos
@@ -743,6 +744,7 @@ ByteArray.uget
 ByteArray.uset
 ByteArray.usize
 ByteArray.validateUTF8
+ByteSlice.beq
 Char.ofNatAux
 Float.abs
 Float.acos

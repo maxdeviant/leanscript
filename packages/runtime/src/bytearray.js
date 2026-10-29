@@ -55,17 +55,20 @@ function uset(a, i, v) {
   return r;
 }
 
-function bytesEq(a, b) {
-  if (a.size !== b.size) {
+/** Whether `a[aStart, aEnd)` and `b[bStart, bEnd)` contain the same bytes. */
+function rangesEq(a, aStart, aEnd, b, bStart, bEnd) {
+  if (aEnd - aStart !== bEnd - bStart) {
     return false;
   }
-  for (let i = 0; i < a.size; i++) {
-    if (a.bytes[i] !== b.bytes[i]) {
+  for (let i = 0; i < aEnd - aStart; i++) {
+    if (a[aStart + i] !== b[bStart + i]) {
       return false;
     }
   }
   return true;
 }
+
+const bytesEq = (a, b) => rangesEq(a.bytes, 0, a.size, b.bytes, 0, b.size);
 
 /** Reads a `Nat` as an index or length, treating a `BigInt` as larger than any byte array. */
 const index = (n) => (typeof n === "bigint" ? Infinity : n);
@@ -119,6 +122,9 @@ export const externs = {
   "ByteArray.beq": (a, b) => bool(bytesEq(a, b)),
   "ByteArray.decEq": (a, b) => bool(bytesEq(a, b)),
   "ByteArray.hash": (a) => hashBytes(a.bytes, a.size, 11n),
+  // A `ByteSlice` holds its byte array, start, and stop, where the proofs guarantee that the
+  // range is in bounds.
+  "ByteSlice.beq": (a, b) => bool(rangesEq(a.f0.bytes, a.f1, a.f2, b.f0.bytes, b.f1, b.f2)),
   // Byte arrays are never marked linear, so there is no mark to set or propagate.
   "ByteArray.markLinear": (a) => a,
   "ByteArray.propagateMark": (_a, b) => b,

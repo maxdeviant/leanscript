@@ -1,3 +1,5 @@
+import Std.Data.ByteSlice
+
 /-- Hides `x` from the compiler, so that operations on it are not constant folded. -/
 def hide (x : α) : IO α := do
   (← IO.mkRef x).get
@@ -32,6 +34,8 @@ def byteArrays : IO Unit := do
   let u := "héllo ∀ 🎉".toUTF8
   IO.println s!"{u.toList} {String.fromUTF8? u} {String.fromUTF8? (u.set! 1 0xff)} {(String.fromUTF8? (ByteArray.mk #[0xc0, 0x80]))}"
   IO.println s!"{u.data.size} {(ByteArray.mk #[1, 2, 3]).data} {(u.toUInt64LE!)} {ByteArray.empty.isEmpty}"
+  let r ← hide (ByteArray.mk #[1, 2, 1, 2, 3])
+  IO.println s!"{r.toByteSlice 0 2 == r.toByteSlice 2 4} {r.toByteSlice 0 2 == r.toByteSlice 1 3} {r.toByteSlice 0 2 == r.toByteSlice 2 5} {r.toByteSlice 3 3 == ByteArray.empty.toByteSlice} {(r.toByteSlice 1 5).slice 1 3 == (ByteArray.mk #[1, 2]).toByteSlice}"
 
 def floatArrays : IO Unit := do
   let mut a ← hide (FloatArray.emptyWithCapacity 4)
