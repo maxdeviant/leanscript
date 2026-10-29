@@ -207,6 +207,19 @@ def getDecl (name : Name) : EmitM Decl := do
   let some decl := (← read).decls[name]? | throw s!"unknown declaration '{name}'"
   return decl
 
+/--
+Whether `decl` is a constant whose value the compiled program caches in a variable on first use,
+which is every constant other than externs and `[init]` declarations.
+-/
+def isCachedConst (env : Environment) (decl : Decl) : Bool :=
+  match decl with
+  | .fdecl f xs .. => xs.isEmpty && (getInitFnNameFor? env f).isNone
+  | .extern .. => false
+
+/-- The variable that caches the value of the constant `n`, which is `undefined` until first use. -/
+def constCacheName (n : Name) : String :=
+  s!"{toJsName n}$v"
+
 def ctorToJs (info : CtorInfo) (ys : Array Arg) : String :=
   if ys.isEmpty && info.isScalar then
     s!"{info.cidx}"
@@ -264,7 +277,10 @@ def exprToJs (ty : IRType) : IR.Expr → EmitM String
     if let some js := fixedWidthOpToJs? c args <|> natOpToJs? c args (toJsName c)
         <|> arrayOpToJs? c args then
       return js
-    if (← getDecl c).params.isEmpty then
+    let decl ← getDecl c
+    if decl.params.isEmpty then
+      if isCachedConst (← read).env decl then
+        return s!"({constCacheName c} ?? {toJsName c}())"
       return s!"{toJsName c}()"
     else
       return s!"{toJsName c}({argsToJs ys})"
@@ -449,12 +465,18 @@ def emitDecl (decl : Decl) : EmitM Unit := do
       if (getInitFnNameFor? env f).isSome then
         emitLn s!"const {name} = $rt.initCell();"
       else
-        emitLn s!"const {name} = $rt.lazy(() => \{"
+        -- Reading the variable directly, rather than through a function that checks it, keeps
+        -- reading a constant in a hot loop cheap even where the engine doesn't inline that function.
+        emitLn s!"var {constCacheName f};"
+        emitLn s!"function {name}() \{"
         withIndent do
-          if usesRc body then
-            emitLn "let $r;"
-          emitFnBody body
-        emitLn "});"
+          emitLn s!"return {constCacheName f} ??= $rt.initConst({name}, () => \{"
+          withIndent do
+            if usesRc body then
+              emitLn "let $r;"
+            emitFnBody body
+          emitLn "});"
+        emitLn "}"
     else
       let hasLoop := hasSelfTailCall f body
       emitLn s!"function {name}({", ".intercalate (xs.map (varName ·.x)).toList}) \{"

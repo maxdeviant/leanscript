@@ -66,7 +66,7 @@ export {
   incN,
   initCell,
   isShared,
-  lazy,
+  initConst,
   pap,
   RC,
   reset,

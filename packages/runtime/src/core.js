@@ -397,21 +397,24 @@ export function dec(x) {
   }
 }
 
+// The references that freeing has given up and not yet decremented, which may be to scalars. It is
+// shared by every call to `free`, so that freeing allocates nothing, and each call only pops what it
+// pushed, in case a finalizer frees something.
+const refs = [];
+
 /**
  * Frees `x` and decrements its children, using a worklist so that long lists cannot overflow. Freed
- * objects that have a `finalize` method, such as file handles, are finalized before their children
- * are decremented.
+ * objects other than constructors that have a `finalize` method, such as file handles, are finalized
+ * before their children are decremented.
  */
 function free(x) {
-  // The references that freeing has given up and not yet decremented, which may be to scalars.
-  // Constructors push their fields here directly, so that freeing one allocates nothing.
-  const refs = [];
+  const base = refs.length;
   let o = x;
   while (o !== undefined) {
-    o.finalize?.();
     if (o instanceof Ctor) {
       o.pushFields(refs);
     } else {
+      o.finalize?.();
       const cs = children(o);
       if (cs !== undefined) {
         // Only children that may be freed go on the worklist, which for a large array is few.
@@ -431,7 +434,7 @@ function free(x) {
     }
     release(o);
     o = undefined;
-    while (o === undefined && refs.length > 0) {
+    while (o === undefined && refs.length > base) {
       const c = refs.pop();
       if (typeof c !== "object" || c === null) {
         continue;
@@ -540,26 +543,23 @@ export function panic(defaultValue, msg) {
   return defaultValue;
 }
 
+// The constants being initialized, to catch a constant that depends on itself.
+const initializingConsts = new Set();
+
 /**
- * Returns a function that computes `init()` on first call and returns the cached value after.
- *
- * The value is marked persistent, as the C runtime does for the values of global constants.
+ * Computes the value of the constant `c` with `init`, and marks it persistent, as the C runtime does
+ * for the values of global constants.
  */
-export function lazy(init) {
-  let state = 0;
-  let value;
-  return () => {
-    if (state === 2) {
-      return value;
-    }
-    if (state === 1) {
-      throw new Error("LeanScript: cyclic constant initialization");
-    }
-    state = 1;
-    value = markPersistent(init());
-    state = 2;
-    return value;
-  };
+export function initConst(c, init) {
+  if (initializingConsts.has(c)) {
+    throw new Error("LeanScript: cyclic constant initialization");
+  }
+  initializingConsts.add(c);
+  try {
+    return markPersistent(init());
+  } finally {
+    initializingConsts.delete(c);
+  }
 }
 
 /** Partially applies `fn`, which takes `arity` owned arguments, to the owned arguments `args`. */
