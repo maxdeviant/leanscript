@@ -72,11 +72,11 @@ function bigType(name, signed) {
     lor: (a, b) => a | b,
     xor: (a, b) => a ^ b,
     complement: (a) => wrap(~a),
-    shiftLeft: (a, s) => wrap(a << BigInt(s)),
-    shiftRight: signed ? (a, s) => wrap(toSigned(a) >> BigInt(s)) : (a, s) => a >> BigInt(s),
+    shiftLeft: (a, s) => wrap(a << s),
+    shiftRight: signed ? (a, s) => wrap(toSigned(a) >> s) : (a, s) => a >> s,
     log2: (a) => (a === 0n ? 0n : BigInt(a.toString(2).length - 1)),
     abs: (a) => wrap(toSigned(a) < 0n ? -toSigned(a) : a),
-    shiftAmount: (b) => Number(b & 63n),
+    shiftAmount: (b) => b & 63n,
   };
 }
 
@@ -132,7 +132,11 @@ function fixedWidthExterns(t) {
   // signed type and zero-extend from an unsigned one.
   for (const target of types) {
     if (target !== t && target.signed === signed) {
-      ext[`to${target.name}`] = (a) => target.ofInteger(t.toInteger(a));
+      // Truncating keeps only the low bits, which are the same for the signed and unsigned types.
+      ext[`to${target.name}`] =
+        t.zero === 0n && target.zero === 0
+          ? (a) => target.wrap(Number(a & 0xffffffffn))
+          : (a) => target.ofInteger(t.toInteger(a));
     }
   }
   return Object.fromEntries(Object.entries(ext).map(([op, fn]) => [`${name}.${op}`, fn]));

@@ -33,6 +33,10 @@ objects at that site. The runtime's functions handle the rest: freeing objects, 
 freed ones, whose count is negative. The count is read into the function's one `$r` variable, as V8
 gives each block-scoped variable its own stack slot, which would make deeply recursive programs
 overflow sooner.
+
+Most arithmetic, bitwise, and comparison operations on fixed-width integers are inlined as JS
+expressions too. A `UInt64` is a `BigInt`, and V8 only computes chains of `BigInt` operations
+without allocating a `BigInt` for each result when it sees them in one function.
 -/
 
 namespace LeanScript
@@ -111,6 +115,52 @@ def natLitToJs (v : Nat) (ty : IRType) : String :=
   | .uint8 | .uint16 | .uint32 | .float | .float32 => s!"{v}"
   | _ => if v ≤ maxSafeInteger then s!"{v}" else s!"{v}n"
 
+/-- The fixed-width integer types, with their widths and whether they're signed. -/
+def fixedWidthTypes : List (String × Nat × Bool) :=
+  [("UInt8", 8, false), ("UInt16", 16, false), ("UInt32", 32, false), ("UInt64", 64, false),
+    ("USize", 32, false), ("Int8", 8, true), ("Int16", 16, true), ("Int32", 32, true),
+    ("Int64", 64, true), ("ISize", 32, true)]
+
+/--
+Returns a JS expression that applies the fixed-width integer extern `op` to `args`, with the same
+semantics as its implementation in the runtime, if `op` is one that compiles to a short expression.
+
+A signed integer is stored as the unsigned integer with the same bits, so the operations whose
+results only depend on those bits are the same for both.
+-/
+def fixedWidthOpToJs? (op : Name) (args : Array String) : Option String := do
+  let .str (.str .anonymous tyName) fn := op | none
+  let (_, width, signed) ← fixedWidthTypes.find? (·.1 == tyName)
+  let #[a, b] := args
+    | -- Only truncations take one argument.
+      let #[a] := args | none
+      let target := fn.dropPrefix? "to" |>.map (·.toString)
+      let (_, targetWidth, targetSigned) ← fixedWidthTypes.find? (some ·.1 == target)
+      guard (width == 64 && targetWidth < 64 && signed == targetSigned)
+      return s!"Number(BigInt.asUintN({targetWidth}, {a}))"
+  -- V8 computes `BigInt.asUintN(64, …)` of some operations on 64-bit integers, without allocating
+  -- a `BigInt` for each intermediate result.
+  let wrap (e : String) :=
+    if width == 64 then s!"BigInt.asUintN(64, {e})"
+    else if width == 32 then s!"({e}) >>> 0"
+    else s!"({e}) & {2 ^ width - 1}"
+  let shiftAmount := if width == 64 then s!"({b} & 63n)" else s!"({b} & {width - 1})"
+  match fn with
+  | "add" => return wrap s!"{a} + {b}"
+  | "sub" => return wrap s!"{a} - {b}"
+  | "mul" => return if width == 32 then s!"Math.imul({a}, {b}) >>> 0" else wrap s!"{a} * {b}"
+  | "land" => return wrap s!"{a} & {b}"
+  | "lor" => return wrap s!"{a} | {b}"
+  | "xor" => return wrap s!"{a} ^ {b}"
+  | "shiftLeft" => return wrap s!"{a} << {shiftAmount}"
+  | "shiftRight" =>
+    guard !signed
+    return if width == 64 then wrap s!"{a} >> {shiftAmount}" else s!"{a} >>> {shiftAmount}"
+  | "decEq" => return s!"{a} === {b} ? 1 : 0"
+  | "decLt" => guard !signed; return s!"{a} < {b} ? 1 : 0"
+  | "decLe" => guard !signed; return s!"{a} <= {b} ? 1 : 0"
+  | _ => none
+
 /-- The property that stores object field `i` of a constructor. -/
 def fieldName (i : Nat) : String :=
   s!"f{i}"
@@ -183,6 +233,8 @@ def exprToJs (ty : IRType) : IR.Expr → EmitM String
   | .uproj i x => return s!"{varName x}.{scalarName i 0}"
   | .sproj n offset x => return s!"{varName x}.{scalarName n offset}"
   | .fap c ys => do
+    if let some js := fixedWidthOpToJs? c (ys.map argToJs) then
+      return js
     if (← getDecl c).params.isEmpty then
       return s!"{toJsName c}()"
     else

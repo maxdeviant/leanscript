@@ -75,7 +75,10 @@ export const externs = {
     } else {
       incN(v, n - 1);
     }
-    return mkArray(Array.from({ length: n }, () => v));
+    // `Array.from({ length: n }, …)` is many times slower for large arrays, such as a hash map's
+    // buckets.
+    // oxlint-disable-next-line unicorn/no-new-array
+    return mkArray(new Array(n).fill(v));
   },
   // Arrays are never marked linear, so there is no mark to set or propagate.
   "Array.markLinear": (_α, a) => a,

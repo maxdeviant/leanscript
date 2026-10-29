@@ -414,8 +414,18 @@ function free(x) {
     } else {
       const cs = children(o);
       if (cs !== undefined) {
+        // Only children that may be freed go on the worklist, which for a large array is few.
         for (let i = 0; i < cs.length; i++) {
-          refs.push(cs[i]);
+          const c = cs[i];
+          if (typeof c !== "object" || c === null) {
+            continue;
+          }
+          const rc = c[RC];
+          if (rc > 1) {
+            c[RC] = rc - 1;
+          } else {
+            refs.push(c);
+          }
         }
       }
     }
