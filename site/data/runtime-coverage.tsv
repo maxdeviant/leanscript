@@ -577,10 +577,10 @@ Std.Internal.UV.DNS.getAddrInfo	Std.Internal.UV.DNS	node
 Std.Internal.UV.DNS.getNameInfo	Std.Internal.UV.DNS	node
 Std.Internal.UV.Loop.alive	Std.Internal.UV.Loop	
 Std.Internal.UV.Loop.configure	Std.Internal.UV.Loop	
-Std.Internal.UV.Signal.cancel	Std.Internal.UV.Signal	
-Std.Internal.UV.Signal.mk	Std.Internal.UV.Signal	
-Std.Internal.UV.Signal.next	Std.Internal.UV.Signal	
-Std.Internal.UV.Signal.stop	Std.Internal.UV.Signal	
+Std.Internal.UV.Signal.cancel	Std.Internal.UV.Signal	node
+Std.Internal.UV.Signal.mk	Std.Internal.UV.Signal	node
+Std.Internal.UV.Signal.next	Std.Internal.UV.Signal	node
+Std.Internal.UV.Signal.stop	Std.Internal.UV.Signal	node
 Std.Internal.UV.System.availableMemory	Std.Internal.UV.System	node
 Std.Internal.UV.System.chdir	Std.Internal.UV.System	node
 Std.Internal.UV.System.constrainedMemory	Std.Internal.UV.System	node

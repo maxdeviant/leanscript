@@ -3,8 +3,7 @@
 // Binding, connecting a UDP socket, and listening must report their errors and the address they got
 // before they return, which only a thread that can wait for Node to finish can do, so the sockets
 // live here rather than with the Lean code. Requests that complete later, such as connecting a TCP
-// socket and reading, are answered with events on the event port, each of which has the `id` of its
-// socket and a `kind`:
+// socket and reading, are answered with events, as `events.js` describes, whose `id` is the socket's:
 //
 // - `connect`, with an `error` code or the socket's `local` and `remote` addresses.
 // - `data`, with `bytes`, `eof`, or `error`, with a code, each answering one `tcpRead`.
@@ -20,14 +19,7 @@
 
 import * as dgram from "node:dgram";
 import * as net from "node:net";
-
-/** @type {import("node:worker_threads").MessagePort | undefined} */
-let events;
-
-/** Sets the port that events are posted to. */
-export function setSocketEventPort(port) {
-  events = port;
-}
+import { postEvent } from "./events.js";
 
 /**
  * The sockets and servers, by ID. The thread that runs Lean code picks the IDs of the sockets it
@@ -36,8 +28,6 @@ export function setSocketEventPort(port) {
 const sockets = new Map();
 
 let lastAcceptedId = 0;
-
-const post = (msg, transfer) => events.postMessage(msg, transfer);
 
 const address = (address, port) => ({ address, port });
 
@@ -58,7 +48,7 @@ class Connection {
       this.reading = false;
       // `chunk` may be a view of a pool shared with other buffers, so copy it before transferring.
       const bytes = new Uint8Array(chunk);
-      post({ id, kind: "data", bytes }, [bytes.buffer]);
+      postEvent({ id, kind: "data", bytes }, [bytes.buffer]);
     });
     socket.on("end", () => this.respond({ eof: true }));
     socket.on("error", (err) => {
@@ -71,7 +61,7 @@ class Connection {
   respond(result) {
     if (this.reading) {
       this.reading = false;
-      post({ id: this.id, kind: "data", ...result });
+      postEvent({ id: this.id, kind: "data", ...result });
     }
   }
 
@@ -128,7 +118,7 @@ class Listener {
     if (this.waiting !== null) {
       const id = this.waiting;
       this.waiting = null;
-      post({ id, kind: "accept", client: this.next() });
+      postEvent({ id, kind: "accept", client: this.next() });
     }
   }
 
@@ -153,7 +143,7 @@ export function tcpConnect(id, remote, local, noDelay, keepAlive) {
   // Data can be sent and read while connecting, so the connection exists from the start.
   const conn = new Connection(id, socket);
   sockets.set(id, conn);
-  const onError = (err) => post({ id, kind: "connect", error: err.code });
+  const onError = (err) => postEvent({ id, kind: "connect", error: err.code });
   socket.once("error", onError);
   socket.connect(
     {
@@ -164,7 +154,7 @@ export function tcpConnect(id, remote, local, noDelay, keepAlive) {
     },
     () => {
       socket.off("error", onError);
-      post({ kind: "connect", ...conn.addresses() });
+      postEvent({ kind: "connect", ...conn.addresses() });
     },
   );
 }
@@ -200,7 +190,7 @@ export function tcpAccept(id) {
   if (client === null) {
     listener.waiting = id;
   } else {
-    post({ id, kind: "accept", client });
+    postEvent({ id, kind: "accept", client });
   }
 }
 
@@ -237,12 +227,12 @@ export function tcpCancelRead(id) {
 
 /** Writes `bytes` to the socket `id`, and answers with a `sent` event once they are written. */
 export function tcpSend(id, bytes) {
-  sockets.get(id).socket.write(bytes, (err) => post({ id, kind: "sent", error: err?.code }));
+  sockets.get(id).socket.write(bytes, (err) => postEvent({ id, kind: "sent", error: err?.code }));
 }
 
 /** Shuts down the sending side of the socket `id`, and answers with a `shutdown` event. */
 export function tcpShutdown(id) {
-  sockets.get(id).socket.end((err) => post({ id, kind: "shutdown", error: err?.code }));
+  sockets.get(id).socket.end((err) => postEvent({ id, kind: "shutdown", error: err?.code }));
 }
 
 export function tcpSetNoDelay(id) {
@@ -297,7 +287,7 @@ class Datagrams {
   receive(event, transfer = []) {
     if (this.reading) {
       this.reading = false;
-      post(event, transfer);
+      postEvent(event, transfer);
     } else {
       this.queue.push({ event, transfer });
     }
@@ -362,7 +352,7 @@ export function udpConnect(id, remote) {
  */
 export function udpSend(id, bytes, remote) {
   const { socket } = sockets.get(id);
-  const callback = (err) => post({ id, kind: "udpSent", error: err?.code });
+  const callback = (err) => postEvent({ id, kind: "udpSent", error: err?.code });
   if (remote === null) {
     socket.send(bytes, callback);
   } else {
@@ -377,7 +367,7 @@ export function udpRead(id) {
   if (next === undefined) {
     datagrams.reading = true;
   } else {
-    post(next.event, next.transfer);
+    postEvent(next.event, next.transfer);
   }
 }
 

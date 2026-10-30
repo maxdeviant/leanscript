@@ -10,14 +10,8 @@ import { LeanByteArray } from "../../bytearray.js";
 import { ioOk } from "../../io.js";
 import { formatIpAddr, mkSocketAddress } from "../../net.js";
 import { IoPromise, resolvePromise } from "../../task.js";
-import {
-  newSocketId,
-  onSocketEvent,
-  socketEventArrived,
-  socketPost,
-  socketRequest,
-} from "./host.js";
-import { attemptRequest, fail, failed, fromSocketAddress, ok } from "./socket-results.js";
+import { mainEventArrived, newMainId, onMainEvent, postMain, requestMain } from "./host.js";
+import { attemptRequest, fail, failed, fromSocketAddress, ok } from "./results.js";
 
 /** Returns the Node socket type for addresses of the IP version `tag`, as an `IPAddr` tags it. */
 const family = (tag) => (tag === 0 ? "udp4" : "udp6");
@@ -37,11 +31,11 @@ function handleEvent(event) {
 class UdpSocket {
   constructor() {
     if (!listening) {
-      onSocketEvent(handleEvent);
+      onMainEvent("sockets", handleEvent);
       listening = true;
     }
     this[RC] = 1;
-    this.id = newSocketId();
+    this.id = newMainId();
     /**
      * The address the socket is bound to, as `{ address, port }`, or `null` if the main thread
      * doesn't have the socket yet, which libuv only opens when it is first needed.
@@ -75,7 +69,7 @@ class UdpSocket {
   finalize() {
     if (this.local !== null) {
       sockets.delete(this.id);
-      socketPost("udpClose", [this.id]);
+      postMain("udpClose", [this.id]);
     }
   }
 
@@ -84,7 +78,7 @@ class UdpSocket {
    * it is `null`. Throws the error that binding reports.
    */
   bind(tag, local) {
-    this.local = socketRequest("udpBind", this.id, family(tag), local);
+    this.local = requestMain("udpBind", this.id, family(tag), local);
     sockets.set(this.id, this);
   }
 
@@ -100,7 +94,7 @@ class UdpSocket {
 
   /** Makes the request `type` of the main thread, which answers it with an event. */
   post(type, args = [], transfer = []) {
-    socketPost(type, [this.id, ...args], { awaitsEvent: true, transfer });
+    postMain(type, [this.id, ...args], { awaitsEvent: true, transfer });
   }
 
   /** Returns a new promise for a request, which the socket also owns until the request finishes. */
@@ -124,13 +118,13 @@ class UdpSocket {
         // A datagram can arrive after its read was canceled, and is then kept for the next one.
         if (this.reading) {
           this.reading = false;
-          socketEventArrived();
+          mainEventArrived();
         }
         this.datagrams.push(event);
         this.serveRead();
         break;
       case "udpSent":
-        socketEventArrived();
+        mainEventArrived();
         this.finishRequest(
           this.sendPromises.shift(),
           event.error === undefined ? ok(0) : failed(event.error),
@@ -196,7 +190,7 @@ function setOption(socket, name, ...args) {
     return fail("EBADF");
   }
   return attemptRequest(() => {
-    socketRequest("udpSetOption", socket.id, name, args);
+    requestMain("udpSetOption", socket.id, name, args);
     return ioOk(0);
   });
 }
@@ -218,7 +212,7 @@ export const externs = {
     }
     return attemptRequest(() => {
       socket.bindIfNeeded(addr.tag);
-      const { local, remote } = socketRequest("udpConnect", socket.id, fromSocketAddress(addr));
+      const { local, remote } = requestMain("udpConnect", socket.id, fromSocketAddress(addr));
       socket.local = local;
       socket.remote = remote;
       return ioOk(0);
@@ -273,8 +267,8 @@ export const externs = {
       dec(socket);
       if (socket.reading) {
         socket.reading = false;
-        socketEventArrived();
-        socketPost("udpCancelRead", [socket.id]);
+        mainEventArrived();
+        postMain("udpCancelRead", [socket.id]);
       }
     }
     return ioOk(0);

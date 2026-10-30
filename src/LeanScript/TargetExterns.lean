@@ -424,6 +424,10 @@ ShareCommon.State.shareCommon
 ShareCommon.shareCommon'
 Std.Internal.UV.DNS.getAddrInfo
 Std.Internal.UV.DNS.getNameInfo
+Std.Internal.UV.Signal.cancel
+Std.Internal.UV.Signal.mk
+Std.Internal.UV.Signal.next
+Std.Internal.UV.Signal.stop
 Std.Internal.UV.System.availableMemory
 Std.Internal.UV.System.chdir
 Std.Internal.UV.System.constrainedMemory

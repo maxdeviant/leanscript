@@ -1,4 +1,4 @@
-// The results of the socket externs, which report errors as libuv does.
+// The results of externs that report errors as libuv does.
 
 import { mkCtor } from "../../core.js";
 import { ioError, mkIoError } from "../../io.js";

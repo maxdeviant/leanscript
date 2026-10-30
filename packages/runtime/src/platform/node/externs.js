@@ -9,6 +9,7 @@ import { mkString } from "../../string.js";
 import { externs as dnsExterns } from "./dns.js";
 import { externs as fsExterns, Handle } from "./fs.js";
 import { externs as processExterns } from "./process.js";
+import { externs as signalExterns } from "./signal.js";
 import { externs as tcpExterns } from "./tcp.js";
 import { externs as udpExterns } from "./udp.js";
 import { externs as systemExterns } from "./system.js";
@@ -34,6 +35,7 @@ export const externs = {
   ...fsExterns,
   ...processExterns,
   ...systemExterns,
+  ...signalExterns,
   ...tcpExterns,
   ...udpExterns,
   ...stdStreamExterns("Stdin", stdStream(0)),

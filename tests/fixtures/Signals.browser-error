@@ -1,0 +1,13 @@
+error: the program uses externs that are not available on target 'browser':
+  main → program → oneShot → oneShot._closed_2 → oneShot._lam_10._boxed → oneShot._lam_10 → oneShot._lam_8._boxed → oneShot._lam_8 → oneShot._lam_6._boxed → oneShot._lam_6 → send → IO.Process.output → IO.FS.Handle.flush
+  main → program → oneShot → oneShot._closed_2 → oneShot._lam_10._boxed → oneShot._lam_10 → oneShot._lam_8._boxed → oneShot._lam_8 → oneShot._lam_6._boxed → oneShot._lam_6 → send → IO.Process.output → IO.FS.Handle.putStr
+  main → program → oneShot → oneShot._closed_2 → oneShot._lam_10._boxed → oneShot._lam_10 → oneShot._lam_8._boxed → oneShot._lam_8 → oneShot._lam_6._boxed → oneShot._lam_6 → send → IO.Process.output → IO.FS.Handle.readToEnd → IO.FS.Handle.readBinToEnd → IO.FS.Handle.readBinToEndInto.loop → IO.FS.Handle.read
+  main → program → oneShot → oneShot._closed_2 → oneShot._lam_10._boxed → oneShot._lam_10 → oneShot._lam_8._boxed → oneShot._lam_8 → oneShot._lam_6._boxed → oneShot._lam_6 → send → IO.Process.output → IO.Process.Child.takeStdin
+  main → program → oneShot → oneShot._closed_2 → oneShot._lam_10._boxed → oneShot._lam_10 → oneShot._lam_8._boxed → oneShot._lam_8 → oneShot._lam_6._boxed → oneShot._lam_6 → send → IO.Process.output → IO.Process.Child.wait
+  main → program → oneShot → oneShot._closed_2 → oneShot._lam_10._boxed → oneShot._lam_10 → oneShot._lam_8._boxed → oneShot._lam_8 → oneShot._lam_6._boxed → oneShot._lam_6 → send → IO.Process.getPID
+  main → program → program._closed_3 → program._closed_2 → program._lam_2._boxed → program._lam_2 → canceling → canceling._closed_2 → canceling._closed_1 → canceling._lam_12._boxed → canceling._lam_12 → sendLater → IO.Process.spawn
+  main → program → program._closed_3 → program._closed_2 → program._closed_1 → program._lam_1._boxed → program._lam_1 → errors → Std.Internal.UV.Signal.cancel
+  main → program → oneShot → Std.Internal.UV.Signal.mk
+  main → program → oneShot → oneShot._closed_2 → oneShot._lam_10._boxed → oneShot._lam_10 → Std.Internal.UV.Signal.next
+  main → program → program._closed_3 → program._closed_2 → program._closed_1 → program._lam_1._boxed → program._lam_1 → errors → Std.Internal.UV.Signal.stop
+Compile with `--allow-unavailable` to make them throw when called instead.

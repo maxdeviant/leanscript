@@ -1,0 +1,12 @@
+waiting with no signal: true
+received signal 1
+waiting again returns the same signal: 1
+received signal 2
+received signal 2
+waiting after a dropped signal: true
+received signal 2
+received signal 15 after canceling
+received signal 15 after canceling a repeating signal
+waiting for an unknown signal: invalid argument (error code: 22, invalid argument)
+stopping and canceling a signal that never started: ok
+done

@@ -10,14 +10,8 @@ import { LeanByteArray } from "../../bytearray.js";
 import { ioOk } from "../../io.js";
 import { mkSocketAddress } from "../../net.js";
 import { IoPromise, resolvePromise } from "../../task.js";
-import {
-  newSocketId,
-  onSocketEvent,
-  socketEventArrived,
-  socketPost,
-  socketRequest,
-} from "./host.js";
-import { attemptRequest, fail, failed, fromSocketAddress, ok } from "./socket-results.js";
+import { mainEventArrived, newMainId, onMainEvent, postMain, requestMain } from "./host.js";
+import { attemptRequest, fail, failed, fromSocketAddress, ok } from "./results.js";
 
 /** Created, without a socket yet, which libuv only opens when it is first needed. */
 const NEW = 0;
@@ -38,7 +32,7 @@ function handleEvent(event) {
     // The socket was freed while the request was outstanding, so the accepted connection is not
     // wanted.
     if (event.kind === "accept") {
-      socketPost("tcpClose", [event.client.id]);
+      postMain("tcpClose", [event.client.id]);
     }
     return;
   }
@@ -49,11 +43,11 @@ function handleEvent(event) {
 class TcpSocket {
   constructor() {
     if (!listening) {
-      onSocketEvent(handleEvent);
+      onMainEvent("sockets", handleEvent);
       listening = true;
     }
     this[RC] = 1;
-    this.id = newSocketId();
+    this.id = newMainId();
     this.state = NEW;
     /** The address the socket is bound to, or `null`, as `{ address, port }`. */
     this.local = null;
@@ -107,10 +101,10 @@ class TcpSocket {
   finalize() {
     sockets.delete(this.id);
     if (this.opened) {
-      socketPost("tcpClose", [this.id]);
+      postMain("tcpClose", [this.id]);
     }
     for (const client of this.accepted) {
-      socketPost("tcpClose", [client.id]);
+      postMain("tcpClose", [client.id]);
     }
   }
 
@@ -125,7 +119,7 @@ class TcpSocket {
 
   /** Makes the request `type` of the main thread, which answers it with an event. */
   post(type, args = [], transfer = []) {
-    socketPost(type, [this.id, ...args], { awaitsEvent: true, transfer });
+    postMain(type, [this.id, ...args], { awaitsEvent: true, transfer });
   }
 
   /** Returns a new promise for a request, which the socket also owns until the request finishes. */
@@ -146,7 +140,7 @@ class TcpSocket {
   handleEvent(event) {
     switch (event.kind) {
       case "connect": {
-        socketEventArrived();
+        mainEventArrived();
         const promise = this.connectPromise;
         this.connectPromise = null;
         if (event.error === undefined) {
@@ -162,7 +156,7 @@ class TcpSocket {
         // Data can arrive after its read was canceled, and is then kept for the next one.
         if (this.reading) {
           this.reading = false;
-          socketEventArrived();
+          mainEventArrived();
         }
         if (event.bytes !== undefined) {
           this.chunks.push(event.bytes);
@@ -174,14 +168,14 @@ class TcpSocket {
         this.serveRead();
         break;
       case "sent":
-        socketEventArrived();
+        mainEventArrived();
         this.finishRequest(
           this.sendPromises.shift(),
           event.error === undefined ? ok(0) : failed(event.error),
         );
         break;
       case "shutdown": {
-        socketEventArrived();
+        mainEventArrived();
         const promise = this.shutdownPromise;
         this.shutdownPromise = null;
         this.finishRequest(promise, event.error === undefined ? ok(0) : failed(event.error));
@@ -193,7 +187,7 @@ class TcpSocket {
         if (this.acceptPromise === null) {
           this.accepted.push(event.client);
         } else {
-          socketEventArrived();
+          mainEventArrived();
           const promise = this.acceptPromise;
           this.acceptPromise = null;
           this.finishRequest(promise, ok(acceptedSocket(event.client)));
@@ -324,8 +318,8 @@ export const externs = {
       dec(socket);
       if (socket.reading) {
         socket.reading = false;
-        socketEventArrived();
-        socketPost("tcpCancelRead", [socket.id]);
+        mainEventArrived();
+        postMain("tcpCancelRead", [socket.id]);
       }
     }
     return ioOk(0);
@@ -346,7 +340,7 @@ export const externs = {
       return fail("EINVAL");
     }
     return attemptRequest(() => {
-      const local = socketRequest(
+      const local = requestMain(
         "tcpListen",
         socket.id,
         socket.local,
@@ -380,7 +374,7 @@ export const externs = {
     }
     let client = socket.accepted.shift() ?? null;
     if (client === null && socket.state === LISTENING) {
-      client = socketRequest("tcpTryAccept", socket.id);
+      client = requestMain("tcpTryAccept", socket.id);
     }
     return ioOk(ok(client === null ? 0 : ok(acceptedSocket(client))));
   },
@@ -390,8 +384,8 @@ export const externs = {
       socket.acceptPromise = null;
       dec(promise);
       dec(socket);
-      socketEventArrived();
-      socketPost("tcpCancelAccept", [socket.id]);
+      mainEventArrived();
+      postMain("tcpCancelAccept", [socket.id]);
     }
     return ioOk(0);
   },
@@ -427,7 +421,7 @@ export const externs = {
   "Std.Internal.UV.TCP.Socket.noDelay": (socket, _w) => {
     socket.noDelay = true;
     if (socket.opened) {
-      socketPost("tcpSetNoDelay", [socket.id]);
+      postMain("tcpSetNoDelay", [socket.id]);
     }
     return ioOk(0);
   },
@@ -439,7 +433,7 @@ export const externs = {
     }
     socket.keepAlive = keepAlive;
     if (socket.opened) {
-      socketPost("tcpSetKeepAlive", [socket.id, keepAlive]);
+      postMain("tcpSetKeepAlive", [socket.id, keepAlive]);
     }
     return ioOk(0);
   },

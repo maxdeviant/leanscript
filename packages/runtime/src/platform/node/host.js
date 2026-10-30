@@ -16,6 +16,8 @@ import {
   workerData,
 } from "node:worker_threads";
 import * as children from "./children.js";
+import { setEventPort } from "./events.js";
+import * as signals from "./signals.js";
 import * as sockets from "./sockets.js";
 
 /**
@@ -39,9 +41,9 @@ export function runWithLargeStack(moduleUrl, run) {
   if (isMainThread) {
     const ready = new Int32Array(new SharedArrayBuffer(4));
     const { port1, port2 } = new MessageChannel();
-    // Events that answer requests later, separate from the replies that the worker blocks on.
+    // Events, as `events.js` describes, separate from the replies that the worker blocks on.
     const events = new MessageChannel();
-    setSocketEventPort(events.port1);
+    setEventPort(events.port1);
     const worker = new Worker(new URL(moduleUrl), {
       argv: process.argv.slice(2),
       resourceLimits: { stackSizeMb: STACK_SIZE_MB },
@@ -62,13 +64,12 @@ export function runWithLargeStack(moduleUrl, run) {
   run();
 }
 
-const { setSocketEventPort, ...socketHandlers } = sockets;
-
 /** The requests that the worker makes of the main thread, which only the main thread can serve. */
 const requestHandlers = {
   chdir: (path) => process.chdir(path),
   ...children,
-  ...socketHandlers,
+  ...signals,
+  ...sockets,
 };
 
 /**
@@ -424,50 +425,61 @@ function post(type, ...args) {
   channel.port.postMessage({ type, args, noReply: true });
 }
 
-let lastSocketId = 0;
+let lastMainId = 0;
 
 /**
- * Returns a new ID for a socket that the main thread will have, unique among sockets of every kind.
+ * Returns a new ID for something that the main thread will have on our behalf, such as a socket,
+ * unique among all of them, so that events about it can be routed by ID.
  */
-export const newSocketId = () => ++lastSocketId;
+export const newMainId = () => ++lastMainId;
 
-/** The number of socket requests waiting for an event, which keep the program running. */
-let awaitedSocketEvents = 0;
+/** The number of events from the main thread that are awaited, which keep the program running. */
+let awaitedMainEvents = 0;
 
 /**
- * Starts receiving the events that answer socket requests, as `sockets.js` describes, calling
- * `handler` with each one. Throws unless Lean code runs on a worker, as sockets need the main
- * thread.
+ * Starts receiving the events that the main thread posts, as `events.js` describes, calling
+ * `handler` with each one. Throws unless Lean code runs on a worker, as `feature`, such as
+ * "sockets", needs the main thread.
  */
-export function onSocketEvent(handler) {
+export function onMainEvent(feature, handler) {
   if (channel === undefined) {
-    throw new Error("LeanScript: sockets are only supported when Lean code runs on a worker");
+    throw new Error(`LeanScript: ${feature} are only supported when Lean code runs on a worker`);
   }
   channel.events.on("message", handler);
   channel.events.unref();
 }
 
 /**
- * Makes the socket request `type` of the main thread, with the arguments `args`, as `sockets.js`
- * describes, and blocks until it replies. Returns the reply, or throws the error it reports.
+ * Makes the request `type` of the main thread, with the arguments `args`, and blocks until it
+ * replies. Returns the reply, or throws the error it reports.
  */
-export const socketRequest = (type, ...args) => request(type, ...args);
+export const requestMain = (type, ...args) => request(type, ...args);
 
 /**
- * Makes the socket request `type` of the main thread, with the arguments `args`, without waiting,
- * transferring the buffers in `transfer`. If `awaitsEvent`, the program keeps running until
- * `socketEventArrived` is called for the event that answers it.
+ * Makes the request `type` of the main thread, with the arguments `args`, without waiting,
+ * transferring the buffers in `transfer`. If `awaitsEvent`, notes that an event that answers it is
+ * awaited, as `awaitMainEvent` does.
  */
-export function socketPost(type, args, { awaitsEvent = false, transfer = [] } = {}) {
+export function postMain(type, args, { awaitsEvent = false, transfer = [] } = {}) {
   channel.port.postMessage({ type, args, noReply: true }, transfer);
-  if (awaitsEvent && awaitedSocketEvents++ === 0) {
+  if (awaitsEvent) {
+    awaitMainEvent();
+  }
+}
+
+/**
+ * Notes that an event from the main thread is awaited, so that the program keeps running until
+ * `mainEventArrived` is called for it.
+ */
+export function awaitMainEvent() {
+  if (awaitedMainEvents++ === 0) {
     channel.events.ref();
   }
 }
 
-/** Notes that an event that a socket request awaited has arrived, or will no longer be awaited. */
-export function socketEventArrived() {
-  if (--awaitedSocketEvents === 0) {
+/** Notes that an awaited event from the main thread has arrived, or will no longer be awaited. */
+export function mainEventArrived() {
+  if (--awaitedMainEvents === 0) {
     channel.events.unref();
   }
 }

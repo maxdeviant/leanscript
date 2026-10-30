@@ -136,7 +136,7 @@ Lean code, Node's JS APIs, and child processes see the changes that `osSetenv` a
 make, but native code in the process doesn't. `osHomedir` reads `$HOME` itself so that it sees
 them, as native Lean does.
 
-### Child processes and sockets need a worker
+### Child processes, sockets, and signals need a worker
 
 **Status:** Accepted.
 
@@ -147,6 +147,9 @@ functions are called on the main thread can't: `IO.Process.spawn` throws there.
 TCP and UDP sockets live on the main thread for the same reason, as binding and listening must wait
 for Node to finish before they return. So `TCP.Socket.new` and `UDP.Socket.new` throw on the main
 thread.
+
+Node only delivers signals to the main thread, so signal handlers are installed there, and
+`Signal.Waiter.wait` throws on the main thread.
 
 ### Child output is read eagerly
 
@@ -214,6 +217,19 @@ accepted, where natively the system refuses connections beyond it.
 Node reads each datagram as soon as it arrives, and LeanScript holds it until the program receives
 it. So datagrams are never dropped because the system's receive buffer is full, where natively they
 are once the program falls behind, and the datagrams waiting to be received take up memory instead.
+
+### Signal selectors finish right away
+
+**Status:** Open.
+
+`Signal.Waiter.selector` checks whether a signal has been received by starting a task that waits for
+it, and checking whether that task has finished. That task finishes as soon as it has started
+waiting, not when the signal arrives, so the check is wrong whenever the task finishes in time.
+Natively, it runs on another thread and rarely has. In LeanScript, tasks run to completion when they
+are created, so it always has, and the selector finishes right away, as if the signal had been
+received. Waiting for a signal with `Signal.Waiter.wait` works.
+
+Possible fix: check whether the signal's own task has finished in Lean's `Std.Async.Signal`.
 
 ## Browsers
 
