@@ -136,13 +136,16 @@ Lean code, Node's JS APIs, and child processes see the changes that `osSetenv` a
 make, but native code in the process doesn't. `osHomedir` reads `$HOME` itself so that it sees
 them, as native Lean does.
 
-### Child processes need a worker
+### Child processes and sockets need a worker
 
 **Status:** Accepted.
 
 Waiting for a child process, or for its output, blocks, which only a worker can do while the main
 thread's event loop runs the child. So a program's `main` can spawn processes, but a library whose
 functions are called on the main thread can't: `IO.Process.spawn` throws there.
+
+TCP sockets live on the main thread for the same reason, as listening must wait for Node to finish
+before it returns. So `TCP.Socket.new` throws on the main thread.
 
 ### Child output is read eagerly
 
@@ -181,6 +184,27 @@ or service" if it's not a port number or a known service name. Node's resolver t
 LeanScript ignores it.
 
 Possible fix: look up service names in `/etc/services`, as `getaddrinfo` does.
+
+### TCP sockets are only bound when they listen or connect
+
+**Status:** Accepted.
+
+Node can't bind a socket without listening or connecting, so `TCP.Socket.bind` only checks that the
+socket is not bound yet, and the socket is bound when it listens or connects. Errors from binding,
+such as an address that is not local, are reported there instead. Until then, `getSockName`
+returns the address that was given, with port 0 if no port was, where native Lean returns the port
+the system picked.
+
+A connecting socket likewise has no address of its own until it has connected, unless it was bound,
+so `getSockName` fails with "bad file descriptor" until then.
+
+### Listening TCP sockets take connections right away
+
+**Status:** Accepted.
+
+Node accepts each connection as soon as it arrives, and LeanScript holds it until the program accepts
+it. So the backlog given to `TCP.Socket.listen` doesn't limit the connections waiting to be
+accepted, where natively the system refuses connections beyond it.
 
 ## Browsers
 

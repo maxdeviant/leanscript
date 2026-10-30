@@ -16,6 +16,7 @@ import {
   workerData,
 } from "node:worker_threads";
 import * as children from "./children.js";
+import * as sockets from "./sockets.js";
 
 /**
  * The stack size of the thread that runs Lean code. JS frames are much larger than native ones, so
@@ -38,11 +39,14 @@ export function runWithLargeStack(moduleUrl, run) {
   if (isMainThread) {
     const ready = new Int32Array(new SharedArrayBuffer(4));
     const { port1, port2 } = new MessageChannel();
+    // Events that answer requests later, separate from the replies that the worker blocks on.
+    const events = new MessageChannel();
+    setSocketEventPort(events.port1);
     const worker = new Worker(new URL(moduleUrl), {
       argv: process.argv.slice(2),
       resourceLimits: { stackSizeMb: STACK_SIZE_MB },
-      workerData: { channel: { ready, port: port2 } },
-      transferList: [port2],
+      workerData: { channel: { ready, port: port2, events: events.port2 } },
+      transferList: [port2, events.port2],
     });
     port1.on("message", (msg) => serve(port1, ready, msg));
     // The worker keeps the program running, and requests only arrive while it does.
@@ -58,10 +62,13 @@ export function runWithLargeStack(moduleUrl, run) {
   run();
 }
 
+const { setSocketEventPort, ...socketHandlers } = sockets;
+
 /** The requests that the worker makes of the main thread, which only the main thread can serve. */
 const requestHandlers = {
   chdir: (path) => process.chdir(path),
   ...children,
+  ...socketHandlers,
 };
 
 /**
@@ -415,6 +422,47 @@ function request(type, ...args) {
 /** Makes the request `type` of the main thread, with the arguments `args`, without waiting. */
 function post(type, ...args) {
   channel.port.postMessage({ type, args, noReply: true });
+}
+
+/** The number of socket requests waiting for an event, which keep the program running. */
+let awaitedSocketEvents = 0;
+
+/**
+ * Starts receiving the events that answer socket requests, as `sockets.js` describes, calling
+ * `handler` with each one. Throws unless Lean code runs on a worker, as sockets need the main
+ * thread.
+ */
+export function onSocketEvent(handler) {
+  if (channel === undefined) {
+    throw new Error("LeanScript: sockets are only supported when Lean code runs on a worker");
+  }
+  channel.events.on("message", handler);
+  channel.events.unref();
+}
+
+/**
+ * Makes the socket request `type` of the main thread, with the arguments `args`, as `sockets.js`
+ * describes, and blocks until it replies. Returns the reply, or throws the error it reports.
+ */
+export const socketRequest = (type, ...args) => request(type, ...args);
+
+/**
+ * Makes the socket request `type` of the main thread, with the arguments `args`, without waiting,
+ * transferring the buffers in `transfer`. If `awaitsEvent`, the program keeps running until
+ * `socketEventArrived` is called for the event that answers it.
+ */
+export function socketPost(type, args, { awaitsEvent = false, transfer = [] } = {}) {
+  channel.port.postMessage({ type, args, noReply: true }, transfer);
+  if (awaitsEvent && awaitedSocketEvents++ === 0) {
+    channel.events.ref();
+  }
+}
+
+/** Notes that an event that a socket request awaited has arrived, or will no longer be awaited. */
+export function socketEventArrived() {
+  if (--awaitedSocketEvents === 0) {
+    channel.events.unref();
+  }
 }
 
 /** Changes the current directory of the process. */

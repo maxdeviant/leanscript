@@ -4,7 +4,7 @@
 // Addresses are parsed and printed exactly as libuv's `uv_inet_pton` and `uv_inet_ntop` do, as the C
 // runtime uses them.
 
-import { mkCtor } from "./core.js";
+import { del, mkCtor } from "./core.js";
 import { mkArray } from "./array.js";
 import { mkString } from "./string.js";
 
@@ -205,6 +205,18 @@ export function mkIpAddr(s) {
 /** Returns the IP address of the borrowed `Std.Net.SocketAddress` `addr` as a string. */
 export const formatSocketAddress = (addr) =>
   addr.tag === 0 ? formatIpv4(addr.f0.f0) : formatIpv6(addr.f0.f0);
+
+/** Returns the port of the borrowed `Std.Net.SocketAddress` `addr`. */
+export const socketAddressPort = (addr) => addr.f0.s8;
+
+/** Returns a `Std.Net.SocketAddress` for the IP address `s`, as `mkIpAddr` takes it, and `port`. */
+export function mkSocketAddress(s, port) {
+  const ip = mkIpAddr(s);
+  const addr = mkCtor(ip.tag, [mkCtor(0, [ip.f0], { 8: port })], null);
+  // The address took the IP address's field.
+  del(ip);
+  return addr;
+}
 
 const option = (x) => (x === null ? 0 : mkCtor(1, [mkArray(x)], null));
 

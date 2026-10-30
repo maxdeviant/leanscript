@@ -1,0 +1,43 @@
+listening on an ephemeral port: true
+peer is the server: true
+accepted the client: true
+server read: "hel"
+server read: "lo"
+second shutdown: shutdown already requested
+send after shutdown: resource vanished (broken pipe)
+server read: eof
+server read after eof: eof
+client read: "bye"
+client read: eof
+bulk: received 1000000 bytes, intact: true
+accept with no client: timed out
+accepted with a selector
+receive with no data: timed out
+received with a selector: "ping"
+received with a selector: eof
+tryAccept with no client: false
+tryAccept with a client: true
+keepAlive with no delay when connected: invalid argument (invalid argument)
+keepAlive off when connected: ok
+keepAlive when connected: ok
+parallel receive: connection already in progress
+parallel waitReadable: connection already in progress
+receive nothing: resource exhausted (no buffer space available)
+receive after cancel: "abc"
+receive after the peer closed: eof
+connect to a closed port: no such thing (connection refused)
+receive on a new socket: invalid argument (socket is not connected)
+send on a new socket: invalid argument (bad file descriptor)
+shutdown on a new socket: invalid argument (socket is not connected)
+peer of a new socket: invalid argument (bad file descriptor)
+name of a new socket: invalid argument (bad file descriptor)
+keepAlive with no delay: ok
+keepAlive off: ok
+keepAlive: ok
+bind twice: invalid argument (invalid argument)
+peer of a bound socket: invalid argument (socket is not connected)
+name of a bound socket: ok
+parallel accept: connection already in progress
+parallel tryAccept: connection already in progress
+accept after cancel: ok
+done

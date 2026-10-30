@@ -6,7 +6,7 @@
 import { dec, inc, mkCtor } from "../../core.js";
 import { mkArray } from "../../array.js";
 import { ioError, ioOk, mkIoError } from "../../io.js";
-import { formatSocketAddress, mkIpAddr } from "../../net.js";
+import { formatSocketAddress, mkIpAddr, socketAddressPort } from "../../net.js";
 import { mkString } from "../../string.js";
 import { IoPromise, resolvePromise } from "../../task.js";
 import { lookupHost, lookupService, systemError } from "./host.js";
@@ -50,7 +50,7 @@ export const externs = {
   },
   "Std.Internal.UV.DNS.getNameInfo": (addr, _w) =>
     request((resolve) =>
-      lookupService(formatSocketAddress(addr), addr.f0.s8, (host, service) =>
+      lookupService(formatSocketAddress(addr), socketAddressPort(addr), (host, service) =>
         resolve(ok(mkCtor(0, [mkString(host), mkString(service)], null))),
       ),
     ),
