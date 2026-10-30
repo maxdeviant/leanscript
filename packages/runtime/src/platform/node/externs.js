@@ -10,6 +10,7 @@ import { externs as dnsExterns } from "./dns.js";
 import { externs as fsExterns, Handle } from "./fs.js";
 import { externs as processExterns } from "./process.js";
 import { externs as tcpExterns } from "./tcp.js";
+import { externs as udpExterns } from "./udp.js";
 import { externs as systemExterns } from "./system.js";
 import { executablePath, exitProcess, interfaceAddresses, processId } from "./host.js";
 
@@ -34,6 +35,7 @@ export const externs = {
   ...processExterns,
   ...systemExterns,
   ...tcpExterns,
+  ...udpExterns,
   ...stdStreamExterns("Stdin", stdStream(0)),
   ...stdStreamExterns("Stdout", stdStream(1)),
   ...stdStreamExterns("Stderr", stdStream(2)),

@@ -1,19 +1,24 @@
-// TCP sockets, which the main thread runs on behalf of the thread that runs Lean code.
+// TCP and UDP sockets, which the main thread runs on behalf of the thread that runs Lean code.
 //
-// Listening must report its errors and the address it got before it returns, which only a thread
-// that can wait for Node to finish listening can do, so the sockets live here rather than with the
-// Lean code. Requests that complete later, such as connecting and reading, are answered with events
-// on the event port, each of which has the `id` of its socket and a `kind`:
+// Binding, connecting a UDP socket, and listening must report their errors and the address they got
+// before they return, which only a thread that can wait for Node to finish can do, so the sockets
+// live here rather than with the Lean code. Requests that complete later, such as connecting a TCP
+// socket and reading, are answered with events on the event port, each of which has the `id` of its
+// socket and a `kind`:
 //
 // - `connect`, with an `error` code or the socket's `local` and `remote` addresses.
 // - `data`, with `bytes`, `eof`, or `error`, with a code, each answering one `tcpRead`.
 // - `sent` and `shutdown`, with an `error` code if they failed, answering `tcpSend` and
 //   `tcpShutdown` in order.
 // - `accept`, with the accepted `client`, as `tcpTryAccept` returns it, answering `tcpAccept`.
+// - `datagram`, with `bytes` and the `from` address, or with an `error` code, answering one
+//   `udpRead`.
+// - `udpSent`, with an `error` code if it failed, answering `udpSend` in order.
 //
 // Sockets are unreferenced, so they never keep the process running: the thread that runs Lean code
 // does that while it waits for an event.
 
+import * as dgram from "node:dgram";
 import * as net from "node:net";
 
 /** @type {import("node:worker_threads").MessagePort | undefined} */
@@ -260,6 +265,137 @@ export function tcpSetKeepAlive(id, keepAlive) {
 
 /** Closes the socket `id`, and the connections it has not accepted, if it is listening. */
 export function tcpClose(id) {
+  sockets.get(id)?.close();
+  sockets.delete(id);
+}
+
+/** A bound UDP socket. */
+class Datagrams {
+  /** @param {dgram.Socket} socket */
+  constructor(id, socket) {
+    this.id = id;
+    this.socket = socket;
+    /**
+     * The datagrams received and not read yet, as `datagram` events. Node reads every datagram as
+     * soon as it arrives, so they wait here rather than in the system's buffer.
+     */
+    this.queue = [];
+    /** Whether a read is waiting for a datagram. */
+    this.reading = false;
+    socket.unref();
+    socket.on("message", (msg, rinfo) => {
+      // `msg` may be a view of memory shared with other buffers, so copy it before transferring.
+      const bytes = new Uint8Array(msg);
+      this.receive({ id, kind: "datagram", bytes, from: address(rinfo.address, rinfo.port) }, [
+        bytes.buffer,
+      ]);
+    });
+    socket.on("error", (err) => this.receive({ id, kind: "datagram", error: err.code }));
+  }
+
+  /** Answers the waiting read with the `datagram` event `event`, or queues it if there is none. */
+  receive(event, transfer = []) {
+    if (this.reading) {
+      this.reading = false;
+      post(event, transfer);
+    } else {
+      this.queue.push({ event, transfer });
+    }
+  }
+
+  local() {
+    const { address: host, port } = this.socket.address();
+    return address(host, port);
+  }
+
+  close() {
+    this.socket.close();
+  }
+}
+
+/**
+ * Opens the UDP socket `id`, for IPv4 if `family` is `udp4` and IPv6 if it is `udp6`, binds it to
+ * `local`, or to an unused port of every address if it is `null`, and returns the address it is
+ * bound to.
+ */
+export function udpBind(id, family, local) {
+  const socket = dgram.createSocket({ type: family, reuseAddr: true });
+  return new Promise((resolve, reject) => {
+    const onError = (err) => {
+      socket.close();
+      reject(err);
+    };
+    socket.once("error", onError);
+    socket.bind(
+      { address: local?.address ?? (family === "udp4" ? "0.0.0.0" : "::"), port: local?.port ?? 0 },
+      () => {
+        socket.off("error", onError);
+        const datagrams = new Datagrams(id, socket);
+        sockets.set(id, datagrams);
+        resolve(datagrams.local());
+      },
+    );
+  });
+}
+
+/**
+ * Connects the bound UDP socket `id` to `remote`, and returns its `local` and `remote` addresses,
+ * as the system may pick a local address to send to `remote` from.
+ */
+export function udpConnect(id, remote) {
+  const datagrams = sockets.get(id);
+  return new Promise((resolve, reject) => {
+    datagrams.socket.connect(remote.port, remote.address, (err) => {
+      if (err) {
+        reject(err);
+      } else {
+        const peer = datagrams.socket.remoteAddress();
+        resolve({ local: datagrams.local(), remote: address(peer.address, peer.port) });
+      }
+    });
+  });
+}
+
+/**
+ * Sends `bytes` as a datagram from the UDP socket `id` to `remote`, or to the address it is
+ * connected to if `remote` is `null`, and answers with a `udpSent` event.
+ */
+export function udpSend(id, bytes, remote) {
+  const { socket } = sockets.get(id);
+  const callback = (err) => post({ id, kind: "udpSent", error: err?.code });
+  if (remote === null) {
+    socket.send(bytes, callback);
+  } else {
+    socket.send(bytes, remote.port, remote.address, callback);
+  }
+}
+
+/** Answers with a `datagram` event once the UDP socket `id` has received a datagram or failed. */
+export function udpRead(id) {
+  const datagrams = sockets.get(id);
+  const next = datagrams.queue.shift();
+  if (next === undefined) {
+    datagrams.reading = true;
+  } else {
+    post(next.event, next.transfer);
+  }
+}
+
+/** Cancels the waiting read of the UDP socket `id`, if any. */
+export function udpCancelRead(id) {
+  sockets.get(id).reading = false;
+}
+
+/**
+ * Calls the method `name` of the UDP socket `id`, such as `setTTL`, with the arguments `args`,
+ * throwing the error it reports.
+ */
+export function udpSetOption(id, name, args) {
+  sockets.get(id).socket[name](...args);
+}
+
+/** Closes the UDP socket `id`. */
+export function udpClose(id) {
   sockets.get(id)?.close();
   sockets.delete(id);
 }

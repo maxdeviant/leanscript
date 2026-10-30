@@ -424,6 +424,13 @@ function post(type, ...args) {
   channel.port.postMessage({ type, args, noReply: true });
 }
 
+let lastSocketId = 0;
+
+/**
+ * Returns a new ID for a socket that the main thread will have, unique among sockets of every kind.
+ */
+export const newSocketId = () => ++lastSocketId;
+
 /** The number of socket requests waiting for an event, which keep the program running. */
 let awaitedSocketEvents = 0;
 

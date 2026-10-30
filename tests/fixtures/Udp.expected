@@ -1,0 +1,54 @@
+bound to an ephemeral port: true
+received "hello" from the sender: true
+received "one"
+received "two"
+received ""
+received truncated "hello"
+received "last"
+replied "reply"
+received 8000 bytes, intact: true
+send too much: resource exhausted (message too long)
+peer is the address connected to: true
+name is unchanged: true
+received "connected"
+send to an address when connected: already exists (socket is already connected)
+connect twice: already exists (socket is already connected)
+received "peer"
+connecting binds to an ephemeral port: true
+received "fresh" from the connected socket: true
+sending binds to 0.0.0.0, on an ephemeral port: true
+received "implicit" from that port: true
+receiving binds to 0.0.0.0, on an ephemeral port: true
+sending to IPv6 binds to ::
+received "six" over IPv6
+invalid membership: invalid argument (invalid argument)
+setting membership binds to 0.0.0.0
+receive with no data: timed out
+received with a selector: "ping"
+name of a new socket: invalid argument (bad file descriptor)
+peer of a new socket: invalid argument (bad file descriptor)
+send to no address: invalid argument (destination address required)
+broadcast on a new socket: invalid argument (bad file descriptor)
+multicast loop on a new socket: invalid argument (bad file descriptor)
+TTL 0: invalid argument (invalid argument)
+TTL 256: invalid argument (invalid argument)
+TTL on a new socket: invalid argument (bad file descriptor)
+multicast TTL 256: invalid argument (invalid argument)
+multicast TTL on a new socket: invalid argument (bad file descriptor)
+multicast interface on a new socket: invalid argument (bad file descriptor)
+bind twice: invalid argument (invalid argument)
+peer of a bound socket: invalid argument (socket is not connected)
+broadcast: ok
+multicast loop: ok
+TTL: ok
+multicast TTL 0: ok
+multicast interface: ok
+multicast interface that is not local: unsupported operation (address not available)
+join a group that is not multicast: invalid argument (invalid argument)
+leave a group that was not joined: unsupported operation (address not available)
+parallel receive: connection already in progress
+parallel waitReadable: connection already in progress
+receive nothing: resource exhausted (no buffer space available)
+receive after cancel: "abc"
+receive from a closed port: no such thing (connection refused)
+done

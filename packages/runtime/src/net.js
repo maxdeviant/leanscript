@@ -202,6 +202,9 @@ export function mkIpAddr(s) {
     : mkCtor(0, [mkArray(octets)], null);
 }
 
+/** Returns the borrowed `Std.Net.IPAddr` `ip` as a string. */
+export const formatIpAddr = (ip) => (ip.tag === 0 ? formatIpv4(ip.f0) : formatIpv6(ip.f0));
+
 /** Returns the IP address of the borrowed `Std.Net.SocketAddress` `addr` as a string. */
 export const formatSocketAddress = (addr) =>
   addr.tag === 0 ? formatIpv4(addr.f0.f0) : formatIpv6(addr.f0.f0);

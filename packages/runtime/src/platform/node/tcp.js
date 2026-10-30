@@ -5,18 +5,19 @@
 // checks before it makes a system call, so that those errors are reported without asking the main
 // thread.
 
-import { CHILDREN, dec, inc, mkCtor, RC, track } from "../../core.js";
+import { CHILDREN, dec, inc, RC, track } from "../../core.js";
 import { LeanByteArray } from "../../bytearray.js";
-import { ioError, ioOk, mkIoError } from "../../io.js";
-import { formatSocketAddress, mkSocketAddress, socketAddressPort } from "../../net.js";
+import { ioOk } from "../../io.js";
+import { mkSocketAddress } from "../../net.js";
 import { IoPromise, resolvePromise } from "../../task.js";
 import {
+  newSocketId,
   onSocketEvent,
   socketEventArrived,
   socketPost,
   socketRequest,
-  systemError,
 } from "./host.js";
+import { attemptRequest, fail, failed, fromSocketAddress, ok } from "./socket-results.js";
 
 /** Created, without a socket yet, which libuv only opens when it is first needed. */
 const NEW = 0;
@@ -26,30 +27,8 @@ const BOUND = 1;
 const CONNECTED = 2;
 const LISTENING = 3;
 
-/** Returns the `IO.Error` for the system error `code`, with the message `message` if it is given. */
-function error(code, message) {
-  // An error that is not a system error, such as writing to a destroyed stream, is what libuv
-  // reports for requests that are canceled when the socket closes.
-  const sys = systemError({ code }) ?? systemError({ code: "ECANCELED" });
-  return mkIoError(message === undefined ? sys : { ...sys, message }, undefined);
-}
-
-const fail = (code, message) => ioError(error(code, message));
-
-const ok = (x) => mkCtor(1, [x], null);
-
-const failed = (code) => mkCtor(0, [error(code)], null);
-
-/** Returns `{ address, port }` for the borrowed `Std.Net.SocketAddress` `addr`. */
-const fromSocketAddress = (addr) => ({
-  address: formatSocketAddress(addr),
-  port: socketAddressPort(addr),
-});
-
 /** The sockets that the main thread has, by ID, to route its events to. */
 const sockets = new Map();
-
-let lastId = 0;
 
 let listening = false;
 
@@ -74,7 +53,7 @@ class TcpSocket {
       listening = true;
     }
     this[RC] = 1;
-    this.id = ++lastId;
+    this.id = newSocketId();
     this.state = NEW;
     /** The address the socket is bound to, or `null`, as `{ address, port }`. */
     this.local = null;
@@ -284,15 +263,6 @@ function acceptedSocket(client) {
   socket.id = client.id;
   socket.open(CONNECTED, client.local, client.remote);
   return socket;
-}
-
-/** Calls `f`, returning its result, or the `IO.Error` for the system error it throws. */
-function attemptRequest(f) {
-  try {
-    return f();
-  } catch (err) {
-    return fail(err.code);
-  }
 }
 
 export const externs = {

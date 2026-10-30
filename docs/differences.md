@@ -144,8 +144,9 @@ Waiting for a child process, or for its output, blocks, which only a worker can 
 thread's event loop runs the child. So a program's `main` can spawn processes, but a library whose
 functions are called on the main thread can't: `IO.Process.spawn` throws there.
 
-TCP sockets live on the main thread for the same reason, as listening must wait for Node to finish
-before it returns. So `TCP.Socket.new` throws on the main thread.
+TCP and UDP sockets live on the main thread for the same reason, as binding and listening must wait
+for Node to finish before they return. So `TCP.Socket.new` and `UDP.Socket.new` throw on the main
+thread.
 
 ### Child output is read eagerly
 
@@ -205,6 +206,14 @@ so `getSockName` fails with "bad file descriptor" until then.
 Node accepts each connection as soon as it arrives, and LeanScript holds it until the program accepts
 it. So the backlog given to `TCP.Socket.listen` doesn't limit the connections waiting to be
 accepted, where natively the system refuses connections beyond it.
+
+### UDP datagrams are read eagerly
+
+**Status:** Accepted.
+
+Node reads each datagram as soon as it arrives, and LeanScript holds it until the program receives
+it. So datagrams are never dropped because the system's receive buffer is full, where natively they
+are once the program falls behind, and the datagrams waiting to be received take up memory instead.
 
 ## Browsers
 
