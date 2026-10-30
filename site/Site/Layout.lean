@@ -12,6 +12,13 @@ def siteUrl : String := "https://leanscript.org"
 def fontsUrl : String :=
   "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;0,700;1,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
 
+/-- The URL of the Plausible script for the site. -/
+def plausibleUrl : String := "https://plausible.io/js/pa-Kh9k_pCeAH3Ggm5PB0ToZ.js"
+
+/-- Queues calls to Plausible until its script loads, which replays them once it does. -/
+def initPlausible : String := "window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+plausible.init()"
+
 /-- The site's name, with its mark. -/
 def logo : Html :=
   a [href "/", cls "flex items-center gap-2 font-mono text-lg font-bold tracking-tight"] [
@@ -108,6 +115,8 @@ def layout (ctx : Context) (pageTitle : String) (description : String) (path : S
       «meta» [("property", "og:image:alt"), ("content", card.alt)],
       «meta» [("name", "twitter:card"), ("content", "summary_large_image")],
       script [] [.raw applySavedTheme],
+      script [("async", ""), ("src", plausibleUrl)] [],
+      script [] [.raw initPlausible],
       link [("rel", "icon"), ("href", "/favicon.svg"), ("type", "image/svg+xml")],
       link [("rel", "preconnect"), ("href", "https://fonts.googleapis.com")],
       link [("rel", "preconnect"), ("href", "https://fonts.gstatic.com"), ("crossorigin", "")],
