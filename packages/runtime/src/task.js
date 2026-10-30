@@ -48,7 +48,7 @@ const BLOCKED = Symbol("blocked");
 const promiseTasks = new WeakSet();
 
 /** An `IO.Promise`, which owns its result task, and resolves it to `none` if it is dropped. */
-export class IOPromise {
+export class IoPromise {
   constructor() {
     this[RC] = 1;
     this.task = new Task(0, []);
@@ -264,7 +264,7 @@ export const externs = {
         "`IO.Promise.new` called before the task manager is running; this typically happens when called (directly or transitively, e.g. via `IO.CancelToken.new`) from an `initialize` block. Construct lazily on first use instead.",
       );
     }
-    return new IOPromise();
+    return new IoPromise();
   },
   // Only the first call has an effect.
   "IO.Promise.resolve": (_α, value, promise, _w) => {

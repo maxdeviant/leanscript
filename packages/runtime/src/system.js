@@ -2,7 +2,7 @@
 
 import { mkCtor } from "./core.js";
 import { ioOk, randomByteArray } from "./io.js";
-import { IOPromise, resolvePromise } from "./task.js";
+import { IoPromise, resolvePromise } from "./task.js";
 import { monotonicNanos } from "#platform/host.js";
 
 export const externs = {
@@ -10,7 +10,7 @@ export const externs = {
   // The C runtime fills the bytes on libuv's thread pool, so the promise may resolve at any time
   // after it is returned, including right away.
   "Std.Internal.UV.System.random": (size, _w) => {
-    const promise = new IOPromise();
+    const promise = new IoPromise();
     resolvePromise(promise, mkCtor(1, [randomByteArray(Number(size))], null));
     return ioOk(promise);
   },

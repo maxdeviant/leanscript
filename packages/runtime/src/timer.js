@@ -5,7 +5,7 @@
 
 import { CHILDREN, dec, inc, RC, track } from "./core.js";
 import { ioOk } from "./io.js";
-import { IOPromise, isResolved, resolvePromise } from "./task.js";
+import { IoPromise, isResolved, resolvePromise } from "./task.js";
 
 const INITIAL = 0;
 const RUNNING = 1;
@@ -28,7 +28,7 @@ class Timer {
     this.timeout = timeout;
     this.repeating = repeating;
     this.state = INITIAL;
-    /** @type {IOPromise | null} */
+    /** @type {IoPromise | null} */
     this.promise = null;
     /** The handle of the scheduled `setTimeout`, or `null`. */
     this.handle = null;
@@ -113,7 +113,7 @@ export const externs = {
     ioOk(new Timer(Number(timeout), repeating === 1)),
   "Std.Internal.UV.Timer.next": (timer, _w) => {
     if (timer.state === INITIAL) {
-      timer.promise = new IOPromise();
+      timer.promise = new IoPromise();
       timer.state = RUNNING;
       // The scheduled callback keeps the timer alive while it is running.
       inc(timer);
@@ -125,13 +125,13 @@ export const externs = {
     if (timer.repeating && timer.state === RUNNING) {
       if (timer.promise === null || isResolved(timer.promise)) {
         timer.dropPromise();
-        timer.promise = new IOPromise();
+        timer.promise = new IoPromise();
       }
       return ioOk(share(timer.promise));
     }
     // Like the C runtime, a timer without a promise returns a new one that it never resolves, so
     // that it resolves to `none` once it is dropped.
-    return ioOk(timer.promise === null ? new IOPromise() : share(timer.promise));
+    return ioOk(timer.promise === null ? new IoPromise() : share(timer.promise));
   },
   "Std.Internal.UV.Timer.reset": (timer, _w) => {
     if (timer.state === RUNNING) {

@@ -8,7 +8,7 @@ import { mkArray } from "../../array.js";
 import { ioError, ioOk, mkIoError } from "../../io.js";
 import { formatSocketAddress, mkIpAddr } from "../../net.js";
 import { mkString } from "../../string.js";
-import { IOPromise, resolvePromise } from "../../task.js";
+import { IoPromise, resolvePromise } from "../../task.js";
 import { lookupHost, lookupService, systemError } from "./host.js";
 
 /** The IP version to resolve to for each `getAddrInfo` family, where 0 is either version. */
@@ -19,7 +19,7 @@ const versions = [0, 4, 6];
  * that resolves the promise with an owned `Except IO.Error α` once the request finishes.
  */
 function request(start) {
-  const promise = new IOPromise();
+  const promise = new IoPromise();
   // The request holds a reference until it resolves the promise.
   inc(promise);
   start((result) => {
