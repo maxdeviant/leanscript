@@ -83,11 +83,13 @@ class Timer {
         resolvePromise(this.promise, 0);
       }
     } else {
+      // The promise's continuations run as soon as it is resolved, and may cancel the timer, so it
+      // must have finished by then. In the C runtime, they wait for the event loop's lock instead.
+      this.stop();
+      this.state = FINISHED;
       if (this.promise !== null) {
         resolvePromise(this.promise, 0);
       }
-      this.stop();
-      this.state = FINISHED;
       // The scheduled callback no longer needs to keep the timer alive.
       dec(this);
     }

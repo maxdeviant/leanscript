@@ -16,4 +16,5 @@ second is new: true
 second tick: resolved
 second tick: at least 5ms: true
 after stop: dropped
+first sleep to finish: short
 done

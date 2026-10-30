@@ -64,10 +64,20 @@ def timers : Async Unit := do
   -- A stopped timer has no promise, so `next` returns one that it never resolves.
   IO.println s!"after stop: {showResult (← await (← repeating.next).result?)}"
 
+def selectors : Async Unit := do
+  -- The winner cancels the other timers as soon as it fires, while it is still finishing.
+  let short ← Selector.sleep 10
+  let long ← Selector.sleep 1000
+  let winner ← Selectable.one #[
+    .case long fun _ => return "long",
+    .case short fun _ => return "short"]
+  IO.println s!"first sleep to finish: {winner}"
+
 def program : Async Unit := do
   sleeps
   resets
   timers
+  selectors
   IO.println "done"
 
 def main : IO Unit := do
