@@ -18,7 +18,7 @@ function hexDigit(ch) {
 }
 
 /** Returns the octets of the IPv4 address `s` in dotted decimal, or `null` if it is not one. */
-export function parseIPv4(s) {
+export function parseIpv4(s) {
   const octets = [0];
   let sawDigit = false;
   for (const ch of s) {
@@ -52,7 +52,7 @@ export function parseIPv4(s) {
  * Returns the segments of the IPv6 address `s`, or `null` if it is not one. A zone after a `%` is
  * ignored. The last 32 bits may be written as an IPv4 address.
  */
-export function parseIPv6(s) {
+export function parseIpv6(s) {
   const zone = s.indexOf("%");
   if (zone !== -1) {
     s = s.slice(0, zone);
@@ -100,7 +100,7 @@ export function parseIPv6(s) {
       continue;
     }
     if (ch === "." && tp + 4 <= 16) {
-      const octets = parseIPv4(s.slice(curtok));
+      const octets = parseIpv4(s.slice(curtok));
       if (octets !== null) {
         bytes.set(octets, tp);
         tp += 4;
@@ -135,14 +135,14 @@ export function parseIPv6(s) {
   return Array.from({ length: 8 }, (_, k) => (bytes[2 * k] << 8) | bytes[2 * k + 1]);
 }
 
-const formatIPv4 = (octets) => octets.join(".");
+const formatIpv4 = (octets) => octets.join(".");
 
 /**
  * Formats the IPv6 address with the 16-bit `segments`, writing the longest run of two or more zero
  * segments, the first of the longest, as `::`. An IPv4-compatible or IPv4-mapped address ends in
  * its IPv4 address.
  */
-export function formatIPv6(segments) {
+export function formatIpv6(segments) {
   let best = { base: -1, len: 0 };
   let cur = { base: -1, len: 0 };
   for (let i = 0; i <= 8; i++) {
@@ -180,7 +180,7 @@ export function formatIPv6(segments) {
         (best.len === 7 && segments[7] !== 1) ||
         (best.len === 5 && segments[5] === 0xffff))
     ) {
-      s += formatIPv4([segments[6] >> 8, segments[6] & 0xff, segments[7] >> 8, segments[7] & 0xff]);
+      s += formatIpv4([segments[6] >> 8, segments[6] & 0xff, segments[7] >> 8, segments[7] & 0xff]);
       break;
     }
     s += segments[i].toString(16);
@@ -191,11 +191,26 @@ export function formatIPv6(segments) {
   return s;
 }
 
+/**
+ * Returns a `Std.Net.IPAddr` for `s`, which must be an IPv4 address in dotted decimal or an IPv6
+ * address, as the host reports them.
+ */
+export function mkIpAddr(s) {
+  const octets = parseIpv4(s);
+  return octets === null
+    ? mkCtor(1, [mkArray(parseIpv6(s))], null)
+    : mkCtor(0, [mkArray(octets)], null);
+}
+
+/** Returns the IP address of the borrowed `Std.Net.SocketAddress` `addr` as a string. */
+export const formatSocketAddress = (addr) =>
+  addr.tag === 0 ? formatIpv4(addr.f0.f0) : formatIpv6(addr.f0.f0);
+
 const option = (x) => (x === null ? 0 : mkCtor(1, [mkArray(x)], null));
 
 export const externs = {
-  "Std.Net.IPv4Addr.ofString": (s) => option(parseIPv4(s.toString())),
-  "Std.Net.IPv4Addr.toString": (addr) => mkString(formatIPv4(addr)),
-  "Std.Net.IPv6Addr.ofString": (s) => option(parseIPv6(s.toString())),
-  "Std.Net.IPv6Addr.toString": (addr) => mkString(formatIPv6(addr)),
+  "Std.Net.IPv4Addr.ofString": (s) => option(parseIpv4(s.toString())),
+  "Std.Net.IPv4Addr.toString": (addr) => mkString(formatIpv4(addr)),
+  "Std.Net.IPv6Addr.ofString": (s) => option(parseIpv6(s.toString())),
+  "Std.Net.IPv6Addr.toString": (addr) => mkString(formatIpv6(addr)),
 };

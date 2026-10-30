@@ -3,21 +3,16 @@
 import { markPersistent, mkCtor } from "../../core.js";
 import { mkArray } from "../../array.js";
 import { attempt, ioOk } from "../../io.js";
-import { parseIPv4, parseIPv6 } from "../../net.js";
+import { mkIpAddr } from "../../net.js";
 import { mkStream, stdStreamExterns } from "../../stream.js";
 import { mkString } from "../../string.js";
+import { externs as dnsExterns } from "./dns.js";
 import { externs as fsExterns, Handle } from "./fs.js";
 import { externs as processExterns } from "./process.js";
 import { externs as systemExterns } from "./system.js";
 import { executablePath, exitProcess, interfaceAddresses, processId } from "./host.js";
 
 const stdStream = (fd) => mkStream(markPersistent(new Handle(fd, false)));
-
-/** Returns a `Std.Net.IPAddr` for the address `s` of the family `"IPv4"` or `"IPv6"`. */
-const ipAddr = (family, s) =>
-  family === "IPv4"
-    ? mkCtor(0, [mkArray(parseIPv4(s))], null)
-    : mkCtor(1, [mkArray(parseIPv6(s))], null);
 
 /** Returns a `Std.Net.InterfaceAddress` for an address of the interface `name`. */
 const interfaceAddress = (name, a) =>
@@ -26,13 +21,14 @@ const interfaceAddress = (name, a) =>
     [
       mkString(name),
       mkArray(a.mac.split(":").map((octet) => parseInt(octet, 16))),
-      ipAddr(a.family, a.address),
-      ipAddr(a.family, a.netmask),
+      mkIpAddr(a.address),
+      mkIpAddr(a.netmask),
     ],
     { 32: a.internal ? 1 : 0 },
   );
 
 export const externs = {
+  ...dnsExterns,
   ...fsExterns,
   ...processExterns,
   ...systemExterns,

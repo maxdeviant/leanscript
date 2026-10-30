@@ -164,6 +164,24 @@ the same, but the child's `pid` is 0, and it has already exited by the time `spa
 Two native bugs are not reproduced: such a child also writes out a copy of the program's buffered
 standard output, and on macOS, a child spawned with `inheritEnv := false` may crash.
 
+### DNS lookups return each address once
+
+**Status:** Accepted.
+
+Native Lean asks `getaddrinfo` for addresses of any socket type, so `DNS.getAddrInfo` returns each
+address once per socket type: twice on macOS, and three times on Linux. Node's resolver only asks
+for stream sockets, so LeanScript returns each address once, in the same order.
+
+### DNS lookups don't check the service
+
+**Status:** Open.
+
+Native Lean passes the service of `DNS.getAddrInfo` to `getaddrinfo`, which fails with "unknown node
+or service" if it's not a port number or a known service name. Node's resolver takes no service, so
+LeanScript ignores it.
+
+Possible fix: look up service names in `/etc/services`, as `getaddrinfo` does.
+
 ## Browsers
 
 The browser target refuses to compile a program that uses externs that are unavailable there,

@@ -422,6 +422,8 @@ ShareCommon.Object.eq
 ShareCommon.Object.hash
 ShareCommon.State.shareCommon
 ShareCommon.shareCommon'
+Std.Internal.UV.DNS.getAddrInfo
+Std.Internal.UV.DNS.getNameInfo
 Std.Internal.UV.System.availableMemory
 Std.Internal.UV.System.chdir
 Std.Internal.UV.System.constrainedMemory

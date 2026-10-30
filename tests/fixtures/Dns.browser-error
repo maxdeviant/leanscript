@@ -1,0 +1,4 @@
+error: the program uses externs that are not available on target 'browser':
+  main → program → addrInfo → List.forIn'.loop._at_.addrInfo.spec_3._redArg → showAddrs → Std.Internal.UV.DNS.getAddrInfo
+  main → program → program._closed_1 → program._lam_1._boxed → program._lam_1 → nameInfo → List.forIn'.loop._at_.nameInfo.spec_0._redArg → Std.Internal.UV.DNS.getNameInfo
+Compile with `--allow-unavailable` to make them throw when called instead.

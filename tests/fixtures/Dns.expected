@@ -1,0 +1,18 @@
+"127.0.0.1" any: #[127.0.0.1]
+"::1" any: #[::1]
+"::ffff:1.2.3.4" any: #[::ffff:1.2.3.4]
+"0x7f.1" any: #[127.0.0.1]
+"1.2.3" any: #[1.2.0.3]
+"" any: invalid argument (error code: 22, invalid argument)
+"does-not-exist.invalid" any: unknown node or service (error code: 3008)
+"127.0.0.1" IPv4: #[127.0.0.1]
+"::1" IPv6: #[::1]
+localhost: true true false
+localhost families: true true
+::1 as IPv4 fails: true
+127.0.0.1:80: "localhost" "http"
+127.0.0.1:22: "localhost" "ssh"
+127.0.0.1:0: "localhost" "0"
+127.0.0.1:54321: "localhost" "54321"
+192.0.2.1:443: "192.0.2.1" "https"
+done

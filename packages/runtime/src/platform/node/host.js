@@ -1,11 +1,13 @@
 // Host services, implemented with Node's APIs.
 
 import { randomBytes } from "node:crypto";
+import * as dns from "node:dns";
 import * as fs from "node:fs";
+import { isIP } from "node:net";
 import * as os from "node:os";
 import { join } from "node:path";
 import { isatty } from "node:tty";
-import { getSystemErrorMessage } from "node:util";
+import { getSystemErrorMessage, getSystemErrorName } from "node:util";
 import {
   isMainThread,
   MessageChannel,
@@ -149,6 +151,75 @@ export const executablePath = () => process.execPath;
  */
 export const interfaceAddresses = () =>
   Object.entries(os.networkInterfaces()).flatMap(([name, addrs]) => addrs.map((a) => [name, a]));
+
+/** Returns the system error, in the form that `systemError` returns, for the libuv error `code`. */
+const uvError = (code) => ({
+  name: getSystemErrorName(code),
+  errno: -code,
+  message: getSystemErrorMessage(code),
+});
+
+const UV_EAI_ADDRFAMILY = -3000;
+const UV_EAI_NONAME = -3008;
+
+/**
+ * Returns the libuv error that `getaddrinfo` reports for an IP address of the version `version`
+ * when asked only for the other version, or `undefined` where it instead returns the IPv4-mapped
+ * IPv6 address. glibc reports `EAI_ADDRFAMILY` for both versions, while macOS maps an IPv4 address
+ * and reports `EAI_NONAME` for an IPv6 one.
+ */
+function familyMismatch(version) {
+  if (process.platform !== "darwin") {
+    return UV_EAI_ADDRFAMILY;
+  }
+  return version === 6 ? UV_EAI_NONAME : undefined;
+}
+
+/**
+ * Resolves `host` like `getaddrinfo`, to addresses of the IP version `family` (4 or 6), or of either
+ * if it is 0. Calls `callback` with a system error, in the form that `systemError` returns, or with
+ * `undefined` and the addresses, in the resolver's order.
+ */
+export function lookupHost(host, family, callback) {
+  // Node returns an IP address as it is, without calling `getaddrinfo`, even if it is of the other
+  // version, so do what `getaddrinfo` would.
+  const version = isIP(host);
+  if (version !== 0 && family !== 0 && version !== family) {
+    const code = familyMismatch(version);
+    queueMicrotask(() =>
+      code === undefined ? callback(undefined, [`::ffff:${host}`]) : callback(uvError(code)),
+    );
+    return;
+  }
+  dns.lookup(host, { family, all: true, order: "verbatim" }, (err, addresses) => {
+    if (err) {
+      callback(uvError(err.errno));
+    } else {
+      const ips = addresses.map((a) => a.address);
+      callback(undefined, ips);
+    }
+  });
+}
+
+/**
+ * Looks up the host name and service name of the IP address `address` and `port`, like
+ * `getnameinfo` without flags, which falls back to the numeric address when the address has no
+ * name. Calls `callback` with the host name and the service name.
+ */
+export function lookupService(address, port, callback) {
+  dns.lookupService(address, port, (err, host, service) => {
+    if (!err) {
+      callback(host, service);
+      return;
+    }
+    // Node requires a name for the address (`NI_NAMEREQD`), so it fails where `getnameinfo`
+    // without flags falls back. The service name doesn't depend on the address, so look it up
+    // with the loopback address, which has a name.
+    dns.lookupService("127.0.0.1", port, (loopbackErr, _host, loopbackService) =>
+      callback(address, loopbackErr ? String(port) : loopbackService),
+    );
+  });
+}
 
 export const parentProcessId = () => process.ppid;
 
