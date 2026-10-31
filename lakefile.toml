@@ -16,3 +16,12 @@ root = "Main"
 # The compiler elaborates user code, which may run `#eval`, macros, and other
 # compile-time code through the interpreter.
 supportInterpreter = true
+
+# Libraries that test fixtures import, which aren't built by default.
+[[lean_lib]]
+name = "InitOrderModule"
+srcDir = "../tests/fixtures/lib"
+
+[[lean_lib]]
+name = "InitOrderPlain"
+srcDir = "../tests/fixtures/lib"

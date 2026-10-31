@@ -141,6 +141,34 @@ where
           | none => #[]
         go ((imports.map Import.module).toList ++ rest) (acc.insert m)
 
+/-- Returns where the declaration `n` starts in its source file, if that is known. -/
+def declStart? (env : Environment) (n : Name) : Option Position :=
+  let ranges? := declRangeExt.find? env n (level := .exported) <|>
+    declRangeExt.find? env n (level := .server)
+  ranges?.map (·.range.pos)
+
+/--
+Merges `as` and `bs`, which are each in declaration order, into one list in declaration order. Each
+list's own order is always kept. Where the position of a declaration isn't known, or two start at
+the same position, the one in `as` comes first.
+-/
+def mergeDeclOrder (env : Environment) (as bs : Array Name) : Array Name := Id.run do
+  let isBefore (b a : Name) :=
+    match declStart? env b, declStart? env a with
+    | some q, some p => q.line < p.line || (q.line == p.line && q.column < p.column)
+    | _, _ => false
+  let mut result := #[]
+  let mut i := 0
+  let mut j := 0
+  while h : i < as.size ∧ j < bs.size do
+    if isBefore bs[j] as[i] then
+      result := result.push bs[j]
+      j := j + 1
+    else
+      result := result.push as[i]
+      i := i + 1
+  return result ++ as.extract i ++ bs.extract j
+
 /--
 Returns the declarations that native Lean initializes at startup, in the order it initializes them:
 the `IO Unit` initializers and the `[init]` declarations of every imported module in import order,
@@ -156,11 +184,14 @@ def initDecls (env : Environment) : Array Name := Id.run do
   let mut result := #[]
   for name in env.header.moduleNames, md in env.header.moduleData, idx in 0...* do
     if runtime.contains name then
-      -- These lists are in declaration order, and unlike a module's constants, the list in its IR
-      -- has every initializer, even if an importing module can't see it.
-      let inits := builtinInitAttr.ext.getModuleEntries env idx ++
-        regularInitAttr.ext.getModuleIREntries env idx
-      result := result ++ (inits.map (·.1)).filter (isRuntime md.isModule)
+      -- Each of these lists is in declaration order, and unlike a module's constants, the list in
+      -- its IR has every initializer, even if an importing module can't see it. Neither says how
+      -- the two lists interleave, which the positions of the declarations do, for modules and
+      -- non-modules alike.
+      let inits := mergeDeclOrder env
+        ((regularInitAttr.ext.getModuleIREntries env idx).map (·.1))
+        ((builtinInitAttr.ext.getModuleEntries env idx).map (·.1))
+      result := result ++ inits.filter (isRuntime md.isModule)
   let isInit (n : Name) :=
     isIOUnitInitFn env n || isIOUnitBuiltinInitFn env n || (getInitFnNameFor? env n).isSome
   return result ++ ((getDecls env).reverse.map (·.name)).filter

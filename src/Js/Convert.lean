@@ -33,7 +33,7 @@ def throwMismatch (expected : String) (v : JsValue) : IO α :=
   throw <| .userError s!"expected {expected}, got {actual}"
 
 /-- Returns the value in `a?`, or if there is none, throws an error saying `v` is not `expected`. -/
-def orMismatch(expected : String) (v : JsValue) (a? : Option α) : IO α :=
+def orMismatch (expected : String) (v : JsValue) (a? : Option α) : IO α :=
   match a? with
   | some a => pure a
   | none => v.throwMismatch expected
