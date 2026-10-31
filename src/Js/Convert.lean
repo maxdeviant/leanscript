@@ -1,4 +1,6 @@
-import Js.Value
+module
+
+public import Js.Value
 
 /-!
 Conversions between Lean values and JS values.
@@ -7,6 +9,8 @@ Conversions between Lean values and JS values.
 identity. `FromJs` converts in `IO`, since it may read a mutable object, and it throws an
 `IO.userError` when a value has the wrong type.
 -/
+
+public section
 
 /-- Types whose values convert to JS values. -/
 class ToJs (α : Type) where
@@ -29,7 +33,7 @@ def throwMismatch (expected : String) (v : JsValue) : IO α :=
   throw <| .userError s!"expected {expected}, got {actual}"
 
 /-- Returns the value in `a?`, or if there is none, throws an error saying `v` is not `expected`. -/
-private def orMismatch (expected : String) (v : JsValue) (a? : Option α) : IO α :=
+def orMismatch(expected : String) (v : JsValue) (a? : Option α) : IO α :=
   match a? with
   | some a => pure a
   | none => v.throwMismatch expected

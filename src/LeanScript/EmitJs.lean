@@ -213,7 +213,7 @@ which is every constant other than externs and `[init]` declarations.
 -/
 def isCachedConst (env : Environment) (decl : Decl) : Bool :=
   match decl with
-  | .fdecl f xs .. => xs.isEmpty && (getInitFnNameFor? env f).isNone
+  | .fdecl f xs .. => xs.isEmpty && (initFnFor? env f).isNone
   | .extern .. => false
 
 /-- The variable that caches the value of the constant `n`, which is `undefined` until first use. -/
@@ -462,7 +462,7 @@ def emitDecl (decl : Decl) : EmitM Unit := do
     | none => emitLn s!"const {name} = $ext[{quoteJs decl.name.toString}];"
   | .fdecl f xs _ body _ =>
     if xs.isEmpty then
-      if (getInitFnNameFor? env f).isSome then
+      if (initFnFor? env f).isSome then
         emitLn s!"const {name} = $rt.initCell();"
       else
         -- Reading the variable directly, rather than through a function that checks it, keeps
@@ -726,7 +726,7 @@ def emitProgram (env : Environment) (opts : EmitOptions := {}) : Except String E
     emitLn "const $inits = ["
     withIndent do
       for n in inits do
-        match getInitFnNameFor? env n with
+        match initFnFor? env n with
         | some initFn => emitLn s!"[{toJsName initFn}, {toJsName n}],"
         | none => emitLn s!"[{toJsName n}],"
     emitLn "];"

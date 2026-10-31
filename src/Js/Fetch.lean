@@ -1,4 +1,6 @@
-import Js.Promise
+module
+
+public import Js.Promise
 import Js.Deriving
 
 /-!
@@ -10,6 +12,8 @@ field, so these types also cross JS externs and exports as the JS object itself.
 
 The bindings are in the `Js.Fetch` namespace, as names such as `Request` and `Response` are common.
 -/
+
+public section
 
 open Std.Async
 

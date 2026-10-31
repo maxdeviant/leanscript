@@ -1,3 +1,5 @@
+module
+
 /-!
 `JsValue` is any JS value, which JS externs receive and return as is. Primitive JS values are
 immutable, so converting them is pure. Objects are mutable, so reading or writing them is `IO`, as
@@ -5,6 +7,8 @@ is creating one, since each new object has its own identity. JS exceptions becom
 
 The externs here are inline JS, which may use `$rt`, the LeanScript runtime module.
 -/
+
+public section
 
 /-- The representation of `JsValue`. -/
 opaque JsValue.Pointed : NonemptyType

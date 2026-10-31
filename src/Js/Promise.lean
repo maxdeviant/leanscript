@@ -1,11 +1,15 @@
-import Std.Async.Basic
-import Js.Convert
+module
+
+public import Std.Async.Basic
+public import Js.Convert
 
 /-!
 JS promises and Lean tasks convert to each other. Code that waits for a JS promise cannot block, so
 it must run as a continuation of the promise's task, which the `Async` monad from `Std.Async`
 takes care of: see `JsValue.await` and `JsValue.ofAsync`.
 -/
+
+public section
 
 open Std.Async
 

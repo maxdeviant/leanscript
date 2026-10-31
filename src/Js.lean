@@ -1,10 +1,12 @@
-import Js.Value
-import Js.Convert
-import Js.Promise
-import Js.Fetch
-import Js.Function
-import Js.Dom
-import Js.Deriving
+module
+
+public import Js.Value
+public import Js.Convert
+public import Js.Promise
+public import Js.Fetch
+public import Js.Function
+public import Js.Dom
+public import Js.Deriving
 
 /-!
 Interoperation with JavaScript, for programs compiled with LeanScript.

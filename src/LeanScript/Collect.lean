@@ -5,6 +5,18 @@ namespace LeanScript
 
 open Lean IR
 
+/--
+Returns the initializer function of the `[init]` declaration `n`, if it has one. Unlike
+`getInitFnNameFor?`, this finds the non-`meta` initializers of modules imported by a module, whose
+environment only has them with the IR of the modules that declare them.
+-/
+def initFnFor? (env : Environment) (n : Name) : Option Name :=
+  getInitFnNameFor? env n <|> do
+    let idx ← env.getModuleIdxFor? n
+    let (_, initFn) ← (regularInitAttr.ext.getModuleIREntries env idx).find? (·.1 == n)
+    guard !initFn.isAnonymous
+    return initFn
+
 /-- Appends every function referenced by a full or partial application in `e` to `acc`. -/
 def collectExprFns (e : IR.Expr) (acc : Array Name) : Array Name :=
   match e with
@@ -71,7 +83,7 @@ def collectReachable (env : Environment) (roots : Array Name) : Except String Pr
         stack := stack.push impl
         continue
     result := { result with decls := result.decls.push decl }
-    if let some initFn := getInitFnNameFor? env name then
+    if let some initFn := initFnFor? env name then
       stack := stack.push initFn
     if let .fdecl (body := body) .. := decl then
       stack := collectBodyFns body stack
@@ -103,7 +115,7 @@ def Program.callPath (env : Environment) (program : Program) (roots : Array Name
       | some impl, _ => #[impl]
       | none, some (.fdecl (body := body) ..) => collectBodyFns body #[]
       | _, _ => #[]
-    if let some initFn := getInitFnNameFor? env name then
+    if let some initFn := initFnFor? env name then
       callees := callees.push initFn
     for callee in callees do
       unless callers.contains callee do
@@ -139,14 +151,19 @@ module system: those of modules imported through `meta` imports and `meta` decla
 at compile time.
 -/
 def initDecls (env : Environment) : Array Name := Id.run do
-  let isInit (isModule : Bool) (n : Name) :=
-    (isIOUnitInitFn env n || isIOUnitBuiltinInitFn env n || (getInitFnNameFor? env n).isSome) &&
-      !(isModule && isMarkedMeta env n)
+  let isRuntime (isModule : Bool) (n : Name) := !(isModule && isMarkedMeta env n)
   let runtime := runtimeModules env
   let mut result := #[]
-  for name in env.header.moduleNames, md in env.header.moduleData do
+  for name in env.header.moduleNames, md in env.header.moduleData, idx in 0...* do
     if runtime.contains name then
-      result := result ++ md.constNames.filter (isInit md.isModule)
-  return result ++ ((getDecls env).reverse.map (·.name)).filter (isInit env.header.isModule)
+      -- These lists are in declaration order, and unlike a module's constants, the list in its IR
+      -- has every initializer, even if an importing module can't see it.
+      let inits := builtinInitAttr.ext.getModuleEntries env idx ++
+        regularInitAttr.ext.getModuleIREntries env idx
+      result := result ++ (inits.map (·.1)).filter (isRuntime md.isModule)
+  let isInit (n : Name) :=
+    isIOUnitInitFn env n || isIOUnitBuiltinInitFn env n || (getInitFnNameFor? env n).isSome
+  return result ++ ((getDecls env).reverse.map (·.name)).filter
+    fun n => isInit n && isRuntime env.header.isModule n
 
 end LeanScript
