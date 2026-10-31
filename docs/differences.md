@@ -55,6 +55,16 @@ Fixtures that rely on this can't run natively, and are marked with a `.no-native
 Like the C runtime, whose task manager only starts after the initializers have run, `IO.Promise.new`
 panics in an `initialize` block. This matches native Lean, but is easy to run into.
 
+### Compiling a module runs the initializers it imports
+
+**Status:** Accepted.
+
+When the file being compiled is a module, native Lean only runs the `meta` initializers of what it
+imports. LeanScript also runs the non-`meta` ones, as it needs the IR of those modules, and the
+import level that loads it also runs them. So their side effects happen at compile time as well as
+at run time, and one that calls a JS extern fails the compilation, as both already do for a file
+that isn't a module.
+
 ## Values
 
 ### `USize` and `ISize` are 32 bits wide

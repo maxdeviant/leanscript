@@ -57,6 +57,14 @@ def elabFile (path : System.FilePath) (moduleName : Name) (opts : Options := {})
   initSearchPath (← findSysroot) (if setup?.isSome then [] else [bundledLibs])
   unsafe enableInitializersExecution
   let setup? := setup?.map ({ · with name := moduleName })
+  let (header, _, _) ← Parser.parseHeader (Parser.mkInputContext input path.toString)
+  -- A module normally only loads the signatures of what it imports, as native code gets the rest
+  -- from linking, but a whole program compiled to JS needs the IR of every function it reaches. The
+  -- language server's import level is the one that loads that IR for a module.
+  let opts := if Elab.HeaderSyntax.isModule header || setup?.any (·.isModule) then
+    Elab.inServer.set opts true
+  else
+    opts
   let some env ← IO.withStdout (← IO.getStderr) do
       Elab.runFrontend input opts path.toString moduleName (setup? := setup?)
     | throw <| .userError s!"failed to elaborate '{path}'"

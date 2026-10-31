@@ -1,4 +1,6 @@
-import Js.Promise
+module
+
+public import Js.Promise
 
 /-!
 Lean functions as JS functions, which JS can call, such as event listeners and other callbacks.
@@ -7,6 +9,8 @@ A JS function may be called for as long as it exists, which only JS's garbage co
 the Lean function it calls is never freed by reference counting, and neither is anything it
 captures. Values it captures are still correct to use, but can no longer be updated in place.
 -/
+
+public section
 
 open Std.Async
 

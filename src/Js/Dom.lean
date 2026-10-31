@@ -1,4 +1,6 @@
-import Js.Function
+module
+
+public import Js.Function
 import Js.Deriving
 
 /-!
@@ -11,6 +13,8 @@ coerces to the types it extends. `EventTarget.cast` converts to a more specific 
 
 The bindings are in the `Js.Dom` namespace, as DOM names such as `Event` and `Node` are common.
 -/
+
+public section
 
 namespace Js.Dom
 
