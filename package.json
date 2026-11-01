@@ -14,9 +14,9 @@
     "format:check": "prettier --check bench packages scripts tests examples/*/vite.config.js site/dev.js site/highlight.mjs site/rasterize.mjs",
     "lint": "oxlint bench packages scripts tests examples/*/vite.config.js site/dev.js site/highlight.mjs site/rasterize.mjs",
     "lint:fix": "oxlint --fix bench packages scripts tests examples/*/vite.config.js site/dev.js site/highlight.mjs site/rasterize.mjs && prettier --write bench packages scripts tests examples/*/vite.config.js site/dev.js site/highlight.mjs site/rasterize.mjs",
-    "test": "node scripts/check-versions.js && node scripts/gen-target-externs.js --check && node scripts/runtime-coverage.js --check && node tests/run.js",
+    "test": "node scripts/check-versions.js && node scripts/gen-numeric-externs.js --check && node scripts/gen-target-externs.js --check && node scripts/runtime-coverage.js --check && node tests/run.js",
     "bench": "node bench/run.js",
-    "gen-externs": "node scripts/gen-target-externs.js"
+    "gen-externs": "node scripts/gen-numeric-externs.js && node scripts/gen-target-externs.js"
   },
   "dependencies": {
     "@leanscript/runtime": "workspace:*"
