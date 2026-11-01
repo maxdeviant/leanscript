@@ -1,9 +1,8 @@
 // `IO` results and errors, and `IO` actions that don't involve files.
 
-import { Ctor1, inc, isInitializing, mkCtor } from "./core.js";
+import { Ctor1, inc, mkCtor } from "./core.js";
 import { LeanByteArray } from "./bytearray.js";
-import { normalize } from "./nat.js";
-import { getEnv, monotonicNanos, systemError } from "#platform/host.js";
+import { monotonicNanos, systemError } from "#platform/host.js";
 import { mkString } from "./string.js";
 
 /** Returns a successful `EST.Out`. Its `Void σ` field is erased, so it has a single field. */
@@ -223,7 +222,7 @@ const MAX_CLOCK_DRIFT = 2000000n;
  * The monotonic clock doesn't follow changes to the system clock, so when the two drift apart, the
  * offset is measured again from `Date.now()`, to within half a millisecond.
  */
-function wallClockNanos() {
+export function wallClockNanos() {
   if (wallClockOffset === undefined) {
     const mono = monotonicNanos();
     const wall = performance.timeOrigin + performance.now();
@@ -238,39 +237,3 @@ function wallClockNanos() {
   }
   return now;
 }
-
-/** The heartbeat counter of `IO.getNumHeartbeats`, which nothing increments. */
-let heartbeats = 0;
-
-// `BaseIO` results are not wrapped in `EST.Out`.
-export const externs = {
-  "IO.initializing": (_w) => (isInitializing() ? 1 : 0),
-  "IO.getEnv": (name, _w) => {
-    const value = getEnv(name.toString());
-    return value === undefined ? 0 : mkCtor(1, [mkString(value)], null);
-  },
-  "IO.monoMsNow": (_w) => normalize(monotonicNanos() / 1000000n),
-  "IO.monoNanosNow": (_w) => normalize(monotonicNanos()),
-  "IO.getRandomBytes": (n, _w) => ioOk(randomByteArray(n)),
-  "IO.getNumHeartbeats": (_w) => heartbeats,
-  "IO.setNumHeartbeats": (count, _w) => {
-    heartbeats = count;
-    return 0;
-  },
-  // All Lean code runs on a single thread.
-  "IO.getTID": (_w) => 1n,
-  "Std.Time.Timestamp.now": (_w) => {
-    const ns = wallClockNanos();
-    // A `Timestamp` is its `Duration` since the epoch, in whole seconds and nanoseconds, which the C
-    // runtime computes with truncating division.
-    return ioOk(mkCtor(0, [normalize(ns / 1000000000n), normalize(ns % 1000000000n)], null));
-  },
-  "System.Platform.getIsWindows": (_unit) => 0,
-  "System.Platform.getIsOSX": (_unit) => 0,
-  "System.Platform.getIsLinux": (_unit) => 0,
-  "System.Platform.getIsEmscripten": (_unit) => 0,
-  // There is no target triple for JS, and Lean reports a missing one as empty.
-  "System.Platform.getTarget": (_unit) => mkString(""),
-  "System.Platform.Internal.getHardwareConcurrency": (_unit) =>
-    globalThis.navigator?.hardwareConcurrency ?? 0,
-};

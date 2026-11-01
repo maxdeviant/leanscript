@@ -31,27 +31,28 @@ function request(start) {
 
 const ok = (x) => mkCtor(1, [x], null);
 
-export const externs = {
-  "Std.Internal.UV.DNS.getAddrInfo": (host, _service, family, _w) => {
-    const name = host.toString();
-    if (name === "") {
-      return ioError(mkIoError(systemError({ code: "EINVAL" }), undefined));
-    }
-    return request((resolve) =>
-      // Like `getaddrinfo`, an unknown family means either version.
-      lookupHost(name, versions[family] ?? 0, (err, addresses) =>
-        resolve(
-          err === undefined
-            ? ok(mkArray(addresses.map(mkIpAddr)))
-            : mkCtor(0, [mkIoError(err, undefined)], null),
-        ),
-      ),
-    );
-  },
-  "Std.Internal.UV.DNS.getNameInfo": (addr, _w) =>
-    request((resolve) =>
-      lookupService(formatSocketAddress(addr), socketAddressPort(addr), (host, service) =>
-        resolve(ok(mkCtor(0, [mkString(host), mkString(service)], null))),
+const Std_Internal_UV_DNS_getAddrInfo = (host, _service, family, _w) => {
+  const name = host.toString();
+  if (name === "") {
+    return ioError(mkIoError(systemError({ code: "EINVAL" }), undefined));
+  }
+  return request((resolve) =>
+    // Like `getaddrinfo`, an unknown family means either version.
+    lookupHost(name, versions[family] ?? 0, (err, addresses) =>
+      resolve(
+        err === undefined
+          ? ok(mkArray(addresses.map(mkIpAddr)))
+          : mkCtor(0, [mkIoError(err, undefined)], null),
       ),
     ),
+  );
 };
+export { Std_Internal_UV_DNS_getAddrInfo as "Std.Internal.UV.DNS.getAddrInfo" };
+
+const Std_Internal_UV_DNS_getNameInfo = (addr, _w) =>
+  request((resolve) =>
+    lookupService(formatSocketAddress(addr), socketAddressPort(addr), (host, service) =>
+      resolve(ok(mkCtor(0, [mkString(host), mkString(service)], null))),
+    ),
+  );
+export { Std_Internal_UV_DNS_getNameInfo as "Std.Internal.UV.DNS.getNameInfo" };

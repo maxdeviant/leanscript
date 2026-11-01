@@ -259,182 +259,211 @@ function acceptedSocket(client) {
   return socket;
 }
 
-export const externs = {
-  "Std.Internal.UV.TCP.Socket.new": (_w) => ioOk(new TcpSocket()),
-  "Std.Internal.UV.TCP.Socket.connect": (socket, addr, _w) => {
-    if (socket.connectPromise !== null) {
-      return fail("EALREADY");
-    }
-    if (socket.state === CONNECTED) {
-      return fail("EISCONN");
-    }
-    if (socket.state === LISTENING) {
-      return fail("EINVAL");
-    }
-    const remote = fromSocketAddress(addr);
-    const promise = socket.startRequest();
-    socket.connectPromise = promise;
-    socket.post("tcpConnect", [remote, socket.local, socket.noDelay, socket.keepAlive]);
-    socket.open(CONNECTED, socket.local, null);
-    return ioOk(promise);
-  },
-  "Std.Internal.UV.TCP.Socket.send": (socket, data, _w) => {
-    const size = data.reduce((n, a) => n + a.size, 0);
-    if (data.length === 0) {
-      dec(data);
-      const promise = new IoPromise();
-      resolvePromise(promise, ok(0));
-      return ioOk(promise);
-    }
-    if (socket.state === NEW) {
-      dec(data);
-      return fail("EBADF");
-    }
-    if (socket.state !== CONNECTED || socket.shutdownRequested) {
-      dec(data);
-      return fail("EPIPE");
-    }
-    const bytes = new Uint8Array(size);
-    let offset = 0;
-    for (const a of data) {
-      bytes.set(a.bytes.subarray(0, a.size), offset);
-      offset += a.size;
-    }
-    dec(data);
-    const promise = socket.startRequest();
-    socket.sendPromises.push(promise);
-    socket.post("tcpSend", [bytes], [bytes.buffer]);
-    return ioOk(promise);
-  },
-  "Std.Internal.UV.TCP.Socket.recv?": (socket, size, _w) =>
-    // A read can't be larger than an array, so a size beyond that is as good as unlimited.
-    socket.startRead(Number(size > 0xffffffffn ? 0xffffffffn : size)),
-  "Std.Internal.UV.TCP.Socket.waitReadable": (socket, _w) => socket.startRead(null),
-  "Std.Internal.UV.TCP.Socket.cancelRecv": (socket, _w) => {
-    const promise = socket.readPromise;
-    if (promise !== null) {
-      socket.readPromise = null;
-      dec(promise);
-      dec(socket);
-      if (socket.reading) {
-        socket.reading = false;
-        mainEventArrived();
-        postMain("tcpCancelRead", [socket.id]);
-      }
-    }
-    return ioOk(0);
-  },
-  "Std.Internal.UV.TCP.Socket.bind": (socket, addr, _w) => {
-    if (socket.state !== NEW) {
-      return fail("EINVAL");
-    }
-    socket.state = BOUND;
-    socket.local = fromSocketAddress(addr);
-    return ioOk(0);
-  },
-  "Std.Internal.UV.TCP.Socket.listen": (socket, backlog, _w) => {
-    if (socket.state === LISTENING) {
-      return ioOk(0);
-    }
-    if (socket.state === CONNECTED) {
-      return fail("EINVAL");
-    }
-    return attemptRequest(() => {
-      const local = requestMain(
-        "tcpListen",
-        socket.id,
-        socket.local,
-        backlog,
-        socket.noDelay,
-        socket.keepAlive,
-      );
-      socket.open(LISTENING, local, null);
-      return ioOk(0);
-    });
-  },
-  "Std.Internal.UV.TCP.Socket.accept": (socket, _w) => {
-    if (socket.acceptPromise !== null) {
-      return fail("EALREADY");
-    }
-    const promise = new IoPromise();
-    if (socket.accepted.length > 0) {
-      resolvePromise(promise, ok(acceptedSocket(socket.accepted.shift())));
-    } else if (socket.state === LISTENING) {
-      inc(promise);
-      inc(socket);
-      socket.acceptPromise = promise;
-      socket.post("tcpAccept");
-    }
-    // Otherwise, like libuv, wait for a connection that a socket that is not listening never gets.
-    return ioOk(promise);
-  },
-  "Std.Internal.UV.TCP.Socket.tryAccept": (socket, _w) => {
-    if (socket.acceptPromise !== null) {
-      return fail("EALREADY");
-    }
-    let client = socket.accepted.shift() ?? null;
-    if (client === null && socket.state === LISTENING) {
-      client = requestMain("tcpTryAccept", socket.id);
-    }
-    return ioOk(ok(client === null ? 0 : ok(acceptedSocket(client))));
-  },
-  "Std.Internal.UV.TCP.Socket.cancelAccept": (socket, _w) => {
-    const promise = socket.acceptPromise;
-    if (promise !== null) {
-      socket.acceptPromise = null;
-      dec(promise);
-      dec(socket);
-      mainEventArrived();
-      postMain("tcpCancelAccept", [socket.id]);
-    }
-    return ioOk(0);
-  },
-  "Std.Internal.UV.TCP.Socket.shutdown": (socket, _w) => {
-    if (socket.shutdownRequested) {
-      return fail("EALREADY", "shutdown already requested");
-    }
-    if (socket.state !== CONNECTED) {
-      return fail("ENOTCONN");
-    }
-    socket.shutdownRequested = true;
-    const promise = socket.startRequest();
-    socket.shutdownPromise = promise;
-    socket.post("tcpShutdown");
-    return ioOk(promise);
-  },
-  "Std.Internal.UV.TCP.Socket.getPeerName": (socket, _w) => {
-    if (socket.state === NEW) {
-      return fail("EBADF");
-    }
-    if (socket.remote === null) {
-      return fail("ENOTCONN");
-    }
-    return ioOk(mkSocketAddress(socket.remote.address, socket.remote.port));
-  },
-  "Std.Internal.UV.TCP.Socket.getSockName": (socket, _w) => {
-    // A connecting socket only knows its address once it has connected.
-    if (socket.local === null) {
-      return fail("EBADF");
-    }
-    return ioOk(mkSocketAddress(socket.local.address, socket.local.port));
-  },
-  "Std.Internal.UV.TCP.Socket.noDelay": (socket, _w) => {
-    socket.noDelay = true;
-    if (socket.opened) {
-      postMain("tcpSetNoDelay", [socket.id]);
-    }
-    return ioOk(0);
-  },
-  "Std.Internal.UV.TCP.Socket.keepAlive": (socket, enable, delay, _w) => {
-    const keepAlive = { enable: enable !== 0, delay };
-    // libuv only checks the delay when the socket has been opened, and stores it otherwise.
-    if (socket.state !== NEW && keepAlive.enable && delay < 1) {
-      return fail("EINVAL");
-    }
-    socket.keepAlive = keepAlive;
-    if (socket.opened) {
-      postMain("tcpSetKeepAlive", [socket.id, keepAlive]);
-    }
-    return ioOk(0);
-  },
+const Std_Internal_UV_TCP_Socket_new = (_w) => ioOk(new TcpSocket());
+export { Std_Internal_UV_TCP_Socket_new as "Std.Internal.UV.TCP.Socket.new" };
+
+const Std_Internal_UV_TCP_Socket_connect = (socket, addr, _w) => {
+  if (socket.connectPromise !== null) {
+    return fail("EALREADY");
+  }
+  if (socket.state === CONNECTED) {
+    return fail("EISCONN");
+  }
+  if (socket.state === LISTENING) {
+    return fail("EINVAL");
+  }
+  const remote = fromSocketAddress(addr);
+  const promise = socket.startRequest();
+  socket.connectPromise = promise;
+  socket.post("tcpConnect", [remote, socket.local, socket.noDelay, socket.keepAlive]);
+  socket.open(CONNECTED, socket.local, null);
+  return ioOk(promise);
 };
+export { Std_Internal_UV_TCP_Socket_connect as "Std.Internal.UV.TCP.Socket.connect" };
+
+const Std_Internal_UV_TCP_Socket_send = (socket, data, _w) => {
+  const size = data.reduce((n, a) => n + a.size, 0);
+  if (data.length === 0) {
+    dec(data);
+    const promise = new IoPromise();
+    resolvePromise(promise, ok(0));
+    return ioOk(promise);
+  }
+  if (socket.state === NEW) {
+    dec(data);
+    return fail("EBADF");
+  }
+  if (socket.state !== CONNECTED || socket.shutdownRequested) {
+    dec(data);
+    return fail("EPIPE");
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const a of data) {
+    bytes.set(a.bytes.subarray(0, a.size), offset);
+    offset += a.size;
+  }
+  dec(data);
+  const promise = socket.startRequest();
+  socket.sendPromises.push(promise);
+  socket.post("tcpSend", [bytes], [bytes.buffer]);
+  return ioOk(promise);
+};
+export { Std_Internal_UV_TCP_Socket_send as "Std.Internal.UV.TCP.Socket.send" };
+
+const Std_Internal_UV_TCP_Socket_recvOpt = (socket, size, _w) =>
+  // A read can't be larger than an array, so a size beyond that is as good as unlimited.
+  socket.startRead(Number(size > 0xffffffffn ? 0xffffffffn : size));
+export { Std_Internal_UV_TCP_Socket_recvOpt as "Std.Internal.UV.TCP.Socket.recv?" };
+
+const Std_Internal_UV_TCP_Socket_waitReadable = (socket, _w) => socket.startRead(null);
+export { Std_Internal_UV_TCP_Socket_waitReadable as "Std.Internal.UV.TCP.Socket.waitReadable" };
+
+const Std_Internal_UV_TCP_Socket_cancelRecv = (socket, _w) => {
+  const promise = socket.readPromise;
+  if (promise !== null) {
+    socket.readPromise = null;
+    dec(promise);
+    dec(socket);
+    if (socket.reading) {
+      socket.reading = false;
+      mainEventArrived();
+      postMain("tcpCancelRead", [socket.id]);
+    }
+  }
+  return ioOk(0);
+};
+export { Std_Internal_UV_TCP_Socket_cancelRecv as "Std.Internal.UV.TCP.Socket.cancelRecv" };
+
+const Std_Internal_UV_TCP_Socket_bind = (socket, addr, _w) => {
+  if (socket.state !== NEW) {
+    return fail("EINVAL");
+  }
+  socket.state = BOUND;
+  socket.local = fromSocketAddress(addr);
+  return ioOk(0);
+};
+export { Std_Internal_UV_TCP_Socket_bind as "Std.Internal.UV.TCP.Socket.bind" };
+
+const Std_Internal_UV_TCP_Socket_listen = (socket, backlog, _w) => {
+  if (socket.state === LISTENING) {
+    return ioOk(0);
+  }
+  if (socket.state === CONNECTED) {
+    return fail("EINVAL");
+  }
+  return attemptRequest(() => {
+    const local = requestMain(
+      "tcpListen",
+      socket.id,
+      socket.local,
+      backlog,
+      socket.noDelay,
+      socket.keepAlive,
+    );
+    socket.open(LISTENING, local, null);
+    return ioOk(0);
+  });
+};
+export { Std_Internal_UV_TCP_Socket_listen as "Std.Internal.UV.TCP.Socket.listen" };
+
+const Std_Internal_UV_TCP_Socket_accept = (socket, _w) => {
+  if (socket.acceptPromise !== null) {
+    return fail("EALREADY");
+  }
+  const promise = new IoPromise();
+  if (socket.accepted.length > 0) {
+    resolvePromise(promise, ok(acceptedSocket(socket.accepted.shift())));
+  } else if (socket.state === LISTENING) {
+    inc(promise);
+    inc(socket);
+    socket.acceptPromise = promise;
+    socket.post("tcpAccept");
+  }
+  // Otherwise, like libuv, wait for a connection that a socket that is not listening never gets.
+  return ioOk(promise);
+};
+export { Std_Internal_UV_TCP_Socket_accept as "Std.Internal.UV.TCP.Socket.accept" };
+
+const Std_Internal_UV_TCP_Socket_tryAccept = (socket, _w) => {
+  if (socket.acceptPromise !== null) {
+    return fail("EALREADY");
+  }
+  let client = socket.accepted.shift() ?? null;
+  if (client === null && socket.state === LISTENING) {
+    client = requestMain("tcpTryAccept", socket.id);
+  }
+  return ioOk(ok(client === null ? 0 : ok(acceptedSocket(client))));
+};
+export { Std_Internal_UV_TCP_Socket_tryAccept as "Std.Internal.UV.TCP.Socket.tryAccept" };
+
+const Std_Internal_UV_TCP_Socket_cancelAccept = (socket, _w) => {
+  const promise = socket.acceptPromise;
+  if (promise !== null) {
+    socket.acceptPromise = null;
+    dec(promise);
+    dec(socket);
+    mainEventArrived();
+    postMain("tcpCancelAccept", [socket.id]);
+  }
+  return ioOk(0);
+};
+export { Std_Internal_UV_TCP_Socket_cancelAccept as "Std.Internal.UV.TCP.Socket.cancelAccept" };
+
+const Std_Internal_UV_TCP_Socket_shutdown = (socket, _w) => {
+  if (socket.shutdownRequested) {
+    return fail("EALREADY", "shutdown already requested");
+  }
+  if (socket.state !== CONNECTED) {
+    return fail("ENOTCONN");
+  }
+  socket.shutdownRequested = true;
+  const promise = socket.startRequest();
+  socket.shutdownPromise = promise;
+  socket.post("tcpShutdown");
+  return ioOk(promise);
+};
+export { Std_Internal_UV_TCP_Socket_shutdown as "Std.Internal.UV.TCP.Socket.shutdown" };
+
+const Std_Internal_UV_TCP_Socket_getPeerName = (socket, _w) => {
+  if (socket.state === NEW) {
+    return fail("EBADF");
+  }
+  if (socket.remote === null) {
+    return fail("ENOTCONN");
+  }
+  return ioOk(mkSocketAddress(socket.remote.address, socket.remote.port));
+};
+export { Std_Internal_UV_TCP_Socket_getPeerName as "Std.Internal.UV.TCP.Socket.getPeerName" };
+
+const Std_Internal_UV_TCP_Socket_getSockName = (socket, _w) => {
+  // A connecting socket only knows its address once it has connected.
+  if (socket.local === null) {
+    return fail("EBADF");
+  }
+  return ioOk(mkSocketAddress(socket.local.address, socket.local.port));
+};
+export { Std_Internal_UV_TCP_Socket_getSockName as "Std.Internal.UV.TCP.Socket.getSockName" };
+
+const Std_Internal_UV_TCP_Socket_noDelay = (socket, _w) => {
+  socket.noDelay = true;
+  if (socket.opened) {
+    postMain("tcpSetNoDelay", [socket.id]);
+  }
+  return ioOk(0);
+};
+export { Std_Internal_UV_TCP_Socket_noDelay as "Std.Internal.UV.TCP.Socket.noDelay" };
+
+const Std_Internal_UV_TCP_Socket_keepAlive = (socket, enable, delay, _w) => {
+  const keepAlive = { enable: enable !== 0, delay };
+  // libuv only checks the delay when the socket has been opened, and stores it otherwise.
+  if (socket.state !== NEW && keepAlive.enable && delay < 1) {
+    return fail("EINVAL");
+  }
+  socket.keepAlive = keepAlive;
+  if (socket.opened) {
+    postMain("tcpSetKeepAlive", [socket.id, keepAlive]);
+  }
+  return ioOk(0);
+};
+export { Std_Internal_UV_TCP_Socket_keepAlive as "Std.Internal.UV.TCP.Socket.keepAlive" };

@@ -15,37 +15,24 @@
 //
 // Each extern follows the ownership conventions of its C counterpart.
 
-import {
-  apply,
-  CHILDREN,
-  Ctor1,
-  dec,
-  del,
-  inc,
-  internalPanic,
-  isInitializing,
-  panic,
-  RC,
-  Task,
-  track,
-} from "./core.js";
+import { apply, CHILDREN, Ctor1, dec, del, inc, RC, Task, track } from "./core.js";
 import { userError } from "./io.js";
 
 /** The `IO.TaskState.waiting` constructor. */
-const WAITING = 0;
+export const WAITING = 0;
 /** The `IO.TaskState.running` constructor. */
-const RUNNING = 1;
+export const RUNNING = 1;
 /** The `IO.TaskState.finished` constructor. */
-const FINISHED = 2;
+export const FINISHED = 2;
 
 /** Thrown by a continuation that blocks forever, which leaves its task unfinished. */
-const BLOCKED = Symbol("blocked");
+export const BLOCKED = Symbol("blocked");
 
 /**
  * The result tasks of promises. Like the C runtime, we consider these to be running until they are
  * resolved, rather than waiting for another task.
  */
-const promiseTasks = new WeakSet();
+export const promiseTasks = new WeakSet();
 
 /** An `IO.Promise`, which owns its result task, and resolves it to `none` if it is dropped. */
 export class IoPromise {
@@ -83,14 +70,14 @@ export function resolvePromise(promise, value) {
   }
 }
 
-function blockedForever() {
+export function blockedForever() {
   return new Error(
     "LeanScript: waited for a task that has not finished, which would block forever, as nothing else can run to finish it",
   );
 }
 
 /** Takes ownership of the finished task `t` and returns its value, which the caller then owns. */
-function take(t) {
+export function take(t) {
   if (t.waiters !== null) {
     throw blockedForever();
   }
@@ -151,7 +138,7 @@ function run({ f, target, io, bind, js }, value) {
  * finished. If `io`, `f` is a `BaseIO` function. If `bind`, `f` returns a task, which the returned
  * task then finishes with.
  */
-function then(t, f, io, bind) {
+export function thenTask(t, f, io, bind) {
   const target = new Task(0, []);
   inc(target);
   const w = { f, target, io, bind };
@@ -209,87 +196,3 @@ export function jsPromiseOfTask(t) {
   }
   return promise;
 }
-
-export const externs = {
-  "Task.pure": (_α, a) => new Task(a),
-  "Task.get": (_α, t) => take(t),
-  "Task.spawn": (_α, fn, prio) => {
-    dec(prio);
-    return new Task(apply(fn, [0]));
-  },
-  "Task.map": (_α, _β, f, t, prio, _sync) => {
-    dec(prio);
-    return then(t, f, false, false);
-  },
-  "Task.bind": (_α, _β, t, f, prio, _sync) => {
-    dec(prio);
-    return then(t, f, false, true);
-  },
-  "BaseIO.asTask": (_α, act, prio, _w) => {
-    dec(prio);
-    return new Task(apply(act, [0]));
-  },
-  "BaseIO.mapTask": (_α, _β, f, t, prio, _sync, _w) => {
-    dec(prio);
-    return then(t, f, true, false);
-  },
-  "BaseIO.bindTask": (_α, _β, t, f, prio, _sync, _w) => {
-    dec(prio);
-    return then(t, f, true, true);
-  },
-  "IO.wait": (_α, t, _w) => take(t),
-  "IO.waitAny": (_α, tasks, _h, _w) => {
-    for (let l = tasks; l !== 0; l = l.f1) {
-      const t = l.f0;
-      if (t.waiters === null) {
-        inc(t.value);
-        return t.value;
-      }
-    }
-    throw blockedForever();
-  },
-  "IO.cancel": (_α, _t, _w) => 0,
-  "IO.checkCanceled": (_w) => 0,
-  "IO.getTaskState": (_α, t, _w) => {
-    if (t.waiters === null) {
-      return FINISHED;
-    }
-    return promiseTasks.has(t) ? RUNNING : WAITING;
-  },
-
-  // The C runtime's task manager only starts after the initializers have run.
-  "IO.Promise.new": (_α, _inst, _w) => {
-    if (isInitializing()) {
-      internalPanic(
-        "`IO.Promise.new` called before the task manager is running; this typically happens when called (directly or transitively, e.g. via `IO.CancelToken.new`) from an `initialize` block. Construct lazily on first use instead.",
-      );
-    }
-    return new IoPromise();
-  },
-  // Only the first call has an effect.
-  "IO.Promise.resolve": (_α, value, promise, _w) => {
-    resolvePromise(promise, value);
-    return 0;
-  },
-  "IO.Promise.result?": (_α, promise) => {
-    inc(promise.task);
-    return promise.task;
-  },
-  "_private.Init.System.Promise.0.IO.Option.getOrBlock!": (_α, _inst, o) => {
-    if (o === 0) {
-      panic(
-        0,
-        "LeanScript: `Promise.result!` of a promise that was dropped without being resolved",
-      );
-      throw BLOCKED;
-    }
-    const value = o.f0;
-    if (o[RC] === 1) {
-      del(o);
-    } else {
-      inc(value);
-      dec(o);
-    }
-    return value;
-  },
-};

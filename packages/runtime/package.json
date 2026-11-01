@@ -10,7 +10,8 @@
   },
   "type": "module",
   "exports": {
-    ".": "./src/index.js"
+    ".": "./src/index.js",
+    "./externs": "./src/externs/index.js"
   },
   "imports": {
     "#platform/*": {

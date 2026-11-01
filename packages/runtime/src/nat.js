@@ -180,7 +180,7 @@ export function intEdiv(a, b) {
   return b > 0 ? intSub(q, 1) : intAdd(q, 1);
 }
 
-function natGcd(a, b) {
+export function natGcd(a, b) {
   if (isSmall(a, b)) {
     while (b !== 0) {
       [a, b] = [b, a % b];
@@ -195,7 +195,7 @@ function natGcd(a, b) {
   return normalize(x);
 }
 
-function natPowMod(a, b, m) {
+export function natPowMod(a, b, m) {
   if (m === 0) {
     return natPow(a, b);
   }
@@ -212,44 +212,3 @@ function natPowMod(a, b, m) {
   }
   return normalize(r);
 }
-
-export const externs = {
-  "Nat.add": natAdd,
-  "Nat.sub": natSub,
-  "Nat.mul": natMul,
-  "Nat.div": natDiv,
-  "Nat.mod": natMod,
-  "Nat.pow": natPow,
-  "Nat.log2": natLog2,
-  "Nat.shiftLeft": natShiftLeft,
-  "Nat.shiftRight": natShiftRight,
-  "Nat.lor": natLor,
-  "Nat.land": natLand,
-  "Nat.xor": natXor,
-  "Nat.decEq": (a, b) => (a === b ? 1 : 0),
-  "Nat.decLt": (a, b) => (a < b ? 1 : 0),
-  "Nat.decLe": (a, b) => (a <= b ? 1 : 0),
-  "Nat.beq": (a, b) => (a === b ? 1 : 0),
-  "Nat.ble": (a, b) => (a <= b ? 1 : 0),
-  "Nat.pred": (a) => natSub(a, 1),
-  "Nat.divExact": (a, b, _h) => natDiv(a, b),
-  "Nat.gcd": natGcd,
-  "Nat.powMod": natPowMod,
-
-  "Int.ofNat": (n) => n,
-  "Int.negSucc": (n) => intNeg(natAdd(n, 1)),
-  "Int.neg": intNeg,
-  "Int.add": intAdd,
-  "Int.sub": intSub,
-  "Int.mul": intMul,
-  "Int.tdiv": intTdiv,
-  "Int.tmod": intTmod,
-  "Int.ediv": intEdiv,
-  "Int.emod": intEmod,
-  "Int.divExact": (a, b, _h) => intTdiv(a, b),
-  "Int.decNonneg": (a) => (a >= 0 ? 1 : 0),
-  "Int.natAbs": (a) => (a < 0 ? intNeg(a) : a),
-  "Int.decEq": (a, b) => (a === b ? 1 : 0),
-  "Int.decLt": (a, b) => (a < b ? 1 : 0),
-  "Int.decLe": (a, b) => (a <= b ? 1 : 0),
-};

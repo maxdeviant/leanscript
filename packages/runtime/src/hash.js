@@ -39,7 +39,3 @@ export function mixHash(h, k) {
   h ^= k;
   return u64(h * M);
 }
-
-export const externs = {
-  mixHash,
-};

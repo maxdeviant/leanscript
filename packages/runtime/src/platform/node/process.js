@@ -5,7 +5,7 @@
 
 import { Ctor1, Ctor2, Ctor3, dec, inc } from "../../core.js";
 import { attempt } from "../../io.js";
-import { Handle } from "./fs.js";
+import { Handle } from "./handle.js";
 import {
   awaitChild,
   closeChildPipe,
@@ -118,46 +118,55 @@ const PID = "s24";
 const SETSID = "s28";
 const ID = "s32";
 
-export const externs = {
-  "IO.Process.spawn": (args, _w) => {
-    const { f0: stdioConfig, f1: cmd, f2: argv, f3: cwd, f4: env } = args;
-    const stdio = [stdioConfig.s0, stdioConfig.s1, stdioConfig.s2];
-    const setsid = args.s41 === 1;
-    const result = attempt(undefined, () => {
-      const { id, pid } = startChild(
-        cString(cmd),
-        argv.map(cString),
-        cwd === 0 ? undefined : cString(cwd.f0),
-        childEnv(args.s40 === 1, env),
-        stdio,
-        setsid,
-      );
-      const pipes = stdio.map((mode, fd) => (mode === PIPED ? new ChildPipe(id, fd) : 0));
-      return mkChild(...pipes, pid, setsid ? 1 : 0, id);
-    });
-    dec(args);
-    return result;
-  },
-  "IO.Process.Child.wait": (_cfg, child, _w) => attempt(undefined, () => awaitChild(child[ID])),
-  "IO.Process.Child.tryWait": (_cfg, child, _w) =>
-    attempt(undefined, () => {
-      const exitCode = pollChild(child[ID]);
-      return exitCode === null ? 0 : new Ctor1(1, exitCode);
-    }),
-  "IO.Process.Child.kill": (_cfg, child, _w) =>
-    attempt(undefined, () => terminateChild(child[ID], child[PID], child[SETSID] === 1)),
-  "IO.Process.Child.takeStdin": (_cfg, child, _w) => {
-    const { f0: stdin, f1: stdout, f2: stderr } = child;
-    inc(stdin);
-    inc(stdout);
-    inc(stderr);
-    const rest = mkChild(0, stdout, stderr, child[PID], child[SETSID], child[ID]);
-    dec(child);
-    return attempt(undefined, () => new Ctor2(0, stdin, rest));
-  },
-  "IO.Process.Child.pid": (_cfg, child) => {
-    const pid = child[PID];
-    dec(child);
-    return pid;
-  },
+const IO_Process_spawn = (args, _w) => {
+  const { f0: stdioConfig, f1: cmd, f2: argv, f3: cwd, f4: env } = args;
+  const stdio = [stdioConfig.s0, stdioConfig.s1, stdioConfig.s2];
+  const setsid = args.s41 === 1;
+  const result = attempt(undefined, () => {
+    const { id, pid } = startChild(
+      cString(cmd),
+      argv.map(cString),
+      cwd === 0 ? undefined : cString(cwd.f0),
+      childEnv(args.s40 === 1, env),
+      stdio,
+      setsid,
+    );
+    const pipes = stdio.map((mode, fd) => (mode === PIPED ? new ChildPipe(id, fd) : 0));
+    return mkChild(...pipes, pid, setsid ? 1 : 0, id);
+  });
+  dec(args);
+  return result;
 };
+export { IO_Process_spawn as "IO.Process.spawn" };
+
+const IO_Process_Child_wait = (_cfg, child, _w) => attempt(undefined, () => awaitChild(child[ID]));
+export { IO_Process_Child_wait as "IO.Process.Child.wait" };
+
+const IO_Process_Child_tryWait = (_cfg, child, _w) =>
+  attempt(undefined, () => {
+    const exitCode = pollChild(child[ID]);
+    return exitCode === null ? 0 : new Ctor1(1, exitCode);
+  });
+export { IO_Process_Child_tryWait as "IO.Process.Child.tryWait" };
+
+const IO_Process_Child_kill = (_cfg, child, _w) =>
+  attempt(undefined, () => terminateChild(child[ID], child[PID], child[SETSID] === 1));
+export { IO_Process_Child_kill as "IO.Process.Child.kill" };
+
+const IO_Process_Child_takeStdin = (_cfg, child, _w) => {
+  const { f0: stdin, f1: stdout, f2: stderr } = child;
+  inc(stdin);
+  inc(stdout);
+  inc(stderr);
+  const rest = mkChild(0, stdout, stderr, child[PID], child[SETSID], child[ID]);
+  dec(child);
+  return attempt(undefined, () => new Ctor2(0, stdin, rest));
+};
+export { IO_Process_Child_takeStdin as "IO.Process.Child.takeStdin" };
+
+const IO_Process_Child_pid = (_cfg, child) => {
+  const pid = child[PID];
+  dec(child);
+  return pid;
+};
+export { IO_Process_Child_pid as "IO.Process.Child.pid" };

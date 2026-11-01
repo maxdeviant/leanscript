@@ -4,8 +4,6 @@
 // updated in place, and a shared one is copied first.
 
 import { dec, RC, track } from "./core.js";
-import { mkArray } from "./array.js";
-import { hashBytes } from "./hash.js";
 
 export class LeanByteArray {
   /**
@@ -33,7 +31,7 @@ export function mkByteArray(bytes, size) {
  * Takes ownership of `a` and returns an exclusive byte array with its contents and room for at
  * least `capacity` bytes, copying it if it is shared.
  */
-function reserve(a, capacity) {
+export function reserve(a, capacity) {
   if (a[RC] === 1) {
     if (a.bytes.length < capacity) {
       const bytes = new Uint8Array(Math.max(16, 2 * capacity));
@@ -49,14 +47,14 @@ function reserve(a, capacity) {
   return r;
 }
 
-function uset(a, i, v) {
+export function uset(a, i, v) {
   const r = reserve(a, a.size);
   r.bytes[i] = v;
   return r;
 }
 
 /** Whether `a[aStart, aEnd)` and `b[bStart, bEnd)` contain the same bytes. */
-function rangesEq(a, aStart, aEnd, b, bStart, bEnd) {
+export function rangesEq(a, aStart, aEnd, b, bStart, bEnd) {
   if (aEnd - aStart !== bEnd - bStart) {
     return false;
   }
@@ -68,72 +66,11 @@ function rangesEq(a, aStart, aEnd, b, bStart, bEnd) {
   return true;
 }
 
-const bytesEq = (a, b) => rangesEq(a.bytes, 0, a.size, b.bytes, 0, b.size);
+export const bytesEq = (a, b) => rangesEq(a.bytes, 0, a.size, b.bytes, 0, b.size);
 
 /** Reads a `Nat` as an index or length, treating a `BigInt` as larger than any byte array. */
-const index = (n) => (typeof n === "bigint" ? Infinity : n);
+export const index = (n) => (typeof n === "bigint" ? Infinity : n);
 
-const strictDecoder = new TextDecoder("utf-8", { fatal: true });
+export const strictDecoder = new TextDecoder("utf-8", { fatal: true });
 
-const bool = (b) => (b ? 1 : 0);
-
-export const externs = {
-  "ByteArray.mk": (data) => {
-    const r = new LeanByteArray(Uint8Array.from(data), data.length);
-    dec(data);
-    return r;
-  },
-  "ByteArray.data": (a) => {
-    const r = mkArray(Array.from(a.bytes.subarray(0, a.size)));
-    dec(a);
-    return r;
-  },
-  "ByteArray.emptyWithCapacity": (capacity) =>
-    new LeanByteArray(new Uint8Array(Math.min(index(capacity), 1 << 20)), 0),
-  "ByteArray.size": (a) => a.size,
-  "ByteArray.usize": (a) => a.size,
-  "ByteArray.get": (a, i, _h) => a.bytes[i],
-  // Like `lean_byte_array_get`, this returns 0 out of bounds without panicking.
-  "ByteArray.get!": (a, i) => (index(i) < a.size ? a.bytes[i] : 0),
-  "ByteArray.uget": (a, i, _h) => a.bytes[i],
-  "ByteArray.set": (a, i, v, _h) => uset(a, i, v),
-  "ByteArray.set!": (a, i, v) => (index(i) < a.size ? uset(a, i, v) : a),
-  "ByteArray.uset": (a, i, v, _h) => uset(a, i, v),
-  "ByteArray.push": (a, v) => {
-    const r = reserve(a, a.size + 1);
-    r.bytes[r.size++] = v;
-    return r;
-  },
-  // Copies `src[srcOff, srcOff + len)` over `dest` starting at `destOff`, growing `dest` as needed.
-  // Offsets past the end are clamped, as in the reference implementation.
-  "ByteArray.copySlice": (src, srcOff, dest, destOff, len, _exact) => {
-    const start = Math.min(index(srcOff), src.size);
-    const n = Math.min(index(len), src.size - start);
-    const at = Math.min(index(destOff), dest.size);
-    const suffix = Math.min(index(destOff) + n, dest.size);
-    const size = at + n + (dest.size - suffix);
-    const bytes = new Uint8Array(size);
-    bytes.set(dest.bytes.subarray(0, at));
-    bytes.set(src.bytes.subarray(start, start + n), at);
-    bytes.set(dest.bytes.subarray(suffix, dest.size), at + n);
-    dec(dest);
-    return new LeanByteArray(bytes, size);
-  },
-  "ByteArray.beq": (a, b) => bool(bytesEq(a, b)),
-  "ByteArray.decEq": (a, b) => bool(bytesEq(a, b)),
-  "ByteArray.hash": (a) => hashBytes(a.bytes, a.size, 11n),
-  // A `ByteSlice` holds its byte array, start, and stop, where the proofs guarantee that the
-  // range is in bounds.
-  "ByteSlice.beq": (a, b) => bool(rangesEq(a.f0.bytes, a.f1, a.f2, b.f0.bytes, b.f1, b.f2)),
-  // Byte arrays are never marked linear, so there is no mark to set or propagate.
-  "ByteArray.markLinear": (a) => a,
-  "ByteArray.propagateMark": (_a, b) => b,
-  "ByteArray.validateUTF8": (a) => {
-    try {
-      strictDecoder.decode(a.bytes.subarray(0, a.size));
-      return 1;
-    } catch {
-      return 0;
-    }
-  },
-};
+export const bool = (b) => (b ? 1 : 0);

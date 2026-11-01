@@ -3,9 +3,9 @@
 // Each extern follows the ownership conventions of its C counterpart: an exclusive array is updated
 // in place, and a shared one is copied first.
 
-import { arrayToList, dec, inc, incN, isExclusive, listToArray, panic, RC, track } from "./core.js";
+import { dec, inc, isExclusive, panic, RC, track } from "./core.js";
 
-const OUT_OF_BOUNDS = "Error: index out of bounds";
+export const OUT_OF_BOUNDS = "Error: index out of bounds";
 
 /** Makes the JS array `xs` into a Lean `Array` owning its elements. */
 export function mkArray(xs) {
@@ -17,7 +17,7 @@ export function mkArray(xs) {
  * Takes ownership of `a` and returns an exclusive array with the same elements, copying it if it
  * is shared.
  */
-function ensureExclusive(a) {
+export function ensureExclusive(a) {
   if (isExclusive(a)) {
     return a;
   }
@@ -30,106 +30,19 @@ function ensureExclusive(a) {
 }
 
 /** Returns the element at `i` as an owned reference. */
-function getOwned(a, i) {
+export function getOwned(a, i) {
   const x = a[i];
   inc(x);
   return x;
 }
 
-function set(a, i, v) {
+export function set(a, i, v) {
   const r = ensureExclusive(a);
   dec(r[i]);
   r[i] = v;
   return r;
 }
 
-function getOrPanic(d, a, i) {
+export function getOrPanic(d, a, i) {
   return i < a.length ? a[i] : panic(d, OUT_OF_BOUNDS);
 }
-
-export const externs = {
-  "Array.mk": (_α, list) => {
-    const xs = listToArray(list);
-    for (const x of xs) {
-      inc(x);
-    }
-    dec(list);
-    return mkArray(xs);
-  },
-  "Array.mkEmpty": (_α, _capacity) => mkArray([]),
-  "Array.emptyWithCapacity": (_α, _capacity) => mkArray([]),
-  "Array.toList": (_α, a) => {
-    for (const x of a) {
-      inc(x);
-    }
-    const list = arrayToList(a);
-    dec(a);
-    return list;
-  },
-  "Array.replicate": (_α, n, v) => {
-    if (typeof n !== "number" || n > 0xffffffff) {
-      throw new Error("LeanScript: out of memory");
-    }
-    if (n === 0) {
-      dec(v);
-    } else {
-      incN(v, n - 1);
-    }
-    // `Array.from({ length: n }, …)` is many times slower for large arrays, such as a hash map's
-    // buckets.
-    // oxlint-disable-next-line unicorn/no-new-array
-    return mkArray(new Array(n).fill(v));
-  },
-  // Arrays are never marked linear, so there is no mark to set or propagate.
-  "Array.markLinear": (_α, a) => a,
-  "Array.propagateMark": (_α, _β, _xs, ys) => ys,
-  "Array.swapIfInBounds": (_α, a, i, j) => {
-    if (!(i < a.length && j < a.length)) {
-      return a;
-    }
-    const r = ensureExclusive(a);
-    [r[i], r[j]] = [r[j], r[i]];
-    return r;
-  },
-  "Array.size": (_α, a) => a.length,
-  "Array.usize": (_α, a) => a.length,
-  "Array.getInternal": (_α, a, i, _h) => getOwned(a, i),
-  "Array.getInternalBorrowed": (_α, a, i, _h) => a[i],
-  "Array.get!Internal": (_α, d, a, i) => {
-    const x = getOrPanic(d, a, i);
-    inc(x);
-    return x;
-  },
-  "Array.get!InternalBorrowed": (_α, d, a, i) => getOrPanic(d, a, i),
-  "Array.uget": (_α, a, i, _h) => getOwned(a, i),
-  "Array.ugetBorrowed": (_α, a, i, _h) => a[i],
-  "Array.push": (_α, a, v) => {
-    const r = ensureExclusive(a);
-    r.push(v);
-    return r;
-  },
-  "Array.pop": (_α, a) => {
-    if (a.length === 0) {
-      return a;
-    }
-    const r = ensureExclusive(a);
-    dec(r.pop());
-    return r;
-  },
-  "Array.set": (_α, a, i, v, _h) => set(a, i, v),
-  "Array.uset": (_α, a, i, v, _h) => set(a, i, v),
-  "Array.set!": (_α, a, i, v) => {
-    if (i < a.length) {
-      return set(a, i, v);
-    }
-    dec(v);
-    return panic(a, OUT_OF_BOUNDS);
-  },
-  "Array.swap": (_α, a, i, j, _hi, _hj) => {
-    const r = ensureExclusive(a);
-    const x = r[i];
-    r[i] = r[j];
-    r[j] = x;
-    return r;
-  },
-};

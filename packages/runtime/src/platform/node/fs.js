@@ -1,168 +1,29 @@
-// File handles and file system operations.
+// File system operations.
 
-import { dec, inc, mkCtor, RC, track } from "../../core.js";
+import { dec, inc, mkCtor } from "../../core.js";
 import { mkArray } from "../../array.js";
-import { LeanByteArray } from "../../bytearray.js";
 import { attempt } from "../../io.js";
 import { normalize } from "../../nat.js";
 import { decodeLossy } from "../../stream.js";
 import { mkString } from "../../string.js";
+import { Handle } from "./handle.js";
 import {
   changeDir,
-  closeFile,
   currentDir,
   fileMetadata,
   hardLink,
   isRegularFile,
-  isTty,
   makeDir,
   makeTempDir,
   makeTempFile,
   openFile,
   readDirNames,
-  readInto,
   realPath,
   removeDir,
   removeFile,
   renamePath,
   setMode,
-  truncateFile,
-  writeBytes,
 } from "./host.js";
-
-const EMPTY = new Uint8Array(0);
-
-/** The number of bytes `getLine` reads at a time. */
-const LINE_CHUNK_SIZE = 4096;
-
-/**
- * An open file, `IO.FS.Handle`. Writes are unbuffered, so flushing does nothing, but `getLine` may
- * read past the end of the line, so reads first consume the bytes it left over.
- *
- * The file is closed when the handle is freed.
- */
-export class Handle {
-  /**
-   * @param {number} fd
-   * @param {boolean} seekable Whether the file supports positioned reads and writes, in which case
-   *   the handle tracks its own position so that it can be rewound.
-   */
-  constructor(fd, seekable) {
-    this[RC] = 1;
-    this.fd = fd;
-    /** The file offset of the next read or write, or `null` to use the current file offset. */
-    this.pos = seekable ? 0 : null;
-    /** Bytes read past the logical position of the handle, which the next read returns first. */
-    this.pending = EMPTY;
-    track(this);
-  }
-
-  describe() {
-    return `handle for file descriptor ${this.fd}`;
-  }
-
-  finalize() {
-    closeFile(this.fd);
-  }
-
-  isTty() {
-    return isTty(this.fd);
-  }
-
-  /** Does nothing, as writes are unbuffered. */
-  flush() {}
-
-  /** Reads from the file into `buffer` at `offset`, returning the number of bytes read. */
-  readFile(buffer, offset, length) {
-    const n = readInto(this.fd, buffer, offset, length, this.pos);
-    if (this.pos !== null) {
-      this.pos += n;
-    }
-    return n;
-  }
-
-  /** Reads `n` bytes, or fewer at the end of the file. */
-  read(n) {
-    let bytes = new Uint8Array(Math.min(n, Math.max(this.pending.length, LINE_CHUNK_SIZE)));
-    let size = Math.min(n, this.pending.length);
-    bytes.set(this.pending.subarray(0, size));
-    this.pending = this.pending.subarray(size);
-    while (size < n) {
-      if (size === bytes.length) {
-        const grown = new Uint8Array(Math.min(n, 2 * bytes.length));
-        grown.set(bytes);
-        bytes = grown;
-      }
-      const read = this.readFile(bytes, size, bytes.length - size);
-      if (read === 0) {
-        break;
-      }
-      size += read;
-    }
-    return new LeanByteArray(bytes, size);
-  }
-
-  /** Reads up to and including the next newline, or to the end of the file. */
-  getLine() {
-    let searchFrom = 0;
-    for (;;) {
-      const end = this.pending.indexOf(10, searchFrom);
-      if (end !== -1) {
-        const line = this.pending.subarray(0, end + 1);
-        this.pending = this.pending.subarray(end + 1);
-        return line;
-      }
-      searchFrom = this.pending.length;
-      const buffer = new Uint8Array(this.pending.length + LINE_CHUNK_SIZE);
-      buffer.set(this.pending);
-      const read = this.readFile(buffer, this.pending.length, LINE_CHUNK_SIZE);
-      if (read === 0) {
-        const line = this.pending;
-        this.pending = EMPTY;
-        return line;
-      }
-      this.pending = buffer.subarray(0, this.pending.length + read);
-    }
-  }
-
-  /** Discards any bytes read ahead, so that the file position is the logical one. */
-  discardPending() {
-    if (this.pos !== null) {
-      this.pos -= this.pending.length;
-    }
-    this.pending = EMPTY;
-  }
-
-  /** Writes all of `bytes` to the file. */
-  writeFile(bytes) {
-    writeBytes(this.fd, bytes, this.pos);
-  }
-
-  write(bytes) {
-    this.discardPending();
-    this.writeFile(bytes);
-    if (this.pos !== null) {
-      this.pos += bytes.length;
-    }
-  }
-
-  rewind() {
-    if (this.pos !== null) {
-      this.pos = 0;
-      this.pending = EMPTY;
-    }
-  }
-
-  /** Truncates the file at the current position. */
-  truncate() {
-    this.discardPending();
-    this.truncateFile(this.pos ?? 0);
-  }
-
-  truncateFile(length) {
-    truncateFile(this.fd, length);
-  }
-}
 
 /** The `fopen` mode of each `IO.FS.Mode`. */
 const openFlags = ["r", "w", "wx", "r+", "a"];
@@ -195,54 +56,99 @@ function metadata(p, follow) {
   });
 }
 
-export const externs = {
-  "IO.FS.Handle.mk": (path, mode, _w) =>
-    attempt(path, () => {
-      const fd = openFile(path.toString(), openFlags[mode]);
-      // Appends ignore the position, so there is no need to track it.
-      return new Handle(fd, mode !== 4 && isRegularFile(fd));
-    }),
-  "IO.FS.Handle.isTty": (h, _w) => (h.isTty() ? 1 : 0),
-  "IO.FS.Handle.flush": (h, _w) => attempt(undefined, () => h.flush()),
-  "IO.FS.Handle.rewind": (h, _w) => attempt(undefined, () => h.rewind()),
-  "IO.FS.Handle.truncate": (h, _w) => attempt(undefined, () => h.truncate()),
-  "IO.FS.Handle.read": (h, n, _w) => attempt(undefined, () => h.read(n)),
-  "IO.FS.Handle.write": (h, b, _w) =>
-    attempt(undefined, () => h.write(b.bytes.subarray(0, b.size))),
-  "IO.FS.Handle.getLine": (h, _w) => attempt(undefined, () => decodeLossy(h.getLine())),
-  "IO.FS.Handle.putStr": (h, s, _w) =>
-    attempt(undefined, () => h.write(s.bytes.subarray(0, s.size))),
+const IO_FS_Handle_mk = (path, mode, _w) =>
+  attempt(path, () => {
+    const fd = openFile(path.toString(), openFlags[mode]);
+    // Appends ignore the position, so there is no need to track it.
+    return new Handle(fd, mode !== 4 && isRegularFile(fd));
+  });
+export { IO_FS_Handle_mk as "IO.FS.Handle.mk" };
 
-  "IO.FS.createDir": (p, _w) => attempt(p, () => makeDir(p.toString())),
-  "IO.FS.removeFile": (p, _w) => attempt(p, () => removeFile(p.toString())),
-  "IO.FS.removeDir": (p, _w) => attempt(p, () => removeDir(p.toString())),
-  "IO.FS.rename": (from, to, _w) => attempt(from, () => renamePath(from.toString(), to.toString())),
-  "IO.FS.hardLink": (target, link, _w) =>
-    attempt(target, () => hardLink(target.toString(), link.toString())),
-  "IO.FS.realPath": (p, _w) => {
-    const r = attempt(p, () => mkString(realPath(p.toString())));
-    dec(p);
-    return r;
-  },
-  "IO.FS.createTempFile": (_w) =>
-    attempt(undefined, () => {
-      const { fd, path } = makeTempFile();
-      return mkCtor(0, [new Handle(fd, true), mkString(path)], null);
-    }),
-  "IO.FS.createTempDir": (_w) => attempt(undefined, () => mkString(makeTempDir())),
-  "IO.Prim.setAccessRights": (p, mode, _w) => attempt(p, () => setMode(p.toString(), mode)),
-  "IO.currentDir": (_w) => attempt(undefined, () => mkString(currentDir())),
-  "IO.Process.getCurrentDir": (_w) => attempt(undefined, () => mkString(currentDir())),
-  "IO.Process.setCurrentDir": (p, _w) => attempt(p, () => changeDir(p.toString())),
-  "System.FilePath.readDir": (p, _w) =>
-    attempt(p, () =>
-      mkArray(
-        readDirNames(p.toString()).map((name) => {
-          inc(p);
-          return mkCtor(0, [p, decodeLossy(name)], null);
-        }),
-      ),
-    ),
-  "System.FilePath.metadata": (p, _w) => metadata(p, true),
-  "System.FilePath.symlinkMetadata": (p, _w) => metadata(p, false),
+const IO_FS_Handle_isTty = (h, _w) => (h.isTty() ? 1 : 0);
+export { IO_FS_Handle_isTty as "IO.FS.Handle.isTty" };
+
+const IO_FS_Handle_flush = (h, _w) => attempt(undefined, () => h.flush());
+export { IO_FS_Handle_flush as "IO.FS.Handle.flush" };
+
+const IO_FS_Handle_rewind = (h, _w) => attempt(undefined, () => h.rewind());
+export { IO_FS_Handle_rewind as "IO.FS.Handle.rewind" };
+
+const IO_FS_Handle_truncate = (h, _w) => attempt(undefined, () => h.truncate());
+export { IO_FS_Handle_truncate as "IO.FS.Handle.truncate" };
+
+const IO_FS_Handle_read = (h, n, _w) => attempt(undefined, () => h.read(n));
+export { IO_FS_Handle_read as "IO.FS.Handle.read" };
+
+const IO_FS_Handle_write = (h, b, _w) =>
+  attempt(undefined, () => h.write(b.bytes.subarray(0, b.size)));
+export { IO_FS_Handle_write as "IO.FS.Handle.write" };
+
+const IO_FS_Handle_getLine = (h, _w) => attempt(undefined, () => decodeLossy(h.getLine()));
+export { IO_FS_Handle_getLine as "IO.FS.Handle.getLine" };
+
+const IO_FS_Handle_putStr = (h, s, _w) =>
+  attempt(undefined, () => h.write(s.bytes.subarray(0, s.size)));
+export { IO_FS_Handle_putStr as "IO.FS.Handle.putStr" };
+
+const IO_FS_createDir = (p, _w) => attempt(p, () => makeDir(p.toString()));
+export { IO_FS_createDir as "IO.FS.createDir" };
+
+const IO_FS_removeFile = (p, _w) => attempt(p, () => removeFile(p.toString()));
+export { IO_FS_removeFile as "IO.FS.removeFile" };
+
+const IO_FS_removeDir = (p, _w) => attempt(p, () => removeDir(p.toString()));
+export { IO_FS_removeDir as "IO.FS.removeDir" };
+
+const IO_FS_rename = (from, to, _w) =>
+  attempt(from, () => renamePath(from.toString(), to.toString()));
+export { IO_FS_rename as "IO.FS.rename" };
+
+const IO_FS_hardLink = (target, link, _w) =>
+  attempt(target, () => hardLink(target.toString(), link.toString()));
+export { IO_FS_hardLink as "IO.FS.hardLink" };
+
+const IO_FS_realPath = (p, _w) => {
+  const r = attempt(p, () => mkString(realPath(p.toString())));
+  dec(p);
+  return r;
 };
+export { IO_FS_realPath as "IO.FS.realPath" };
+
+const IO_FS_createTempFile = (_w) =>
+  attempt(undefined, () => {
+    const { fd, path } = makeTempFile();
+    return mkCtor(0, [new Handle(fd, true), mkString(path)], null);
+  });
+export { IO_FS_createTempFile as "IO.FS.createTempFile" };
+
+const IO_FS_createTempDir = (_w) => attempt(undefined, () => mkString(makeTempDir()));
+export { IO_FS_createTempDir as "IO.FS.createTempDir" };
+
+const IO_Prim_setAccessRights = (p, mode, _w) => attempt(p, () => setMode(p.toString(), mode));
+export { IO_Prim_setAccessRights as "IO.Prim.setAccessRights" };
+
+const IO_currentDir = (_w) => attempt(undefined, () => mkString(currentDir()));
+export { IO_currentDir as "IO.currentDir" };
+
+const IO_Process_getCurrentDir = (_w) => attempt(undefined, () => mkString(currentDir()));
+export { IO_Process_getCurrentDir as "IO.Process.getCurrentDir" };
+
+const IO_Process_setCurrentDir = (p, _w) => attempt(p, () => changeDir(p.toString()));
+export { IO_Process_setCurrentDir as "IO.Process.setCurrentDir" };
+
+const System_FilePath_readDir = (p, _w) =>
+  attempt(p, () =>
+    mkArray(
+      readDirNames(p.toString()).map((name) => {
+        inc(p);
+        return mkCtor(0, [p, decodeLossy(name)], null);
+      }),
+    ),
+  );
+export { System_FilePath_readDir as "System.FilePath.readDir" };
+
+const System_FilePath_metadata = (p, _w) => metadata(p, true);
+export { System_FilePath_metadata as "System.FilePath.metadata" };
+
+const System_FilePath_symlinkMetadata = (p, _w) => metadata(p, false);
+export { System_FilePath_symlinkMetadata as "System.FilePath.symlinkMetadata" };

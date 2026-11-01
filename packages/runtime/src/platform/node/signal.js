@@ -176,47 +176,53 @@ function start(signal) {
   return ioOk(share(signal.promise));
 }
 
-export const externs = {
-  "Std.Internal.UV.Signal.mk": (signum, repeating, _w) => ioOk(new Signal(signum, repeating === 1)),
-  "Std.Internal.UV.Signal.next": (signal, _w) => {
-    if (signal.state === INITIAL) {
-      return start(signal);
-    }
-    if (signal.repeating && signal.state === RUNNING) {
-      if (signal.promise === null || isResolved(signal.promise)) {
-        signal.dropPromise();
-        signal.promise = new IoPromise();
-        signal.updateWaiting();
-      }
-      return ioOk(share(signal.promise));
-    }
-    // Like the C runtime, a signal without a promise returns a new one that it never resolves, so
-    // that it resolves to `none` once it is dropped.
-    return ioOk(signal.promise === null ? new IoPromise() : share(signal.promise));
-  },
-  "Std.Internal.UV.Signal.stop": (signal, _w) => {
-    if (signal.state === RUNNING) {
-      signal.unlisten();
+const Std_Internal_UV_Signal_mk = (signum, repeating, _w) =>
+  ioOk(new Signal(signum, repeating === 1));
+export { Std_Internal_UV_Signal_mk as "Std.Internal.UV.Signal.mk" };
+
+const Std_Internal_UV_Signal_next = (signal, _w) => {
+  if (signal.state === INITIAL) {
+    return start(signal);
+  }
+  if (signal.repeating && signal.state === RUNNING) {
+    if (signal.promise === null || isResolved(signal.promise)) {
       signal.dropPromise();
-      signal.state = FINISHED;
+      signal.promise = new IoPromise();
+      signal.updateWaiting();
+    }
+    return ioOk(share(signal.promise));
+  }
+  // Like the C runtime, a signal without a promise returns a new one that it never resolves, so
+  // that it resolves to `none` once it is dropped.
+  return ioOk(signal.promise === null ? new IoPromise() : share(signal.promise));
+};
+export { Std_Internal_UV_Signal_next as "Std.Internal.UV.Signal.next" };
+
+const Std_Internal_UV_Signal_stop = (signal, _w) => {
+  if (signal.state === RUNNING) {
+    signal.unlisten();
+    signal.dropPromise();
+    signal.state = FINISHED;
+    signal.updateWaiting();
+    dec(signal);
+  }
+  return ioOk(0);
+};
+export { Std_Internal_UV_Signal_stop as "Std.Internal.UV.Signal.stop" };
+
+const Std_Internal_UV_Signal_cancel = (signal, _w) => {
+  if (signal.state === RUNNING && signal.promise !== null) {
+    signal.dropPromise();
+    if (signal.repeating) {
+      // A repeating signal keeps its handler, but resolves nothing until `next` is called again.
+      signal.updateWaiting();
+    } else {
+      signal.unlisten();
+      signal.state = INITIAL;
       signal.updateWaiting();
       dec(signal);
     }
-    return ioOk(0);
-  },
-  "Std.Internal.UV.Signal.cancel": (signal, _w) => {
-    if (signal.state === RUNNING && signal.promise !== null) {
-      signal.dropPromise();
-      if (signal.repeating) {
-        // A repeating signal keeps its handler, but resolves nothing until `next` is called again.
-        signal.updateWaiting();
-      } else {
-        signal.unlisten();
-        signal.state = INITIAL;
-        signal.updateWaiting();
-        dec(signal);
-      }
-    }
-    return ioOk(0);
-  },
+  }
+  return ioOk(0);
 };
+export { Std_Internal_UV_Signal_cancel as "Std.Internal.UV.Signal.cancel" };

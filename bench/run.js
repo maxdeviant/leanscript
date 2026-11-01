@@ -319,6 +319,7 @@ function serve() {
   {
     "imports": {
       "@leanscript/runtime": "/runtime/index.js",
+      "@leanscript/runtime/externs": "/runtime/externs/index.js",
       "#platform/host.js": "/host.js",
       "#platform/": "/runtime/platform/browser/"
     }

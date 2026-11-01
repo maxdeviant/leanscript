@@ -55,18 +55,18 @@ export function mkStream(h) {
 }
 
 /**
- * Returns the externs `IO.get<name>` and `IO.set<name>`, which get and set a standard stream that
- * is initially `stream`.
+ * Returns the implementations `get` and `set` of the externs `IO.get<name>` and `IO.set<name>` of a
+ * standard stream that is initially `stream`.
  */
-export function stdStreamExterns(name, stream) {
+export function stdStreamExterns(stream) {
   return {
     // These are `BaseIO` actions, so their results are not wrapped in `EST.Out`.
-    [`IO.get${name}`]: (_w) => {
+    get: (_w) => {
       inc(stream);
       return stream;
     },
     // The old stream's reference moves from the global to the caller.
-    [`IO.set${name}`]: (s, _w) => {
+    set: (s, _w) => {
       const old = stream;
       stream = s;
       return old;

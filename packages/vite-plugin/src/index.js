@@ -4,8 +4,8 @@
 // builds with Lake. A compile error fails the import, which the dev server shows in its error
 // overlay.
 //
-// Compiled files import `@leanscript/runtime`, which resolves to the plugin's own dependency, so
-// that apps only need to depend on the plugin.
+// Compiled files import `@leanscript/runtime` and `@leanscript/runtime/externs`, which resolve to the
+// plugin's own dependency, so that apps only need to depend on the plugin.
 
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -17,7 +17,7 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
-const runtime = "@leanscript/runtime";
+const runtimeSpecifiers = new Set(["@leanscript/runtime", "@leanscript/runtime/externs"]);
 
 /** Returns the nearest directory containing `dir` that has a Lake configuration file, if any. */
 function findWorkspace(dir) {
@@ -43,7 +43,7 @@ export default function leanscript({ compiler } = {}) {
     name: "leanscript",
 
     resolveId(source, _importer, options) {
-      if (source !== runtime) {
+      if (!runtimeSpecifiers.has(source)) {
         return null;
       }
       return this.resolve(source, fileURLToPath(import.meta.url), { ...options, skipSelf: true });

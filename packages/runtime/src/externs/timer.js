@@ -3,9 +3,9 @@
 // The states and the transitions between them follow the C runtime's `timer.cpp`, and the
 // scheduling follows libuv's `uv_timer_start`, which it uses.
 
-import { CHILDREN, dec, inc, RC, track } from "./core.js";
-import { ioOk } from "./io.js";
-import { IoPromise, isResolved, resolvePromise } from "./task.js";
+import { CHILDREN, dec, inc, RC, track } from "../core.js";
+import { ioOk } from "../io.js";
+import { IoPromise, isResolved, resolvePromise } from "../task.js";
 
 const INITIAL = 0;
 const RUNNING = 1;
@@ -110,56 +110,63 @@ function share(promise) {
   return promise;
 }
 
-export const externs = {
-  "Std.Internal.UV.Timer.mk": (timeout, repeating, _w) =>
-    ioOk(new Timer(Number(timeout), repeating === 1)),
-  "Std.Internal.UV.Timer.next": (timer, _w) => {
-    if (timer.state === INITIAL) {
+const Std_Internal_UV_Timer_mk = (timeout, repeating, _w) =>
+  ioOk(new Timer(Number(timeout), repeating === 1));
+export { Std_Internal_UV_Timer_mk as "Std.Internal.UV.Timer.mk" };
+
+const Std_Internal_UV_Timer_next = (timer, _w) => {
+  if (timer.state === INITIAL) {
+    timer.promise = new IoPromise();
+    timer.state = RUNNING;
+    // The scheduled callback keeps the timer alive while it is running.
+    inc(timer);
+    // A repeating timer resolves its first promise right away, for the 0th multiple of the
+    // timeout.
+    timer.start(timer.repeating ? 0 : timer.timeout, timer.repeating ? timer.timeout : 0);
+    return ioOk(share(timer.promise));
+  }
+  if (timer.repeating && timer.state === RUNNING) {
+    if (timer.promise === null || isResolved(timer.promise)) {
+      timer.dropPromise();
       timer.promise = new IoPromise();
-      timer.state = RUNNING;
-      // The scheduled callback keeps the timer alive while it is running.
-      inc(timer);
-      // A repeating timer resolves its first promise right away, for the 0th multiple of the
-      // timeout.
-      timer.start(timer.repeating ? 0 : timer.timeout, timer.repeating ? timer.timeout : 0);
-      return ioOk(share(timer.promise));
     }
-    if (timer.repeating && timer.state === RUNNING) {
-      if (timer.promise === null || isResolved(timer.promise)) {
-        timer.dropPromise();
-        timer.promise = new IoPromise();
-      }
-      return ioOk(share(timer.promise));
-    }
-    // Like the C runtime, a timer without a promise returns a new one that it never resolves, so
-    // that it resolves to `none` once it is dropped.
-    return ioOk(timer.promise === null ? new IoPromise() : share(timer.promise));
-  },
-  "Std.Internal.UV.Timer.reset": (timer, _w) => {
-    if (timer.state === RUNNING) {
-      timer.start(timer.timeout, timer.repeating ? timer.timeout : 0);
-    }
-    return ioOk(0);
-  },
-  "Std.Internal.UV.Timer.stop": (timer, _w) => {
+    return ioOk(share(timer.promise));
+  }
+  // Like the C runtime, a timer without a promise returns a new one that it never resolves, so
+  // that it resolves to `none` once it is dropped.
+  return ioOk(timer.promise === null ? new IoPromise() : share(timer.promise));
+};
+export { Std_Internal_UV_Timer_next as "Std.Internal.UV.Timer.next" };
+
+const Std_Internal_UV_Timer_reset = (timer, _w) => {
+  if (timer.state === RUNNING) {
+    timer.start(timer.timeout, timer.repeating ? timer.timeout : 0);
+  }
+  return ioOk(0);
+};
+export { Std_Internal_UV_Timer_reset as "Std.Internal.UV.Timer.reset" };
+
+const Std_Internal_UV_Timer_stop = (timer, _w) => {
+  timer.dropPromise();
+  if (timer.state === RUNNING) {
+    timer.stop();
+    timer.state = FINISHED;
+    dec(timer);
+  }
+  return ioOk(0);
+};
+export { Std_Internal_UV_Timer_stop as "Std.Internal.UV.Timer.stop" };
+
+const Std_Internal_UV_Timer_cancel = (timer, _w) => {
+  if (timer.state === RUNNING && timer.promise !== null) {
     timer.dropPromise();
-    if (timer.state === RUNNING) {
+    // A repeating timer keeps ticking, but resolves nothing until `next` is called again.
+    if (!timer.repeating) {
       timer.stop();
-      timer.state = FINISHED;
+      timer.state = INITIAL;
       dec(timer);
     }
-    return ioOk(0);
-  },
-  "Std.Internal.UV.Timer.cancel": (timer, _w) => {
-    if (timer.state === RUNNING && timer.promise !== null) {
-      timer.dropPromise();
-      // A repeating timer keeps ticking, but resolves nothing until `next` is called again.
-      if (!timer.repeating) {
-        timer.stop();
-        timer.state = INITIAL;
-        dec(timer);
-      }
-    }
-    return ioOk(0);
-  },
+  }
+  return ioOk(0);
 };
+export { Std_Internal_UV_Timer_cancel as "Std.Internal.UV.Timer.cancel" };

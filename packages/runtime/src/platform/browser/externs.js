@@ -32,7 +32,8 @@ class ConsoleStream {
   }
 }
 
-export const externs = {
-  ...stdStreamExterns("Stdout", mkStream(new ConsoleStream(1))),
-  ...stdStreamExterns("Stderr", mkStream(new ConsoleStream(2))),
-};
+const { get: IO_getStdout, set: IO_setStdout } = stdStreamExterns(mkStream(new ConsoleStream(1)));
+export { IO_getStdout as "IO.getStdout", IO_setStdout as "IO.setStdout" };
+
+const { get: IO_getStderr, set: IO_setStderr } = stdStreamExterns(mkStream(new ConsoleStream(2)));
+export { IO_getStderr as "IO.getStderr", IO_setStderr as "IO.setStderr" };

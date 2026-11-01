@@ -2,14 +2,14 @@
 
 import { execFileSync } from "node:child_process";
 
-const runtimeUrl = new URL("../packages/runtime/src/index.js", import.meta.url).href;
+const externsUrl = new URL("../packages/runtime/src/externs/index.js", import.meta.url).href;
 
 /**
  * Returns the sorted names of the externs that the runtime implements when it is loaded under the
  * export `conditions`, as a program on that target would load it.
  */
 export function runtimeExterns(conditions) {
-  const script = `const { externs } = await import(${JSON.stringify(runtimeUrl)});
+  const script = `const externs = await import(${JSON.stringify(externsUrl)});
 console.log(Object.keys(externs).sort().join("\\n"));`;
   const stdout = execFileSync(
     process.execPath,

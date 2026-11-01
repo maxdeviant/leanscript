@@ -113,76 +113,124 @@ function passwd({ username, uid, gid, shell, homedir }) {
 /** Returns the `uv_pid_t` that the C runtime passes for the `UInt64` `pid`. */
 const toPid = (pid) => Number(BigInt.asIntN(32, pid));
 
-export const externs = {
-  "Std.Internal.UV.System.getProcessTitle": (_w) => ioOk(mkString(processTitle())),
-  "Std.Internal.UV.System.setProcessTitle": (title, _w) =>
-    nulError(title) ?? attempt(undefined, () => setProcessTitle(title.toString())),
-  "Std.Internal.UV.System.uptime": (_w) => attempt(undefined, () => uint64(systemUptime())),
-  "Std.Internal.UV.System.osGetPid": (_w) => ioOk(BigInt(processId())),
-  "Std.Internal.UV.System.osGetPpid": (_w) => ioOk(BigInt(parentProcessId())),
-  "Std.Internal.UV.System.cpuInfo": (_w) => attempt(undefined, () => mkArray(cpuInfo().map(cpu))),
-  "Std.Internal.UV.System.cwd": (_w) => attempt(undefined, () => mkString(currentDir())),
-  "Std.Internal.UV.System.chdir": (path, _w) =>
-    nulError(path) ?? attempt(path, () => changeDir(path.toString())),
-  "Std.Internal.UV.System.osHomedir": (_w) => attempt(undefined, () => mkString(homeDir())),
-  "Std.Internal.UV.System.osTmpdir": (_w) => attempt(undefined, () => mkString(tempDir())),
-  "Std.Internal.UV.System.osGetPasswd": (_w) => attempt(undefined, () => passwd(userInfo())),
-  "Std.Internal.UV.System.osEnviron": (_w) =>
-    ioOk(
-      mkArray(
-        environment().map(([name, value]) => mkCtor(0, [mkString(name), mkString(value)], null)),
-      ),
+const Std_Internal_UV_System_getProcessTitle = (_w) => ioOk(mkString(processTitle()));
+export { Std_Internal_UV_System_getProcessTitle as "Std.Internal.UV.System.getProcessTitle" };
+
+const Std_Internal_UV_System_setProcessTitle = (title, _w) =>
+  nulError(title) ?? attempt(undefined, () => setProcessTitle(title.toString()));
+export { Std_Internal_UV_System_setProcessTitle as "Std.Internal.UV.System.setProcessTitle" };
+
+const Std_Internal_UV_System_uptime = (_w) => attempt(undefined, () => uint64(systemUptime()));
+export { Std_Internal_UV_System_uptime as "Std.Internal.UV.System.uptime" };
+
+const Std_Internal_UV_System_osGetPid = (_w) => ioOk(BigInt(processId()));
+export { Std_Internal_UV_System_osGetPid as "Std.Internal.UV.System.osGetPid" };
+
+const Std_Internal_UV_System_osGetPpid = (_w) => ioOk(BigInt(parentProcessId()));
+export { Std_Internal_UV_System_osGetPpid as "Std.Internal.UV.System.osGetPpid" };
+
+const Std_Internal_UV_System_cpuInfo = (_w) =>
+  attempt(undefined, () => mkArray(cpuInfo().map(cpu)));
+export { Std_Internal_UV_System_cpuInfo as "Std.Internal.UV.System.cpuInfo" };
+
+const Std_Internal_UV_System_cwd = (_w) => attempt(undefined, () => mkString(currentDir()));
+export { Std_Internal_UV_System_cwd as "Std.Internal.UV.System.cwd" };
+
+const Std_Internal_UV_System_chdir = (path, _w) =>
+  nulError(path) ?? attempt(path, () => changeDir(path.toString()));
+export { Std_Internal_UV_System_chdir as "Std.Internal.UV.System.chdir" };
+
+const Std_Internal_UV_System_osHomedir = (_w) => attempt(undefined, () => mkString(homeDir()));
+export { Std_Internal_UV_System_osHomedir as "Std.Internal.UV.System.osHomedir" };
+
+const Std_Internal_UV_System_osTmpdir = (_w) => attempt(undefined, () => mkString(tempDir()));
+export { Std_Internal_UV_System_osTmpdir as "Std.Internal.UV.System.osTmpdir" };
+
+const Std_Internal_UV_System_osGetPasswd = (_w) => attempt(undefined, () => passwd(userInfo()));
+export { Std_Internal_UV_System_osGetPasswd as "Std.Internal.UV.System.osGetPasswd" };
+
+const Std_Internal_UV_System_osEnviron = (_w) =>
+  ioOk(
+    mkArray(
+      environment().map(([name, value]) => mkCtor(0, [mkString(name), mkString(value)], null)),
     ),
-  "Std.Internal.UV.System.osGetenv": (name, _w) => {
-    const s = name.toString();
-    // A name with a NUL character can't be set, so it is reported as unset.
-    const value = s.includes("\0") ? undefined : getEnv(s);
-    return ioOk(value === undefined ? 0 : some(mkString(value)));
-  },
-  "Std.Internal.UV.System.osSetenv": (name, value, _w) => {
-    const error = nulError(name) ?? nulError(value);
-    if (error !== undefined) {
-      return error;
-    }
-    const n = name.toString();
-    if (isInvalidEnvName(n)) {
-      return invalidArgument(undefined);
-    }
-    setEnv(n, value.toString());
-    return ioOk(0);
-  },
-  "Std.Internal.UV.System.osUnsetenv": (name, _w) => {
-    const error = nulError(name);
-    if (error !== undefined) {
-      return error;
-    }
-    const n = name.toString();
-    if (isInvalidEnvName(n)) {
-      return invalidArgument(undefined);
-    }
-    unsetEnv(n);
-    return ioOk(0);
-  },
-  "Std.Internal.UV.System.osGetHostname": (_w) => attempt(undefined, () => mkString(hostname())),
-  "Std.Internal.UV.System.osGetPriority": (pid, _w) =>
-    attempt(undefined, () => BigInt.asUintN(64, BigInt(processPriority(toPid(pid))))),
-  "Std.Internal.UV.System.osSetPriority": (pid, priority, _w) => {
-    // The C runtime passes the priority as an `int`, which libuv checks is in range.
-    const p = Number(BigInt.asIntN(32, priority));
-    if (p < -20 || p > 19) {
-      return invalidArgument(undefined);
-    }
-    return attempt(undefined, () => setProcessPriority(toPid(pid), p));
-  },
-  "Std.Internal.UV.System.osUname": (_w) =>
-    attempt(undefined, () => {
-      const { sysname, release, version, machine } = systemName();
-      return mkCtor(0, [sysname, release, version, machine].map(mkString), null);
-    }),
-  "Std.Internal.UV.System.getrusage": (_w) => attempt(undefined, () => rusage(resourceUsage())),
-  "Std.Internal.UV.System.exePath": (_w) => ioOk(mkString(executablePath())),
-  "Std.Internal.UV.System.freeMemory": (_w) => ioOk(uint64(freeMemory())),
-  "Std.Internal.UV.System.totalMemory": (_w) => ioOk(uint64(totalMemory())),
-  "Std.Internal.UV.System.constrainedMemory": (_w) => ioOk(uint64(constrainedMemory())),
-  "Std.Internal.UV.System.availableMemory": (_w) => ioOk(uint64(availableMemory())),
+  );
+export { Std_Internal_UV_System_osEnviron as "Std.Internal.UV.System.osEnviron" };
+
+const Std_Internal_UV_System_osGetenv = (name, _w) => {
+  const s = name.toString();
+  // A name with a NUL character can't be set, so it is reported as unset.
+  const value = s.includes("\0") ? undefined : getEnv(s);
+  return ioOk(value === undefined ? 0 : some(mkString(value)));
 };
+export { Std_Internal_UV_System_osGetenv as "Std.Internal.UV.System.osGetenv" };
+
+const Std_Internal_UV_System_osSetenv = (name, value, _w) => {
+  const error = nulError(name) ?? nulError(value);
+  if (error !== undefined) {
+    return error;
+  }
+  const n = name.toString();
+  if (isInvalidEnvName(n)) {
+    return invalidArgument(undefined);
+  }
+  setEnv(n, value.toString());
+  return ioOk(0);
+};
+export { Std_Internal_UV_System_osSetenv as "Std.Internal.UV.System.osSetenv" };
+
+const Std_Internal_UV_System_osUnsetenv = (name, _w) => {
+  const error = nulError(name);
+  if (error !== undefined) {
+    return error;
+  }
+  const n = name.toString();
+  if (isInvalidEnvName(n)) {
+    return invalidArgument(undefined);
+  }
+  unsetEnv(n);
+  return ioOk(0);
+};
+export { Std_Internal_UV_System_osUnsetenv as "Std.Internal.UV.System.osUnsetenv" };
+
+const Std_Internal_UV_System_osGetHostname = (_w) => attempt(undefined, () => mkString(hostname()));
+export { Std_Internal_UV_System_osGetHostname as "Std.Internal.UV.System.osGetHostname" };
+
+const Std_Internal_UV_System_osGetPriority = (pid, _w) =>
+  attempt(undefined, () => BigInt.asUintN(64, BigInt(processPriority(toPid(pid)))));
+export { Std_Internal_UV_System_osGetPriority as "Std.Internal.UV.System.osGetPriority" };
+
+const Std_Internal_UV_System_osSetPriority = (pid, priority, _w) => {
+  // The C runtime passes the priority as an `int`, which libuv checks is in range.
+  const p = Number(BigInt.asIntN(32, priority));
+  if (p < -20 || p > 19) {
+    return invalidArgument(undefined);
+  }
+  return attempt(undefined, () => setProcessPriority(toPid(pid), p));
+};
+export { Std_Internal_UV_System_osSetPriority as "Std.Internal.UV.System.osSetPriority" };
+
+const Std_Internal_UV_System_osUname = (_w) =>
+  attempt(undefined, () => {
+    const { sysname, release, version, machine } = systemName();
+    return mkCtor(0, [sysname, release, version, machine].map(mkString), null);
+  });
+export { Std_Internal_UV_System_osUname as "Std.Internal.UV.System.osUname" };
+
+const Std_Internal_UV_System_getrusage = (_w) => attempt(undefined, () => rusage(resourceUsage()));
+export { Std_Internal_UV_System_getrusage as "Std.Internal.UV.System.getrusage" };
+
+const Std_Internal_UV_System_exePath = (_w) => ioOk(mkString(executablePath()));
+export { Std_Internal_UV_System_exePath as "Std.Internal.UV.System.exePath" };
+
+const Std_Internal_UV_System_freeMemory = (_w) => ioOk(uint64(freeMemory()));
+export { Std_Internal_UV_System_freeMemory as "Std.Internal.UV.System.freeMemory" };
+
+const Std_Internal_UV_System_totalMemory = (_w) => ioOk(uint64(totalMemory()));
+export { Std_Internal_UV_System_totalMemory as "Std.Internal.UV.System.totalMemory" };
+
+const Std_Internal_UV_System_constrainedMemory = (_w) => ioOk(uint64(constrainedMemory()));
+export { Std_Internal_UV_System_constrainedMemory as "Std.Internal.UV.System.constrainedMemory" };
+
+const Std_Internal_UV_System_availableMemory = (_w) => ioOk(uint64(availableMemory()));
+export { Std_Internal_UV_System_availableMemory as "Std.Internal.UV.System.availableMemory" };

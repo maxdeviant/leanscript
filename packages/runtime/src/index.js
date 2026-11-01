@@ -1,42 +1,15 @@
 // The LeanScript runtime.
 //
 // See `src/LeanScript/EmitJs.lean` for how Lean values are represented, and the individual modules for
-// the representation of each builtin type.
+// the representation of each builtin type. The implementations of externs are in `externs/`.
 //
 // The externs that depend on the platform, and the host services that the rest of the runtime
 // uses, are implemented once for each platform in `platform/<platform>/`. The `#platform/*` import
 // resolves to the browser implementation under the `browser` export condition, to the Node one under
 // `node`, and to the browser one elsewhere.
-//
-// Every extern implementation receives every IR parameter of the declaration it implements, in
-// order, including erased type arguments and the `void` world token.
 
-import {
-  arrayToList,
-  checkLeaks,
-  dec,
-  del,
-  inc,
-  InternalPanic,
-  panic,
-  setInitializing,
-} from "./core.js";
-import { externs as arrayExterns } from "./array.js";
-import { externs as byteArrayExterns } from "./bytearray.js";
-import { externs as fixedExterns } from "./fixed.js";
-import { externs as floatExterns } from "./float.js";
-import { externs as floatArrayExterns } from "./floatarray.js";
-import { externs as hashExterns } from "./hash.js";
-import { externs as ioExterns } from "./io.js";
-import { externs as miscExterns } from "./misc.js";
-import { externs as natExterns } from "./nat.js";
-import { externs as netExterns } from "./net.js";
-import { externs as refExterns } from "./ref.js";
-import { externs as stringExterns, mkString } from "./string.js";
-import { externs as systemExterns } from "./system.js";
-import { externs as taskExterns } from "./task.js";
-import { externs as timerExterns } from "./timer.js";
-import { externs as platformExterns } from "#platform/externs.js";
+import { arrayToList, checkLeaks, dec, del, InternalPanic, setInitializing } from "./core.js";
+import { mkString } from "./string.js";
 import {
   commandLineArgs,
   flushOutput,
@@ -123,58 +96,6 @@ export async function importForProgram(load, specifier, names) {
     }
     return module[name];
   });
-}
-
-/** Implementations of `@[extern]` declarations, keyed by the Lean declaration name. */
-export const externs = {
-  ...natExterns,
-  ...fixedExterns,
-  ...floatExterns,
-  ...stringExterns,
-  ...arrayExterns,
-  ...byteArrayExterns,
-  ...floatArrayExterns,
-  ...miscExterns,
-  ...hashExterns,
-  ...ioExterns,
-  ...netExterns,
-  ...platformExterns,
-  ...refExterns,
-  ...systemExterns,
-  ...taskExterns,
-  ...timerExterns,
-  panicCore: (_α, defaultValue, msg) => {
-    const text = msg.toString();
-    dec(msg);
-    // The default value is borrowed, but we return it as an owned reference.
-    inc(defaultValue);
-    return panic(defaultValue, text);
-  },
-};
-
-/**
- * Returns the implementations of the externs named `names`.
- *
- * An extern in `unavailable` that this platform does not implement is replaced by a function that
- * throws when called. Throws if any other extern is missing, so that a program fails when it loads
- * instead of partway through running.
- */
-export function resolveExterns(names, unavailable = []) {
-  const missing = names.filter(
-    (name) => !Object.hasOwn(externs, name) && !unavailable.includes(name),
-  );
-  if (missing.length > 0) {
-    throw new Error(`LeanScript: missing implementations for externs:\n  ${missing.join("\n  ")}`);
-  }
-  const stubs = unavailable
-    .filter((name) => !Object.hasOwn(externs, name))
-    .map((name) => [
-      name,
-      () => {
-        throw new Error(`LeanScript: ${name} is not available on this platform`);
-      },
-    ]);
-  return { ...externs, ...Object.fromEntries(stubs) };
 }
 
 /**

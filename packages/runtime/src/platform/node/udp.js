@@ -195,117 +195,144 @@ function setOption(socket, name, ...args) {
   });
 }
 
-export const externs = {
-  "Std.Internal.UV.UDP.Socket.new": (_w) => ioOk(new UdpSocket()),
-  "Std.Internal.UV.UDP.Socket.bind": (socket, addr, _w) => {
-    if (socket.local !== null) {
+const Std_Internal_UV_UDP_Socket_new = (_w) => ioOk(new UdpSocket());
+export { Std_Internal_UV_UDP_Socket_new as "Std.Internal.UV.UDP.Socket.new" };
+
+const Std_Internal_UV_UDP_Socket_bind = (socket, addr, _w) => {
+  if (socket.local !== null) {
+    return fail("EINVAL");
+  }
+  return attemptRequest(() => {
+    socket.bind(addr.tag, fromSocketAddress(addr));
+    return ioOk(0);
+  });
+};
+export { Std_Internal_UV_UDP_Socket_bind as "Std.Internal.UV.UDP.Socket.bind" };
+
+const Std_Internal_UV_UDP_Socket_connect = (socket, addr, _w) => {
+  if (socket.remote !== null) {
+    return fail("EISCONN");
+  }
+  return attemptRequest(() => {
+    socket.bindIfNeeded(addr.tag);
+    const { local, remote } = requestMain("udpConnect", socket.id, fromSocketAddress(addr));
+    socket.local = local;
+    socket.remote = remote;
+    return ioOk(0);
+  });
+};
+export { Std_Internal_UV_UDP_Socket_connect as "Std.Internal.UV.UDP.Socket.connect" };
+
+const Std_Internal_UV_UDP_Socket_send = (socket, data, addr, _w) => {
+  if (data.length === 0) {
+    dec(data);
+    const promise = new IoPromise();
+    resolvePromise(promise, ok(0));
+    return ioOk(promise);
+  }
+  const remote = addr === 0 ? null : addr.f0;
+  if (remote !== null && socket.remote !== null) {
+    dec(data);
+    return fail("EISCONN");
+  }
+  if (remote === null && socket.remote === null) {
+    dec(data);
+    return fail("EDESTADDRREQ");
+  }
+  const bytes = new Uint8Array(data.reduce((n, a) => n + a.size, 0));
+  let offset = 0;
+  for (const a of data) {
+    bytes.set(a.bytes.subarray(0, a.size), offset);
+    offset += a.size;
+  }
+  dec(data);
+  return attemptRequest(() => {
+    if (remote !== null) {
+      socket.bindIfNeeded(remote.tag);
+    }
+    const promise = socket.startRequest();
+    socket.sendPromises.push(promise);
+    socket.post(
+      "udpSend",
+      [bytes, remote === null ? null : fromSocketAddress(remote)],
+      [bytes.buffer],
+    );
+    return ioOk(promise);
+  });
+};
+export { Std_Internal_UV_UDP_Socket_send as "Std.Internal.UV.UDP.Socket.send" };
+
+const Std_Internal_UV_UDP_Socket_recv = (socket, size, _w) =>
+  // A read can't be larger than an array, so a size beyond that is as good as unlimited.
+  socket.startRead(Number(size > 0xffffffffn ? 0xffffffffn : size));
+export { Std_Internal_UV_UDP_Socket_recv as "Std.Internal.UV.UDP.Socket.recv" };
+
+const Std_Internal_UV_UDP_Socket_waitReadable = (socket, _w) => socket.startRead(null);
+export { Std_Internal_UV_UDP_Socket_waitReadable as "Std.Internal.UV.UDP.Socket.waitReadable" };
+
+const Std_Internal_UV_UDP_Socket_cancelRecv = (socket, _w) => {
+  const promise = socket.readPromise;
+  if (promise !== null) {
+    socket.readPromise = null;
+    dec(promise);
+    dec(socket);
+    if (socket.reading) {
+      socket.reading = false;
+      mainEventArrived();
+      postMain("udpCancelRead", [socket.id]);
+    }
+  }
+  return ioOk(0);
+};
+export { Std_Internal_UV_UDP_Socket_cancelRecv as "Std.Internal.UV.UDP.Socket.cancelRecv" };
+
+const Std_Internal_UV_UDP_Socket_getPeerName = (socket, _w) => {
+  if (socket.local === null) {
+    return fail("EBADF");
+  }
+  if (socket.remote === null) {
+    return fail("ENOTCONN");
+  }
+  return ioOk(mkSocketAddress(socket.remote.address, socket.remote.port));
+};
+export { Std_Internal_UV_UDP_Socket_getPeerName as "Std.Internal.UV.UDP.Socket.getPeerName" };
+
+const Std_Internal_UV_UDP_Socket_getSockName = (socket, _w) => {
+  if (socket.local === null) {
+    return fail("EBADF");
+  }
+  return ioOk(mkSocketAddress(socket.local.address, socket.local.port));
+};
+export { Std_Internal_UV_UDP_Socket_getSockName as "Std.Internal.UV.UDP.Socket.getSockName" };
+
+const Std_Internal_UV_UDP_Socket_setBroadcast = (socket, on, _w) =>
+  setOption(socket, "setBroadcast", on !== 0);
+export { Std_Internal_UV_UDP_Socket_setBroadcast as "Std.Internal.UV.UDP.Socket.setBroadcast" };
+
+const Std_Internal_UV_UDP_Socket_setMulticastLoop = (socket, on, _w) =>
+  setOption(socket, "setMulticastLoopback", on !== 0);
+export { Std_Internal_UV_UDP_Socket_setMulticastLoop as "Std.Internal.UV.UDP.Socket.setMulticastLoop" };
+
+const Std_Internal_UV_UDP_Socket_setMulticastTTL = (socket, ttl, _w) =>
+  ttl > 255 ? fail("EINVAL") : setOption(socket, "setMulticastTTL", ttl);
+export { Std_Internal_UV_UDP_Socket_setMulticastTTL as "Std.Internal.UV.UDP.Socket.setMulticastTTL" };
+
+const Std_Internal_UV_UDP_Socket_setTTL = (socket, ttl, _w) =>
+  ttl < 1 || ttl > 255 ? fail("EINVAL") : setOption(socket, "setTTL", ttl);
+export { Std_Internal_UV_UDP_Socket_setTTL as "Std.Internal.UV.UDP.Socket.setTTL" };
+
+const Std_Internal_UV_UDP_Socket_setMulticastInterface = (socket, iface, _w) =>
+  setOption(socket, "setMulticastInterface", formatIpAddr(iface));
+export { Std_Internal_UV_UDP_Socket_setMulticastInterface as "Std.Internal.UV.UDP.Socket.setMulticastInterface" };
+
+const Std_Internal_UV_UDP_Socket_setMembership = (socket, group, iface, membership, _w) =>
+  attemptRequest(() => {
+    // libuv binds the socket for the group's IP version first.
+    socket.bindIfNeeded(group.tag);
+    if (membership !== 0 && membership !== 1) {
       return fail("EINVAL");
     }
-    return attemptRequest(() => {
-      socket.bind(addr.tag, fromSocketAddress(addr));
-      return ioOk(0);
-    });
-  },
-  "Std.Internal.UV.UDP.Socket.connect": (socket, addr, _w) => {
-    if (socket.remote !== null) {
-      return fail("EISCONN");
-    }
-    return attemptRequest(() => {
-      socket.bindIfNeeded(addr.tag);
-      const { local, remote } = requestMain("udpConnect", socket.id, fromSocketAddress(addr));
-      socket.local = local;
-      socket.remote = remote;
-      return ioOk(0);
-    });
-  },
-  "Std.Internal.UV.UDP.Socket.send": (socket, data, addr, _w) => {
-    if (data.length === 0) {
-      dec(data);
-      const promise = new IoPromise();
-      resolvePromise(promise, ok(0));
-      return ioOk(promise);
-    }
-    const remote = addr === 0 ? null : addr.f0;
-    if (remote !== null && socket.remote !== null) {
-      dec(data);
-      return fail("EISCONN");
-    }
-    if (remote === null && socket.remote === null) {
-      dec(data);
-      return fail("EDESTADDRREQ");
-    }
-    const bytes = new Uint8Array(data.reduce((n, a) => n + a.size, 0));
-    let offset = 0;
-    for (const a of data) {
-      bytes.set(a.bytes.subarray(0, a.size), offset);
-      offset += a.size;
-    }
-    dec(data);
-    return attemptRequest(() => {
-      if (remote !== null) {
-        socket.bindIfNeeded(remote.tag);
-      }
-      const promise = socket.startRequest();
-      socket.sendPromises.push(promise);
-      socket.post(
-        "udpSend",
-        [bytes, remote === null ? null : fromSocketAddress(remote)],
-        [bytes.buffer],
-      );
-      return ioOk(promise);
-    });
-  },
-  "Std.Internal.UV.UDP.Socket.recv": (socket, size, _w) =>
-    // A read can't be larger than an array, so a size beyond that is as good as unlimited.
-    socket.startRead(Number(size > 0xffffffffn ? 0xffffffffn : size)),
-  "Std.Internal.UV.UDP.Socket.waitReadable": (socket, _w) => socket.startRead(null),
-  "Std.Internal.UV.UDP.Socket.cancelRecv": (socket, _w) => {
-    const promise = socket.readPromise;
-    if (promise !== null) {
-      socket.readPromise = null;
-      dec(promise);
-      dec(socket);
-      if (socket.reading) {
-        socket.reading = false;
-        mainEventArrived();
-        postMain("udpCancelRead", [socket.id]);
-      }
-    }
-    return ioOk(0);
-  },
-  "Std.Internal.UV.UDP.Socket.getPeerName": (socket, _w) => {
-    if (socket.local === null) {
-      return fail("EBADF");
-    }
-    if (socket.remote === null) {
-      return fail("ENOTCONN");
-    }
-    return ioOk(mkSocketAddress(socket.remote.address, socket.remote.port));
-  },
-  "Std.Internal.UV.UDP.Socket.getSockName": (socket, _w) => {
-    if (socket.local === null) {
-      return fail("EBADF");
-    }
-    return ioOk(mkSocketAddress(socket.local.address, socket.local.port));
-  },
-  "Std.Internal.UV.UDP.Socket.setBroadcast": (socket, on, _w) =>
-    setOption(socket, "setBroadcast", on !== 0),
-  "Std.Internal.UV.UDP.Socket.setMulticastLoop": (socket, on, _w) =>
-    setOption(socket, "setMulticastLoopback", on !== 0),
-  "Std.Internal.UV.UDP.Socket.setMulticastTTL": (socket, ttl, _w) =>
-    ttl > 255 ? fail("EINVAL") : setOption(socket, "setMulticastTTL", ttl),
-  "Std.Internal.UV.UDP.Socket.setTTL": (socket, ttl, _w) =>
-    ttl < 1 || ttl > 255 ? fail("EINVAL") : setOption(socket, "setTTL", ttl),
-  "Std.Internal.UV.UDP.Socket.setMulticastInterface": (socket, iface, _w) =>
-    setOption(socket, "setMulticastInterface", formatIpAddr(iface)),
-  "Std.Internal.UV.UDP.Socket.setMembership": (socket, group, iface, membership, _w) =>
-    attemptRequest(() => {
-      // libuv binds the socket for the group's IP version first.
-      socket.bindIfNeeded(group.tag);
-      if (membership !== 0 && membership !== 1) {
-        return fail("EINVAL");
-      }
-      const args = [formatIpAddr(group), iface === 0 ? undefined : formatIpAddr(iface.f0)];
-      return setOption(socket, membership === 1 ? "addMembership" : "dropMembership", ...args);
-    }),
-};
+    const args = [formatIpAddr(group), iface === 0 ? undefined : formatIpAddr(iface.f0)];
+    return setOption(socket, membership === 1 ? "addMembership" : "dropMembership", ...args);
+  });
+export { Std_Internal_UV_UDP_Socket_setMembership as "Std.Internal.UV.UDP.Socket.setMembership" };

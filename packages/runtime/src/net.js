@@ -6,7 +6,6 @@
 
 import { del, mkCtor } from "./core.js";
 import { mkArray } from "./array.js";
-import { mkString } from "./string.js";
 
 /** Returns the value of the decimal digit `ch`, or -1 if it is not one. */
 const decimalDigit = (ch) => "0123456789".indexOf(ch);
@@ -135,7 +134,7 @@ export function parseIpv6(s) {
   return Array.from({ length: 8 }, (_, k) => (bytes[2 * k] << 8) | bytes[2 * k + 1]);
 }
 
-const formatIpv4 = (octets) => octets.join(".");
+export const formatIpv4 = (octets) => octets.join(".");
 
 /**
  * Formats the IPv6 address with the 16-bit `segments`, writing the longest run of two or more zero
@@ -221,11 +220,4 @@ export function mkSocketAddress(s, port) {
   return addr;
 }
 
-const option = (x) => (x === null ? 0 : mkCtor(1, [mkArray(x)], null));
-
-export const externs = {
-  "Std.Net.IPv4Addr.ofString": (s) => option(parseIpv4(s.toString())),
-  "Std.Net.IPv4Addr.toString": (addr) => mkString(formatIpv4(addr)),
-  "Std.Net.IPv6Addr.ofString": (s) => option(parseIpv6(s.toString())),
-  "Std.Net.IPv6Addr.toString": (addr) => mkString(formatIpv6(addr)),
-};
+export const option = (x) => (x === null ? 0 : mkCtor(1, [mkArray(x)], null));
