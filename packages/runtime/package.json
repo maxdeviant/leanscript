@@ -9,6 +9,7 @@
     "directory": "packages/runtime"
   },
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": "./src/index.js",
     "./externs": "./src/externs/index.js"

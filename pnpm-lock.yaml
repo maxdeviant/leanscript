@@ -24,6 +24,9 @@ importers:
       prettier:
         specifier: ^3.9.10
         version: 3.9.10
+      vite:
+        specifier: ^8.3.5
+        version: 8.3.5(esbuild@0.28.2)(jiti@2.7.0)
 
   examples/todo:
     dependencies:

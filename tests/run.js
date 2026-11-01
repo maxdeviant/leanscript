@@ -12,6 +12,11 @@
 // exit codes. A program that uses externs that are unavailable in browsers must instead fail to
 // compile for the browser target, with the error in the adjacent `.browser-error` file.
 //
+// A program with an adjacent `.browser-unavailable` file is instead compiled for the browser target
+// with `--allow-unavailable`, and must throw because it called an unavailable extern. The first line
+// of the file names the extern, and the rest is the stdout from before the call. `--bless` leaves
+// this file alone.
+//
 // With `--bless`, instead regenerates the `.expected` and `.exitcode` files by compiling each
 // program with native Lean and running it (`lean --run` is not used because it skips the main
 // module's initializers), and the `.browser-error` files by compiling each program for the browser
@@ -69,6 +74,7 @@ for (const name of names) {
   const argsFile = join(fixtures, `${name}.args`);
   const stdinFile = join(fixtures, `${name}.stdin`);
   const browserErrorFile = join(fixtures, `${name}.browser-error`);
+  const browserUnavailableFile = join(fixtures, `${name}.browser-unavailable`);
   const browserOutput = join(outDir, `${name}.browser.mjs`);
   const driverFile = join(fixtures, `${name}.run.js`);
   const compileErrorFile = join(fixtures, `${name}.compile-error`);
@@ -119,6 +125,9 @@ for (const name of names) {
       }
       console.log(`blessed ${name} (exit ${native.status})`);
     }
+    if (existsSync(browserUnavailableFile)) {
+      continue;
+    }
     const browser = compileBrowser();
     if (browser.status === 0) {
       rmSync(browserErrorFile, { force: true });
@@ -148,6 +157,12 @@ for (const name of names) {
   }
 
   const browserLabel = `${name} (browser)`;
+  if (existsSync(browserUnavailableFile)) {
+    if (!checkUnavailable(browserLabel, input, browserOutput, browserUnavailableFile, runOptions)) {
+      failures++;
+    }
+    continue;
+  }
   const browser = compileBrowser();
   const expectedBrowserError = existsSync(browserErrorFile)
     ? readFileSync(browserErrorFile, "utf8")
@@ -210,6 +225,33 @@ function checkCompileError(name, output, errorFile) {
     return false;
   }
   console.log(`ok   ${name}, which fails to compile`);
+  return true;
+}
+
+/**
+ * Compiles `input` to `output` for the browser target, allowing unavailable externs, and reports
+ * whether running it throws for the extern named in `file`, after printing the rest of `file`.
+ */
+function checkUnavailable(label, input, output, file, runOptions) {
+  const compile = spawnSync(
+    compiler,
+    ["compile", input, "-o", output, "--target", "browser", "--allow-unavailable"],
+    { encoding: "utf8" },
+  );
+  if (compile.status !== 0) {
+    console.log(`FAIL ${label} (compile)\n${compile.stderr}`);
+    return false;
+  }
+  const [extern, ...lines] = readFileSync(file, "utf8").split("\n");
+  const expected = lines.join("\n");
+  const message = `LeanScript: ${extern} is not available on this platform`;
+  const run = spawnSync(process.execPath, ["--conditions=browser", output], runOptions);
+  if (run.status === 0 || run.stdout !== expected || !run.stderr.includes(message)) {
+    console.log(`FAIL ${label} (exit ${run.status}, expected a failure with "${message}")`);
+    console.log(`--- expected\n${expected}--- actual\n${run.stdout}--- stderr\n${run.stderr}`);
+    return false;
+  }
+  console.log(`ok   ${label}, which throws when it calls ${extern}`);
   return true;
 }
 

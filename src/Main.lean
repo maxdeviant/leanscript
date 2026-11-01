@@ -9,7 +9,10 @@ def usage : String :=
   leanscript dump-ir <file.lean>
   leanscript list-externs <file.lean>
   leanscript stdlib-externs
-  leanscript --version"
+  leanscript --version
+
+`--runtime` sets the module specifier of the runtime, from which the program also imports
+`<specifier>/externs`, so it must be a package rather than a file."
 
 def moduleNameFor (path : System.FilePath) : Name :=
   (path.fileStem.getD "Main").toName
