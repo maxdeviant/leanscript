@@ -5,7 +5,7 @@ namespace Site
 open Ssg Html
 
 /-- The version of LeanScript that the getting started steps use. -/
-def leanscriptVersion : String := "0.2.0"
+def leanscriptVersion : String := "0.3.0"
 
 def workerExample : String :=
   (include_str "../../examples/worker/Worker.lean").trimAsciiEnd.toString

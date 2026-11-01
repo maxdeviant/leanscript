@@ -62,7 +62,7 @@ export { mkString } from "./string.js";
 export { jsPromiseOfTask, taskOfJsPromise } from "./task.js";
 
 /** The version of the runtime, which must be the version of the compiler that compiled a program. */
-export const version = "0.2.0";
+export const version = "0.3.0";
 
 /**
  * Throws if `compilerVersion`, the version of the compiler that compiled the calling program, is not
